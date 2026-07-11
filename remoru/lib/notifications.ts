@@ -79,13 +79,19 @@ export async function getUsersDueForNotification(
     }
     if (localHour !== u.notificationHour) continue;
 
-    const dueCards = await db
-      .select({ id: reviewCards.id })
-      .from(reviewCards)
-      .where(and(eq(reviewCards.userId, u.id), lte(reviewCards.dueDate, nowTs)));
+    try {
+      const dueCards = await db
+        .select({ id: reviewCards.id })
+        .from(reviewCards)
+        .where(and(eq(reviewCards.userId, u.id), lte(reviewCards.dueDate, nowTs)));
 
-    if (dueCards.length > 0) {
-      dueUsers.push({ userId: u.id, dueCount: dueCards.length });
+      if (dueCards.length > 0) {
+        dueUsers.push({ userId: u.id, dueCount: dueCards.length });
+      }
+    } catch {
+      // A query error for one user (e.g. a transient DB issue) must not
+      // abort the whole notification scan for every other user.
+      continue;
     }
   }
   return dueUsers;
