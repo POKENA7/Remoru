@@ -1,0 +1,17 @@
+# Copy this file to `.dev.vars` and fill in real values.
+# `.dev.vars` is gitignored and must never be committed.
+
+# Clerk (https://dashboard.clerk.com -> API Keys)
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_replace_me
+CLERK_SECRET_KEY=sk_test_replace_me
+
+# Web Push VAPID keys. Generate with:
+#   npx web-push generate-vapid-keys
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=mailto:you@example.com
+
+# Shared secret between remoru-web and cron-worker for the internal
+# send-push route. Generate any random string, e.g.:
+#   openssl rand -hex 32
+INTERNAL_SECRET=
