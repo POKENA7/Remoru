@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
+import { RegisterServiceWorker } from "./register-sw";
 
 export const metadata: Metadata = {
 	title: "Remoru",
@@ -15,7 +16,13 @@ export default function RootLayout({
 	return (
 		<ClerkProvider>
 			<html lang="ja">
-				<body>{children}</body>
+				<head>
+					<link rel="manifest" href="/manifest.json" />
+				</head>
+				<body>
+					<RegisterServiceWorker />
+					{children}
+				</body>
 			</html>
 		</ClerkProvider>
 	);
