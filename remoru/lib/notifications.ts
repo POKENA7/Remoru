@@ -69,7 +69,15 @@ export async function getUsersDueForNotification(
 
   const dueUsers: DueUserSummary[] = [];
   for (const u of allUsers) {
-    if (getLocalHour(nowTs, u.timezone) !== u.notificationHour) continue;
+    let localHour: number;
+    try {
+      localHour = getLocalHour(nowTs, u.timezone);
+    } catch {
+      // An invalid/unrecognized IANA timezone string must not abort the
+      // whole notification scan for every other user — skip just this one.
+      continue;
+    }
+    if (localHour !== u.notificationHour) continue;
 
     const dueCards = await db
       .select({ id: reviewCards.id })
