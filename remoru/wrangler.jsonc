@@ -18,6 +18,14 @@
 			"service": "remoru"
 		}
 	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "remoru-db",
+			"database_id": "5c1baf13-12a8-4e74-ad65-34a93d13a75f",
+			"migrations_dir": "drizzle/migrations"
+		}
+	],
 	"observability": {
 		"enabled": true
 	}

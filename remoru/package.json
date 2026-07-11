@@ -8,18 +8,24 @@
     "start": "next start",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply remoru-db --local",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.19.9",
+    "drizzle-orm": "^0.45.2",
     "next": "16.2.6",
     "react": "^19.1.7",
     "react-dom": "^19.1.7"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/react": "^19.1.7",
     "@types/react-dom": "^19.1.7",
+    "better-sqlite3": "^12.11.1",
+    "drizzle-kit": "^0.31.10",
     "esbuild": "^0.28.1",
     "typescript": "^5.7.4",
     "wrangler": "^4.86.0"
