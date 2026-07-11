@@ -48,14 +48,20 @@ export async function runDigest(env: Env): Promise<void> {
 
     if (dueCards.length === 0) continue;
 
-    await fetch(`${env.INTERNAL_API_URL}/api/internal/send-push`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-internal-secret": env.INTERNAL_SECRET,
-      },
-      body: JSON.stringify({ userId: user.id, dueCount: dueCards.length }),
-    });
+    try {
+      await fetch(`${env.INTERNAL_API_URL}/api/internal/send-push`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-internal-secret": env.INTERNAL_SECRET,
+        },
+        body: JSON.stringify({ userId: user.id, dueCount: dueCards.length }),
+      });
+    } catch {
+      // A network error (or the remote worker being briefly unavailable) for
+      // one user must not abort the digest run for every subsequent user.
+      continue;
+    }
   }
 }
 

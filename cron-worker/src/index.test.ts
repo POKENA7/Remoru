@@ -56,9 +56,47 @@ describe("runDigest", () => {
       vi.useRealTimers();
     }
   });
+
+  it("continues to the next user when fetch fails for one due user", async () => {
+    const nowTs = Math.floor(Date.UTC(2024, 0, 1, 3, 0, 0) / 1000);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(nowTs * 1000));
+
+    try {
+      const fetchMock = vi
+        .spyOn(globalThis, "fetch")
+        .mockRejectedValueOnce(new TypeError("network error"))
+        .mockResolvedValueOnce(new Response("", { status: 200 }));
+
+      const db = createFakeDb(
+        [
+          { id: "flaky-user", timezone: "UTC", notification_hour: 3 },
+          { id: "good-user", timezone: "UTC", notification_hour: 3 },
+        ],
+        ["flaky-user", "good-user"],
+      );
+
+      const env = {
+        DB: db,
+        INTERNAL_API_URL: "https://example.com",
+        INTERNAL_SECRET: "secret",
+      };
+
+      await expect(runDigest(env)).resolves.toBeUndefined();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(
+        JSON.parse(fetchMock.mock.calls[1]?.[1]?.body as string).userId,
+      ).toBe("good-user");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
-function createFakeDb(users: Array<Record<string, unknown>>) {
+function createFakeDb(
+  users: Array<Record<string, unknown>>,
+  dueUserIds: string[] = ["good-user"],
+) {
   return {
     prepare(sql: string) {
       if (sql === "SELECT id, timezone, notification_hour FROM users") {
@@ -74,7 +112,7 @@ function createFakeDb(users: Array<Record<string, unknown>>) {
           bind(userId: string) {
             return {
               async all<T>() {
-                if (userId === "good-user") {
+                if (dueUserIds.includes(userId)) {
                   return { results: [{ id: "card-1" }] as T[] };
                 }
                 return { results: [] as T[] };
