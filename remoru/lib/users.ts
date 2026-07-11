@@ -3,6 +3,15 @@ import { eq } from "drizzle-orm";
 import { users } from "../db/schema";
 import type { AppDb } from "../db/types";
 
+export function isValidTimezone(tz: string): boolean {
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function getOrCreateUser(db: AppDb, clerkUserId: string) {
   const existing = await db
     .select()

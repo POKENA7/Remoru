@@ -1,6 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { createTestDb } from "./test-db";
-import { getOrCreateUser, updateNotificationSettings } from "./users";
+import { getOrCreateUser, updateNotificationSettings, isValidTimezone } from "./users";
+
+describe("isValidTimezone", () => {
+  it("returns true for valid IANA timezone like Asia/Tokyo", () => {
+    expect(isValidTimezone("Asia/Tokyo")).toBe(true);
+  });
+
+  it("returns true for UTC", () => {
+    expect(isValidTimezone("UTC")).toBe(true);
+  });
+
+  it("returns false for garbage timezone string", () => {
+    expect(isValidTimezone("Not/AZone")).toBe(false);
+  });
+
+  it("returns false for arbitrary non-timezone strings", () => {
+    expect(isValidTimezone("asdf")).toBe(false);
+  });
+});
 
 describe("getOrCreateUser", () => {
   it("creates a new user with default settings on first call", async () => {
