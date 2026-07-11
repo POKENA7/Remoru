@@ -14,7 +14,7 @@ export default function Home() {
 
 				<ol>
 					<li>
-						Edit <code>src/app/page.tsx</code> to start building the app.
+						Edit <code>app/page.tsx</code> to start building the app.
 					</li>
 					<li>
 						Run <code>npm run dev</code> for local development.
