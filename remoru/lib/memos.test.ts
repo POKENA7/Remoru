@@ -230,5 +230,30 @@ describe("fixFailedQuizItem", () => {
       }),
     ).rejects.toThrow();
   });
+
+  it("throws when the requesting user does not own the quiz item's memo", async () => {
+    const db = createTestDb();
+    const owner = await getOrCreateUser(db, "clerk_owner_user");
+    const attacker = await getOrCreateUser(db, "clerk_attacker_user");
+    const shell = await createAiMemoShell(db, {
+      userId: owner.id,
+      content: "駅前のパン屋は水曜定休",
+    });
+    await completeAiQuizItem(db, shell.quizItemId, { userId: owner.id }, null);
+
+    await expect(
+      fixFailedQuizItem(db, shell.quizItemId, {
+        userId: attacker.id,
+        question: "Q",
+        answer: "A",
+      }),
+    ).rejects.toThrow();
+
+    const [quizItem] = await db
+      .select()
+      .from(quizItems)
+      .where(eq(quizItems.id, shell.quizItemId));
+    expect(quizItem.status).toBe("failed");
+  });
 });
 

@@ -173,12 +173,16 @@ export async function fixFailedQuizItem(
   params: { userId: string; question: string; answer: string },
 ) {
   const now = Math.floor(Date.now() / 1000);
-  const [quizItem] = await db
-    .select()
+  const [row] = await db
+    .select({ status: quizItems.status, memoUserId: memos.userId })
     .from(quizItems)
+    .innerJoin(memos, eq(memos.id, quizItems.memoId))
     .where(eq(quizItems.id, quizItemId));
 
-  if (!quizItem || quizItem.status !== "failed") {
+  if (!row || row.memoUserId !== params.userId) {
+    throw new Error("quiz item not found");
+  }
+  if (row.status !== "failed") {
     throw new Error("quiz item is not in failed status");
   }
 
