@@ -26,20 +26,34 @@ export async function POST(req: NextRequest) {
     subject: env.VAPID_SUBJECT,
   };
 
+  let sent = 0;
+  let expired = 0;
+  let failed = 0;
+
   for (const sub of subs) {
-    const result = await sendWebPush(
-      { endpoint: sub.endpoint, keysP256dh: sub.keysP256dh, keysAuth: sub.keysAuth },
-      {
-        title: "Remoru",
-        body: `今日${body.dueCount}件の復習があります`,
-        url: "/review",
-      },
-      vapid,
-    );
-    if (!result.ok) {
-      await removePushSubscriptionByEndpoint(db, sub.endpoint);
+    try {
+      const result = await sendWebPush(
+        { endpoint: sub.endpoint, keysP256dh: sub.keysP256dh, keysAuth: sub.keysAuth },
+        {
+          title: "Remoru",
+          body: `今日${body.dueCount}件の復習があります`,
+          url: "/review",
+        },
+        vapid,
+      );
+      if (result.ok) {
+        sent += 1;
+      } else {
+        expired += 1;
+        await removePushSubscriptionByEndpoint(db, sub.endpoint);
+      }
+    } catch {
+      // An unexpected error for one subscription (e.g. transient network/5xx
+      // from the push service) must not prevent delivery to the user's
+      // other devices, nor abort the whole request.
+      failed += 1;
     }
   }
 
-  return NextResponse.json({ sent: subs.length });
+  return NextResponse.json({ sent, expired, failed, total: subs.length });
 }
