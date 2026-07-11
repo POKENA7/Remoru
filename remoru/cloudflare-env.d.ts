@@ -14716,3 +14716,9 @@ declare abstract class WorkflowInstance {
         payload: unknown;
     }): Promise<void>;
 }
+interface CloudflareEnv {
+    VAPID_PUBLIC_KEY: string;
+    VAPID_PRIVATE_KEY: string;
+    VAPID_SUBJECT: string;
+    INTERNAL_SECRET: string;
+}
