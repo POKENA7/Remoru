@@ -1,0 +1,35 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "remoru",
+	"main": ".open-next/worker.js",
+	"compatibility_date": "2026-07-11",
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".open-next/assets"
+	},
+	"services": [
+		{
+			"binding": "WORKER_SELF_REFERENCE",
+			"service": "remoru"
+		}
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "remoru-db",
+			"database_id": "5c1baf13-12a8-4e74-ad65-34a93d13a75f",
+			"migrations_dir": "drizzle/migrations"
+		}
+	],
+	"ai": {
+		"binding": "AI"
+	},
+	"observability": {
+		"enabled": true
+	}
+}

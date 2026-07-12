@@ -1,0 +1,4 @@
+node_modules/
+.wrangler/
+*.tsbuildinfo
+worker-configuration.d.ts

@@ -1,0 +1,38 @@
+{
+  "name": "remoru",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply remoru-db --local",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@clerk/nextjs": "^7.5.17",
+    "@opennextjs/cloudflare": "^1.19.9",
+    "drizzle-orm": "^0.45.2",
+    "next": "16.2.6",
+    "react": "^19.1.7",
+    "react-dom": "^19.1.7",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^20",
+    "@types/react": "^19.1.7",
+    "@types/react-dom": "^19.1.7",
+    "@types/web-push": "^3.6.4",
+    "better-sqlite3": "^12.11.1",
+    "drizzle-kit": "^0.31.10",
+    "esbuild": "^0.28.1",
+    "typescript": "^5.7.4",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.86.0"
+  }
+}
