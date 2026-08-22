@@ -1,7 +1,14 @@
+.DS_Store
 .worktrees/
 .superpowers/
 node_modules/
 .wrangler/
-.dev.vars
 .next/
 .open-next/
+
+# secrets — このリポジトリは public
+.env
+.env.*
+.dev.vars
+.dev.vars.*
+!*.example

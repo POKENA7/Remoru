@@ -1,0 +1,41 @@
+schema: spec-driven
+
+context: |
+  Language: japanese
+  All artifacts must be written in japanese.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+
+  Product: Remoru — 日常のちょっとしたことをメモし、エビングハウスの忘却曲線に
+  基づいて定期的にクイズ形式で復習させることで、記憶定着を助けるアプリ。
+
+  背景・課題・対象ユーザー・成功指標・未確定事項は `docs/intent-statement.md`
+  に記載されている。change を提案する前に必ず読むこと。特に
+  「## Assumptions & Open Questions」は未決定の論点一覧であり、
+  そこに触れる change では推測で埋めず利用者に確認すること。
+
+  This is a rebuild. 先行実装が `remoru-implementation` ブランチに存在するが、
+  設計・スキーマ・コードは引き継がない。参照は可、流用は不可。
+
+  このリポジトリは GitHub 上で public。秘密情報をコミットしないこと。
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
