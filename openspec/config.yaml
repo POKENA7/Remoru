@@ -13,6 +13,10 @@ context: |
   「## Assumptions & Open Questions」は未決定の論点一覧であり、
   そこに触れる change では推測で埋めず利用者に確認すること。
 
+  画面設計・配色・操作設計・コピーのトーンは `docs/design-decisions.md` に
+  確定済み。UI に触れる change では必ず読み、そこで決まっていることを
+  蒸し返さないこと。
+
   This is a rebuild. 先行実装が `remoru-implementation` ブランチに存在するが、
   設計・スキーマ・コードは引き継がない。参照は可、流用は不可。
 
