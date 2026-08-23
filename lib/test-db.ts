@@ -16,6 +16,11 @@ const MIGRATIONS_DIR = join(process.cwd(), "drizzle", "migrations");
 export function createTestDb(): AppDb {
   const sqlite = new Database(":memory:");
 
+  // SQLite は既定で外部キーを無視する。有効にしないと ON DELETE CASCADE が
+  // 効かず、連鎖削除のテストが「通っているように見えて何も検証していない」
+  // 状態になる。D1 側は既定で強制される。
+  sqlite.pragma("foreign_keys = ON");
+
   const files = readdirSync(MIGRATIONS_DIR)
     .filter((f) => f.endsWith(".sql"))
     .sort();

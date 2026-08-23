@@ -8,6 +8,13 @@
       "when": 1787416611081,
       "tag": "0000_green_archangel",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1787467592098,
+      "tag": "0001_demonic_valkyrie",
+      "breakpoints": true
     }
   ]
 }

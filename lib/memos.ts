@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { memos, type Memo } from "../db/schema";
 import type { AppDb } from "../db/types";
 
@@ -79,4 +79,26 @@ export async function listMemos(
     .where(eq(memos.userId, userId))
     // 同じ保存時刻のときの順序を決定的にするため id を第二キーに使う
     .orderBy(desc(memos.createdAt), desc(memos.id));
+}
+
+export type DeleteMemoResult = { ok: true } | { ok: false; error: "not_found" };
+
+/**
+ * メモを削除する。紐づく問答とスケジュールはデータベース側の
+ * ON DELETE CASCADE で消える（design.md D5）。ここで順に消さない。
+ */
+export async function deleteMemo(
+  db: AppDb,
+  params: { memoId: string; userId?: string },
+): Promise<DeleteMemoResult> {
+  const userId = params.userId ?? SINGLE_USER_ID;
+
+  const owned = await db
+    .select({ id: memos.id })
+    .from(memos)
+    .where(and(eq(memos.id, params.memoId), eq(memos.userId, userId)));
+  if (owned.length === 0) return { ok: false, error: "not_found" };
+
+  await db.delete(memos).where(eq(memos.id, params.memoId));
+  return { ok: true };
 }

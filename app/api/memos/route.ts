@@ -1,12 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { createMemo, listMemos } from "@/lib/memos";
+import { getReviewStates, countUnwritten } from "@/lib/quiz-items";
 
-/** 保存済みメモを新しい順に返す。 */
+/**
+ * 保存済みメモを新しい順に返す。
+ *
+ * 各メモには復習の状態を添える。返すのは次回出題日だけで、スケジューラの
+ * 内部状態は含めない（design.md D2）。
+ */
 export async function GET() {
   const db = await getDb();
-  const memos = await listMemos(db);
-  return NextResponse.json({ memos });
+  const [memos, states, unwritten] = await Promise.all([
+    listMemos(db),
+    getReviewStates(db),
+    countUnwritten(db),
+  ]);
+
+  const withState = memos.map((memo) => ({
+    ...memo,
+    review: states.get(memo.id) ?? { kind: "unwritten" as const },
+  }));
+
+  return NextResponse.json({ memos: withState, unwrittenCount: unwritten });
 }
 
 /** メモを1件保存する。 */
