@@ -5,6 +5,7 @@ node_modules/
 .wrangler/
 .next/
 .open-next/
+*.tsbuildinfo
 
 # secrets — このリポジトリは public
 .env
