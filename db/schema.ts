@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
 
 export const memos = sqliteTable("memos", {
   id: text("id").primaryKey(),
@@ -36,20 +36,60 @@ export const quizItems = sqliteTable("quiz_items", {
  * `state` はスケジューラだけのもので、他の層は読まない・書かない・分岐しない
  * （design.md D2）。SM-2 系へ差し替えるとき変わるのはこの中身だけになる。
  */
-export const reviewSchedules = sqliteTable("review_schedules", {
-  quizItemId: text("quiz_item_id")
-    .primaryKey()
-    .references(() => quizItems.id, { onDelete: "cascade" }),
+export const reviewSchedules = sqliteTable(
+  "review_schedules",
+  {
+    quizItemId: text("quiz_item_id")
+      .primaryKey()
+      .references(() => quizItems.id, { onDelete: "cascade" }),
 
-  // エポックミリ秒。日付の境界は lib/review-scheduler.ts が決める。
-  nextReviewAt: integer("next_review_at").notNull(),
+    // エポックミリ秒。日付の境界は lib/review-scheduler.ts が決める。
+    nextReviewAt: integer("next_review_at").notNull(),
 
-  // スケジューラの内部状態（JSON 文字列）。不透明。
-  state: text("state").notNull(),
+    // スケジューラの内部状態（JSON 文字列）。不透明。
+    state: text("state").notNull(),
+  },
+  // 出題対象の絞り込みで本体と cron の両方が毎回引く
+  (t) => [index("review_schedules_next_review_at_idx").on(t.nextReviewAt)],
+);
+
+/**
+ * 利用者ごとの通知設定。
+ *
+ * 利用者は Clerk 側にあるため外部キーは張らない。`lastSentOn` は
+ * 「利用者の地域での日付」を YYYY-MM-DD で持ち、同じ日に二度送らない
+ * ための記録として使う（design.md D4）。
+ */
+export const notificationSettings = sqliteTable("notification_settings", {
+  userId: text("user_id").primaryKey(),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
+  /** 通知する時刻（0-23）。利用者の地域での時刻。 */
+  hour: integer("hour").notNull().default(21),
+  /** IANA のタイムゾーン名。例: Asia/Tokyo */
+  timeZone: text("time_zone").notNull().default("Asia/Tokyo"),
+  /** 最後に送った日（利用者の地域での YYYY-MM-DD）。未送信なら null。 */
+  lastSentOn: text("last_sent_on"),
 });
+
+/** プッシュの購読。端末ごとに1件で、利用者に紐づく。 */
+export const pushSubscriptions = sqliteTable(
+  "push_subscriptions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    endpoint: text("endpoint").notNull().unique(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  // cron は選ばれた利用者ごとに user_id で引く
+  (t) => [index("push_subscriptions_user_id_idx").on(t.userId)],
+);
 
 export type Memo = typeof memos.$inferSelect;
 export type NewMemo = typeof memos.$inferInsert;
 export type QuizItem = typeof quizItems.$inferSelect;
 export type NewQuizItem = typeof quizItems.$inferInsert;
 export type ReviewSchedule = typeof reviewSchedules.$inferSelect;
+export type NotificationSettings = typeof notificationSettings.$inferSelect;
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;

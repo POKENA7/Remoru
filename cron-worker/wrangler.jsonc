@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "remoru-cron",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // この worker は Cron Trigger でしか起きない。fetch のハンドラを持たない
+  // ので公開 URL は 500 を返すだけだが、要らない入口は開けておかない。
+  "workers_dev": false,
+  "preview_urls": false,
+
+  // 毎時0分に起きて、その時刻に通知すべき利用者を探す（design.md D3）。
+  "triggers": {
+    "crons": ["0 * * * *"]
+  },
+
+  // 本体アプリと同じデータベース。cron はここを直接読み、自分で送る。
+  // 本体への HTTP 呼び出しは行わない（design.md D1）。
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "remoru-db",
+      "database_id": "5c1baf13-12a8-4e74-ad65-34a93d13a75f"
+    }
+  ]
+}

@@ -20,6 +20,22 @@ function Cells({ total, done }: { total: number; done: number }) {
   );
 }
 
+/**
+ * 通知の設定への入口。下部タブは2つのまま増やさない（design.md D7）。
+ *
+ * 通知が切れていることを促す文言は置かない。設定を開いたときに現在の
+ * 状態が読めれば足りる。
+ */
+function SettingsLink({ onOpenSettings }: { onOpenSettings: () => void }) {
+  return (
+    <p style={{ textAlign: "center", marginTop: "2rem" }}>
+      <button type="button" className="quit" onClick={onOpenSettings}>
+        通知の設定
+      </button>
+    </p>
+  );
+}
+
 type Phase = "before" | "running" | "done";
 
 export function ReviewTab({
@@ -27,11 +43,13 @@ export function ReviewTab({
   loading,
   onFinished,
   onGoToMemos,
+  onOpenSettings,
 }: {
   items: DueItem[];
   loading: boolean;
   onFinished: () => void;
   onGoToMemos: () => void;
+  onOpenSettings: () => void;
 }) {
   const [phase, setPhase] = useState<Phase>("before");
   const [index, setIndex] = useState(0);
@@ -97,6 +115,7 @@ export function ReviewTab({
         <button type="button" className="btn btn-plain" onClick={onGoToMemos}>
           なにか書きとめる
         </button>
+        <SettingsLink onOpenSettings={onOpenSettings} />
       </div>
     );
   }
@@ -155,6 +174,7 @@ export function ReviewTab({
         <p className="muted" style={{ textAlign: "center", marginTop: "0.7rem" }}>
           気が向いたときで
         </p>
+        <SettingsLink onOpenSettings={onOpenSettings} />
       </div>
     );
   }

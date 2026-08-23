@@ -1,17 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { MemoTab } from "./memo-tab";
+import { NotificationSettings } from "./notification-settings";
 import { ReviewTab } from "./review-tab";
 import type { DueItem, MemoRow } from "./types";
 
 type Tab = "memo" | "review";
 
 export function AppShell() {
-  const [tab, setTab] = useState<Tab>("memo");
+  // 通知から来たときは復習タブを開く（lib/notification-message.ts の REVIEW_URL）
+  const params = useSearchParams();
+  const [tab, setTab] = useState<Tab>(
+    params.get("tab") === "review" ? "review" : "memo",
+  );
   const [memos, setMemos] = useState<MemoRow[]>([]);
   const [due, setDue] = useState<DueItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -32,10 +39,28 @@ export function AppShell() {
     void load();
   }, [load]);
 
+  // 通知をタップしたとき、すでに開いているものは開き直さずに切り替える
+  // （spec「すでにアプリが開いているとき」）。送り手は public/sw.js。
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type !== "remoru:open-review") return;
+      setSettingsOpen(false);
+      setTab("review");
+      void load();
+    };
+
+    navigator.serviceWorker.addEventListener("message", onMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", onMessage);
+  }, [load]);
+
   return (
     <main className="app">
       <div className="body">
-        {tab === "memo" ? (
+        {settingsOpen ? (
+          <NotificationSettings onClose={() => setSettingsOpen(false)} />
+        ) : tab === "memo" ? (
           <MemoTab memos={memos} loading={loading} onChanged={load} />
         ) : (
           <ReviewTab
@@ -43,6 +68,7 @@ export function AppShell() {
             loading={loading}
             onFinished={load}
             onGoToMemos={() => setTab("memo")}
+            onOpenSettings={() => setSettingsOpen(true)}
           />
         )}
       </div>
@@ -53,7 +79,10 @@ export function AppShell() {
           role="tab"
           className="tab"
           aria-selected={tab === "memo"}
-          onClick={() => setTab("memo")}
+          onClick={() => {
+            setSettingsOpen(false);
+            setTab("memo");
+          }}
         >
           <i />
           メモ
@@ -63,7 +92,10 @@ export function AppShell() {
           role="tab"
           className="tab"
           aria-selected={tab === "review"}
-          onClick={() => setTab("review")}
+          onClick={() => {
+            setSettingsOpen(false);
+            setTab("review");
+          }}
         >
           <i />
           復習

@@ -2,6 +2,14 @@
 
 本番: https://remoru.pokena191.workers.dev
 
+**worker は2つある。** 片方だけ出荷すると壊れ方が分かりにくいので、
+どちらの手順もこの文書に置く。
+
+| worker | 出すもの | 手順 |
+|---|---|---|
+| `remoru` | 本体アプリ | `npm run deploy` |
+| `remoru-cron` | 通知の cron | `(cd cron-worker && npx wrangler deploy)` |
+
 ## 通常のデプロイ
 
 ```bash
@@ -10,6 +18,23 @@ npm run deploy
 
 `predeploy` がテストと型チェックを走らせ、**落ちたらデプロイに進まない**。
 先行実装のデプロイはビルドと出荷だけで、赤いまま出荷できた。同じ形にしない。
+
+cron worker を変えたときは、そちらも出す。
+
+```bash
+(cd cron-worker && npx wrangler deploy)
+```
+
+**`cd` は括弧で囲む。** `cron-worker/wrangler.jsonc` には `migrations_dir` が
+無いため、そのまま次のコマンドへ進むと `d1 migrations apply` が
+「No migrations present at .../cron-worker/migrations」で落ちる。
+どの worker を相手にしているかは**カレントディレクトリだけ**が決めている。
+
+**`cron-worker/` は本体のテストとは別の worker だが、コードは共有している**
+（`lib/notification-timing.ts`、`lib/push.ts`、`lib/review-scheduler.ts`）。
+共有ファイルを変えたら**両方を出し直す**。片方だけ古いままだと、通知の
+判定と本体の出題対象が食い違い、「復習タブには出ているのに通知が来ない」
+という形で静かに壊れる。**この壊れ方はエラーを出さない。**
 
 ## 初回だけ必要だったこと
 
@@ -20,11 +45,49 @@ npm run deploy
    ```bash
    npx wrangler d1 migrations apply remoru-db --remote
    ```
+
+   **リポジトリのルートで実行する。**
 2. **シークレットの登録** — 値は `.env.local` にある。リポジトリには入れない
    ```bash
    npx wrangler secret put CLERK_SECRET_KEY
    npx wrangler secret put NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
    ```
+3. **VAPID の鍵**（通知）— 生成して**両方の worker**に登録する
+   ```bash
+   npx web-push generate-vapid-keys
+   ```
+
+   | 鍵 | `remoru`（本体） | `remoru-cron` |
+   |---|---|---|
+   | `VAPID_PUBLIC_KEY` | 要る（購読を作るときブラウザへ渡す） | 要る |
+   | `VAPID_PRIVATE_KEY` | 不要 | 要る |
+   | `VAPID_SUBJECT` | 不要 | 要る（`mailto:` 形式） |
+
+   `VAPID_SUBJECT` は**取得するものではなく自分で決める値**。JWT の `sub` に
+   載る連絡先で、`mailto:...` か `https://...` のいずれか。配信元に問題が
+   あったときプッシュサービスから連絡が来る先なので、実在するものにする。
+   `mailto:` を付け忘れると署名を拒否する配信サービスがある。
+
+   秘密ではないが、**このリポジトリは public** なので `wrangler.jsonc` の
+   `vars` ではなくシークレットに置く。vars に書くとメールアドレスが GitHub に
+   載る。
+
+   ```bash
+   npx wrangler secret put VAPID_PUBLIC_KEY
+   ```
+
+   ```bash
+   (cd cron-worker && npx wrangler secret put VAPID_PUBLIC_KEY)
+   (cd cron-worker && npx wrangler secret put VAPID_PRIVATE_KEY)
+   (cd cron-worker && npx wrangler secret put VAPID_SUBJECT)
+   ```
+
+   **片方だけに入れると、購読はできるのに通知が届かない。** 本体側の鍵だけ
+   あると購読は作れてしまい、cron 側が署名できずに落ちる。画面上は成功に
+   見えるので、`npx wrangler secret list` を**両方で**確認する。
+
+   鍵を後から差し替えるときは、**購読も作り直しになる**。購読は購読時の
+   公開鍵に紐づくため、鍵を変えると既存の購読先はすべて無効になる。
 
 ## 踏んだ罠
 
@@ -73,6 +136,21 @@ curl -s https://remoru.pokena191.workers.dev/api/memos                          
 ```
 
 **500 が返るならシークレットが効いていない。** `npx wrangler secret list` で確認する。
+
+通知まわりは次も見る。
+
+```bash
+# 本番の D1 に2つのテーブルがあるか
+npx wrangler d1 execute remoru-db --remote --command \
+  "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'notification%' OR name='push_subscriptions'"
+
+# cron の Cron Trigger が登録されているか
+(cd cron-worker && npx wrangler deployments list)
+```
+
+**実際に届くかは実機でしか確かめられない。** 端末の許可、Service Worker の
+登録、指定時刻の着信、タップして復習が開くこと。iOS は**ホーム画面に追加した
+PWA でしか届かない**（ブラウザのタブでは届かない）。
 
 最後に本番の URL でサインインし、メモの投入から復習まで実際に通す。
 ここまで通って初めてデプロイ完了とする。

@@ -1,0 +1,16 @@
+{
+  "name": "remoru-cron",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "dev": "wrangler dev --test-scheduled --persist-to ../.wrangler/state",
+    "deploy": "npm run typecheck && wrangler deploy"
+  },
+  "dependencies": {
+    "@block65/webcrypto-web-push": "^1.0.2",
+    "@cloudflare/workers-types": "^5.20260823.1",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.125.0"
+  }
+}
