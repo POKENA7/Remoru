@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { getCurrentUserId } from "@/lib/current-user";
 import { createQuizItem } from "@/lib/quiz-items";
 
 /** メモに問と答を1つ作る。 */
@@ -8,6 +9,11 @@ export async function POST(
   { params }: { params: Promise<{ memoId: string }> },
 ) {
   const { memoId } = await params;
+
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+  }
 
   let body: unknown;
   try {
@@ -30,6 +36,7 @@ export async function POST(
     question,
     answer,
     now: Date.now(),
+    userId,
   });
 
   if (!result.ok) {

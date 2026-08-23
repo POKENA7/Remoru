@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { UserButton } from "@clerk/nextjs";
 import { QuizSheet } from "./quiz-sheet";
 import { MAX_CONTENT_LENGTH, formatDay, type MemoRow } from "./types";
 
@@ -90,7 +91,10 @@ export function MemoTab({
 
   return (
     <>
-      <h1 className="brand">Remoru</h1>
+      <div className="brand-row">
+        <h1 className="brand">Remoru</h1>
+        <UserButton />
+      </div>
 
       <form className="composer" onSubmit={save}>
         <textarea

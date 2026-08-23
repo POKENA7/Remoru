@@ -1,75 +1,22 @@
-"use client";
+import { redirect } from "next/navigation";
+import { getCurrentUserId } from "@/lib/current-user";
+import { AppShell } from "./app-shell";
 
-import { useCallback, useEffect, useState } from "react";
-import { MemoTab } from "./memo-tab";
-import { ReviewTab } from "./review-tab";
-import type { DueItem, MemoRow } from "./types";
+/**
+ * 未認証を資源の側で止める。
+ *
+ * design.md D3: middleware（proxy.ts）は使わない。理由は2つある。
+ * OpenNext が Node.js ランタイムの middleware を支援しておらず
+ * Cloudflare Workers 上でビルドが通らないこと。そして Clerk 自身が
+ * 「middleware のパス一致は Next.js のルーティングと乖離しうるため、
+ * 保護されるべき資源に到達できる場合がある」として非推奨にしていること。
+ *
+ * API ルートは各自が getCurrentUserId() を確認して 401 を返す。
+ * 画面はここで確認してサインインへ送る。
+ */
+export default async function Page() {
+  const userId = await getCurrentUserId();
+  if (!userId) redirect("/sign-in");
 
-type Tab = "memo" | "review";
-
-export default function Home() {
-  const [tab, setTab] = useState<Tab>("memo");
-  const [memos, setMemos] = useState<MemoRow[]>([]);
-  const [due, setDue] = useState<DueItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    try {
-      const [m, d] = await Promise.all([
-        fetch("/api/memos").then((r) => r.json()),
-        fetch("/api/review/due").then((r) => r.json()),
-      ]);
-      setMemos((m as { memos: MemoRow[] }).memos ?? []);
-      setDue((d as { items: DueItem[] }).items ?? []);
-    } catch {
-      // 読み込みの失敗は各タブの空状態として現れる
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  return (
-    <main className="app">
-      <div className="body">
-        {tab === "memo" ? (
-          <MemoTab memos={memos} loading={loading} onChanged={load} />
-        ) : (
-          <ReviewTab
-            items={due}
-            loading={loading}
-            onFinished={load}
-            onGoToMemos={() => setTab("memo")}
-          />
-        )}
-      </div>
-
-      <nav className="tabs" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          className="tab"
-          aria-selected={tab === "memo"}
-          onClick={() => setTab("memo")}
-        >
-          <i />
-          メモ
-        </button>
-        <button
-          type="button"
-          role="tab"
-          className="tab"
-          aria-selected={tab === "review"}
-          onClick={() => setTab("review")}
-        >
-          <i />
-          復習
-          {due.length > 0 && <span className="count">{due.length}</span>}
-        </button>
-      </nav>
-    </main>
-  );
+  return <AppShell />;
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { getCurrentUserId } from "@/lib/current-user";
 import { createMemo, listMemos } from "@/lib/memos";
 import { getReviewStates, countUnwritten } from "@/lib/quiz-items";
 
@@ -10,11 +11,16 @@ import { getReviewStates, countUnwritten } from "@/lib/quiz-items";
  * 内部状態は含めない（design.md D2）。
  */
 export async function GET() {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+  }
+
   const db = await getDb();
   const [memos, states, unwritten] = await Promise.all([
-    listMemos(db),
-    getReviewStates(db),
-    countUnwritten(db),
+    listMemos(db, userId),
+    getReviewStates(db, userId),
+    countUnwritten(db, userId),
   ]);
 
   const withState = memos.map((memo) => ({
@@ -27,6 +33,11 @@ export async function GET() {
 
 /** メモを1件保存する。 */
 export async function POST(req: NextRequest) {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+  }
+
   let body: unknown;
   try {
     body = await req.json();
@@ -42,7 +53,7 @@ export async function POST(req: NextRequest) {
   const db = await getDb();
 
   // 時計はここで読み、ドメイン層には値として渡す
-  const result = await createMemo(db, { content, now: Date.now() });
+  const result = await createMemo(db, { content, now: Date.now(), userId });
 
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 400 });

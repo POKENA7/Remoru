@@ -12,9 +12,9 @@
     {
       "binding": "DB",
       "database_name": "remoru-db",
-      // ローカル開発ではこの値はローカル DB の識別にのみ使われる。
-      // 実際の Cloudflare アカウント上の ID は change 3（デプロイ）で設定する。
-      "database_id": "local-dev-placeholder",
+      // v1 が作って一度も使わなかった空のデータベースを再利用している。
+      // スキーマは入っていないため、引き継ぎは発生しない。
+      "database_id": "5c1baf13-12a8-4e74-ad65-34a93d13a75f",
       "migrations_dir": "drizzle/migrations"
     }
   ]

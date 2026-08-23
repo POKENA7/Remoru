@@ -5,12 +5,6 @@ import type { AppDb } from "../db/types";
 /** 本文の長さ上限（文字数）。design.md 参照 — 実使用を見て見直す暫定値。 */
 export const MAX_CONTENT_LENGTH = 1000;
 
-/**
- * 認証を導入するまでの固定利用者。change 3 で認証済み利用者の識別子に
- * 差し替える。差し替え先はこの定数を参照している箇所のみ。
- */
-export const SINGLE_USER_ID = "single-user";
-
 export type ValidationError = "empty" | "too_long";
 
 export type ValidatedContent =
@@ -49,7 +43,7 @@ export type CreateMemoResult =
  */
 export async function createMemo(
   db: AppDb,
-  params: { content: string; now: number; userId?: string },
+  params: { content: string; now: number; userId: string },
 ): Promise<CreateMemoResult> {
   const validated = validateMemoContent(params.content);
   if (!validated.ok) {
@@ -58,7 +52,7 @@ export async function createMemo(
 
   const memo: Memo = {
     id: crypto.randomUUID(),
-    userId: params.userId ?? SINGLE_USER_ID,
+    userId: params.userId,
     content: validated.content,
     createdAt: params.now,
   };
@@ -69,10 +63,7 @@ export async function createMemo(
 }
 
 /** 保存済みメモを保存時刻の新しい順に返す。 */
-export async function listMemos(
-  db: AppDb,
-  userId: string = SINGLE_USER_ID,
-): Promise<Memo[]> {
+export async function listMemos(db: AppDb, userId: string): Promise<Memo[]> {
   return await db
     .select()
     .from(memos)
@@ -89,9 +80,9 @@ export type DeleteMemoResult = { ok: true } | { ok: false; error: "not_found" };
  */
 export async function deleteMemo(
   db: AppDb,
-  params: { memoId: string; userId?: string },
+  params: { memoId: string; userId: string },
 ): Promise<DeleteMemoResult> {
-  const userId = params.userId ?? SINGLE_USER_ID;
+  const userId = params.userId;
 
   const owned = await db
     .select({ id: memos.id })

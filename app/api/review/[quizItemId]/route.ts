@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { getCurrentUserId } from "@/lib/current-user";
 import { gradeReview } from "@/lib/review";
 
 /**
@@ -13,6 +14,11 @@ export async function POST(
   { params }: { params: Promise<{ quizItemId: string }> },
 ) {
   const { quizItemId } = await params;
+
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+  }
 
   let body: unknown;
   try {
@@ -35,6 +41,7 @@ export async function POST(
     recalled,
     occurrenceAt,
     now: Date.now(),
+    userId,
   });
 
   if (!result.ok) {

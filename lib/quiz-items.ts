@@ -2,7 +2,6 @@ import { and, eq, isNull } from "drizzle-orm";
 import { memos, quizItems, reviewSchedules, type QuizItem } from "../db/schema";
 import type { AppDb } from "../db/types";
 import { initialSchedule, serializeState } from "./review-scheduler";
-import { SINGLE_USER_ID } from "./memos";
 
 /** 問・答それぞれの長さ上限（文字数）。 */
 export const MAX_QUESTION_LENGTH = 200;
@@ -56,13 +55,13 @@ export async function createQuizItem(
     question: string;
     answer: string;
     now: number;
-    userId?: string;
+    userId: string;
   },
 ): Promise<CreateQuizItemResult> {
   const validated = validateQuizItem(params.question, params.answer);
   if (!validated.ok) return validated;
 
-  const userId = params.userId ?? SINGLE_USER_ID;
+  const userId = params.userId;
 
   // 他人のメモに問答を付けられないよう、所有を確認してから書く
   const owned = await db
@@ -108,7 +107,7 @@ export type MemoReviewState =
  */
 export async function getReviewStates(
   db: AppDb,
-  userId: string = SINGLE_USER_ID,
+  userId: string,
 ): Promise<Map<string, MemoReviewState>> {
   const rows = await db
     .select({
@@ -135,7 +134,7 @@ export async function getReviewStates(
 /** 問答が未作成のメモの件数。 */
 export async function countUnwritten(
   db: AppDb,
-  userId: string = SINGLE_USER_ID,
+  userId: string,
 ): Promise<number> {
   const rows = await db
     .select({ id: memos.id })

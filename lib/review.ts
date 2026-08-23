@@ -7,7 +7,6 @@ import {
   serializeState,
   startOfReviewDay,
 } from "./review-scheduler";
-import { SINGLE_USER_ID } from "./memos";
 
 export type DueItem = {
   quizItemId: string;
@@ -28,7 +27,7 @@ export type DueItem = {
 export async function getDueItems(
   db: AppDb,
   now: number,
-  userId: string = SINGLE_USER_ID,
+  userId: string,
 ): Promise<DueItem[]> {
   const today = startOfReviewDay(now);
 
@@ -71,10 +70,10 @@ export async function gradeReview(
     recalled: boolean;
     occurrenceAt: number;
     now: number;
-    userId?: string;
+    userId: string;
   },
 ): Promise<GradeResult> {
-  const userId = params.userId ?? SINGLE_USER_ID;
+  const userId = params.userId;
 
   const rows = await db
     .select({
