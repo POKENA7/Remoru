@@ -12,6 +12,16 @@ export const memos = sqliteTable("memos", {
 
   // エポックミリ秒
   createdAt: integer("created_at").notNull(),
+
+  /**
+   * 問答の生成を始めた時刻（エポックミリ秒）。生成していなければ null。
+   *
+   * 「生成中」を表すのに状態の列を別に持たない。**非 null なら生成中**、
+   * それ以外は問答の有無で決まる（design.md D2）。失敗と未着手を区別
+   * しないのは、spec がどちらも「未作成」として同じに扱うため。
+   * 状態と時刻を別々に持つと、矛盾した組み合わせが表現できてしまう。
+   */
+  quizPendingSince: integer("quiz_pending_since"),
 });
 
 /** メモから作られる問と答のペア。1メモにつき最大1つ。 */

@@ -318,3 +318,43 @@ body {
   border-radius: 10px; padding: 0.4rem 0.6rem;
 }
 .hour:focus { outline: 2px solid var(--orange); outline-offset: 1px; }
+
+/* --- 問答の生成 --- */
+
+/* 一覧に出すのは問だけ。答えは出さない（想起の機会を壊さない） */
+.memo-q {
+  margin: 0 0 0.5rem; padding-left: 0.7rem;
+  font-size: 0.82rem; color: var(--ink-soft);
+  border-left: 3px solid var(--orange-soft);
+  word-break: break-word;
+}
+
+/*
+ * 作り直しは副次の操作。未作成のメモに出る「問と答をつくる」と同じ
+ * 塗りにすると、やることが2つあるように見える。文字だけにして下げる。
+ */
+.redo {
+  font: inherit; font-size: 0.75rem; cursor: pointer;
+  background: none; border: none; padding: 0;
+  color: var(--ink-soft); text-decoration: underline;
+}
+/* opacity で薄めると 2.51:1（ライト）/ 2.79:1（ダーク）まで落ちる。
+   このボタンは disabled のとき「つくり直しています...」という読ませたい
+   文言を出しているので、薄めずに下線だけ外す */
+.redo:disabled { cursor: not-allowed; text-decoration: none; }
+
+.making {
+  font-size: 0.75rem; font-weight: 700; color: var(--ink-soft);
+  display: inline-flex; align-items: center; gap: 0.4rem;
+}
+.making::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--orange); animation: making-pulse 1.4s ease-in-out infinite;
+}
+@keyframes making-pulse {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .making::before { animation: none; opacity: 0.7; }
+}

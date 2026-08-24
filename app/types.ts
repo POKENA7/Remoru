@@ -1,6 +1,7 @@
 export type ReviewState =
   | { kind: "unwritten" }
-  | { kind: "scheduled"; nextReviewAt: number };
+  | { kind: "generating" }
+  | { kind: "scheduled"; nextReviewAt: number; question: string };
 
 export type MemoRow = {
   id: string;

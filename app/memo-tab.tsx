@@ -29,6 +29,29 @@ export function MemoTab({
   const [error, setError] = useState<string | null>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [regenerating, setRegenerating] = useState<string | null>(null);
+
+  /**
+   * 問と答を作り直す。
+   *
+   * 失敗しても以前の問答は残る（サーバー側で保証している）ので、
+   * 画面には何も出さない。責めない語り口と一貫させる。
+   */
+  const regenerate = useCallback(
+    async (memoId: string) => {
+      if (regenerating) return;
+      setRegenerating(memoId);
+      try {
+        await fetch(`/api/memos/${memoId}/quiz-item`, { method: "PUT" });
+      } catch {
+        // 以前の問答がそのまま残る
+      } finally {
+        setRegenerating(null);
+        onChanged();
+      }
+    },
+    [regenerating, onChanged],
+  );
 
   const save = useCallback(
     async (e: React.FormEvent) => {
@@ -53,8 +76,9 @@ export function MemoTab({
         }
         setContent("");
         onChanged();
-        // 保存直後に問と答のシートをせり上げる。背後は更新済みの一覧。
-        setSheet({ memoId: data.memo.id, content: data.memo.content });
+        // 保存直後にシートをせり上げない。問と答は生成が作る。ここで手入力を
+        // 求めると、書いたものが遅れて届く生成結果と競合する。手で書く経路は
+        // 一覧の「問と答をつくる →」に残っている（生成に失敗したメモに出る）。
       } catch {
         setError(FALLBACK);
       } finally {
@@ -151,11 +175,19 @@ export function MemoTab({
               className={memo.review.kind === "unwritten" ? "memo unwritten" : "memo"}
             >
               <p className="memo-text">{memo.content}</p>
+
+              {/* 問だけを出す。答えは出さない（想起の機会を壊さない） */}
+              {memo.review.kind === "scheduled" && memo.review.question && (
+                <p className="memo-q">問：{memo.review.question}</p>
+              )}
+
               <div className="memo-foot">
                 {memo.review.kind === "scheduled" ? (
                   <span className="due">
                     次は {formatDay(memo.review.nextReviewAt)}
                   </span>
+                ) : memo.review.kind === "generating" ? (
+                  <span className="making">問と答をつくっています</span>
                 ) : (
                   <button
                     type="button"
@@ -163,6 +195,16 @@ export function MemoTab({
                     onClick={() => setSheet({ memoId: memo.id, content: memo.content })}
                   >
                     問と答をつくる →
+                  </button>
+                )}
+                {memo.review.kind === "scheduled" && (
+                  <button
+                    type="button"
+                    className="redo"
+                    onClick={() => void regenerate(memo.id)}
+                    disabled={regenerating === memo.id}
+                  >
+                    {regenerating === memo.id ? "つくり直しています..." : "つくり直す"}
                   </button>
                 )}
                 <button

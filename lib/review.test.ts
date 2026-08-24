@@ -105,11 +105,11 @@ describe("一覧の復習状態（タスク 3.2）", () => {
     const without = await seedMemo(db, "問答なし", NOW);
     await createQuizItem(db, { memoId: withQuiz.id, question: "問", answer: "答", now: NOW, userId: USER });
 
-    const states = await getReviewStates(db, USER);
+    const states = await getReviewStates(db, USER, Date.now());
 
     expect(states.get(without.id)).toEqual({ kind: "unwritten" });
     expect(states.get(withQuiz.id)).toEqual({
-      kind: "scheduled", nextReviewAt: startOfReviewDay(NOW) + DAY,
+      kind: "scheduled", nextReviewAt: startOfReviewDay(NOW) + DAY, question: "問",
     });
   });
 
@@ -120,7 +120,7 @@ describe("一覧の復習状態（タスク 3.2）", () => {
     await seedMemo(db, "C");
     await createQuizItem(db, { memoId: a.id, question: "問", answer: "答", now: NOW, userId: USER });
 
-    await expect(countUnwritten(db, USER)).resolves.toBe(2);
+    await expect(countUnwritten(db, USER, Date.now())).resolves.toBe(2);
   });
 });
 

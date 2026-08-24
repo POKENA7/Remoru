@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { MemoTab } from "./memo-tab";
 import { NotificationSettings } from "./notification-settings";
@@ -8,6 +8,16 @@ import { ReviewTab } from "./review-tab";
 import type { DueItem, MemoRow } from "./types";
 
 type Tab = "memo" | "review";
+
+/**
+ * 「作成中」が残る間だけ、上限を決めて一覧を取り直す（design.md D9）。
+ *
+ * 生成は応答を返したあとに走るので、完了は自動では届かない。常時
+ * 問い合わせると終わったあとも続くし、何もしないと書いた直後に
+ * 「作成中」のまま止まって見える。
+ */
+const POLL_INTERVAL_MS = 2000;
+const MAX_POLLS = 8;
 
 export function AppShell() {
   // 通知から来たときは復習タブを開く（lib/notification-message.ts の REVIEW_URL）
@@ -38,6 +48,31 @@ export function AppShell() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // 生成中のメモの並び。変わったら数え直す（新しく書いたときなど）
+  const generatingKey = useMemo(
+    () =>
+      memos
+        .filter((m) => m.review.kind === "generating")
+        .map((m) => m.id)
+        .sort()
+        .join(","),
+    [memos],
+  );
+  const [polls, setPolls] = useState(0);
+
+  useEffect(() => {
+    setPolls(0);
+  }, [generatingKey]);
+
+  useEffect(() => {
+    if (generatingKey === "" || polls >= MAX_POLLS) return;
+    const timer = setTimeout(() => {
+      setPolls((n) => n + 1);
+      void load();
+    }, POLL_INTERVAL_MS);
+    return () => clearTimeout(timer);
+  }, [generatingKey, polls, load]);
 
   // 通知をタップしたとき、すでに開いているものは開き直さずに切り替える
   // （spec「すでにアプリが開いているとき」）。送り手は public/sw.js。

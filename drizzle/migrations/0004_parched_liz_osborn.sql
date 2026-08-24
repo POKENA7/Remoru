@@ -1,0 +1,1 @@
+ALTER TABLE `memos` ADD `quiz_pending_since` integer;

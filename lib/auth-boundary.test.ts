@@ -36,6 +36,45 @@ function routeFiles(dir: string): string[] {
 
 const ROUTES = routeFiles(join(ROOT, "app", "api"));
 
+/** HTTP のハンドラごとに、その関数の本体だけを切り出す。 */
+function handlers(src: string): [string, string][] {
+  const found: [string, string][] = [];
+  const re = /export\s+async\s+function\s+(GET|POST|PUT|PATCH|DELETE)\s*\(/g;
+
+  for (const match of src.matchAll(re)) {
+    // 引数の分割代入（{ params }: { params: ... }）を本体と取り違えないよう、
+    // まず引数の丸括弧を閉じてから最初の波括弧を探す
+    let parens = 0;
+    let afterArgs = match.index! + match[0].length - 1;
+    for (let i = afterArgs; i < src.length; i++) {
+      if (src[i] === "(") parens++;
+      else if (src[i] === ")") {
+        parens--;
+        if (parens === 0) {
+          afterArgs = i;
+          break;
+        }
+      }
+    }
+    const start = src.indexOf("{", afterArgs);
+    // 波括弧の対応を数えて、この関数の終わりまでを本体とする
+    let depth = 0;
+    let end = start;
+    for (let i = start; i < src.length; i++) {
+      if (src[i] === "{") depth++;
+      else if (src[i] === "}") {
+        depth--;
+        if (depth === 0) {
+          end = i;
+          break;
+        }
+      }
+    }
+    found.push([match[1], src.slice(start, end + 1)]);
+  }
+  return found;
+}
+
 describe("API ルートの認証", () => {
   it("ルートが1つ以上見つかる", () => {
     expect(ROUTES.length).toBeGreaterThan(0);
@@ -45,14 +84,19 @@ describe("API ルートの認証", () => {
     const rel = file.slice(ROOT.length + 1);
     const src = codeOnly(readFileSync(file, "utf8"));
 
-    it(`${rel} はセッションから利用者を得ている`, () => {
-      expect(src).toMatch(/getCurrentUserId\s*\(/);
-    });
+    // **ファイル単位では足りない。** 1つのファイルに GET と PUT が同居して
+    // いると、片方の確認を丸ごと消してももう片方の分に一致して緑のままに
+    // なる。実際 quiz-item のルートは POST と PUT の2つを持っている。
+    for (const [name, body] of handlers(src)) {
+      it(`${rel} の ${name} はセッションから利用者を得ている`, () => {
+        expect(body).toMatch(/getCurrentUserId\s*\(/);
+      });
 
-    it(`${rel} は未認証を自前で弾いている（middleware だけに頼らない）`, () => {
-      expect(src).toMatch(/if\s*\(\s*!userId\s*\)/);
-      expect(src).toMatch(/401/);
-    });
+      it(`${rel} の ${name} は未認証を自前で弾いている（middleware だけに頼らない）`, () => {
+        expect(body).toMatch(/if\s*\(\s*!userId\s*\)/);
+        expect(body).toMatch(/401/);
+      });
+    }
 
     it(`${rel} は要求由来の値を userId に渡していない`, () => {
       // body / searchParams / params から取り出した値が userId に入る形を禁じる

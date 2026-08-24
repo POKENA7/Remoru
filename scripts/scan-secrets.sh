@@ -12,7 +12,7 @@
 # 書き方も通せる（x の並びだけを除外していたときは誤検知した）。
 set -u
 
-NAMES='VAPID_PUBLIC_KEY|VAPID_PRIVATE_KEY|CLERK_SECRET_KEY|NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY'
+NAMES='VAPID_PUBLIC_KEY|VAPID_PRIVATE_KEY|CLERK_SECRET_KEY|NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY|ANTHROPIC_API_KEY'
 found=0
 
 blobs() {
@@ -44,11 +44,25 @@ else
   echo "  OK: 代入はプレースホルダだけ"
 fi
 
-echo "--- 3. VAPID 公開鍵の形をした裸の値が無いか ---"
+echo "--- 3. Anthropic の鍵の形をした裸の値が無いか ---"
+# sk-ant- で始まる。名前の付いた代入でなくても拾う。
+# プレースホルダの除外は検査2と同じ規則（実鍵は必ず大文字と数字を含む）を
+# 使う。ここだけ規則を落とすと .env.example の sk-ant-xxxx... に一致し、
+# **常に NG** になって番人として機能しなくなる。
+ant=$(blobs | while read -r o; do
+  git cat-file blob "$o" 2>/dev/null | grep -aoE 'sk-ant-[A-Za-z0-9_-]{20,}'
+done | awk '$0 ~ /[A-Z]/ && $0 ~ /[0-9]/' | sort -u)
+if [ -n "$ant" ]; then
+  echo "  NG: $(echo "$ant" | wc -l | tr -d ' ') 件"; found=1
+else
+  echo "  OK: 見つからない"
+fi
+
+echo "--- 4. VAPID 公開鍵の形をした裸の値が無いか ---"
 # 未圧縮の P-256 公開鍵は 65 バイト = base64url で 87 文字、先頭は B
 bare=$(blobs | while read -r o; do
   git cat-file blob "$o" 2>/dev/null | grep -aoE '\bB[A-Za-z0-9_-]{86}\b'
-done | sort -u)
+done | awk '$0 ~ /[A-Z]/ && $0 ~ /[0-9]/' | sort -u)
 if [ -n "$bare" ]; then
   echo "  NG: $(echo "$bare" | wc -l | tr -d ' ') 件"; found=1
 else

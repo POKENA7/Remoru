@@ -55,6 +55,8 @@ export async function createMemo(
     userId: params.userId,
     content: validated.content,
     createdAt: params.now,
+    // 生成を起こすかどうかは呼び出し側が決める（design.md D1）
+    quizPendingSince: null,
   };
 
   await db.insert(memos).values(memo);

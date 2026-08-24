@@ -84,7 +84,7 @@ describe("問答の分離（タスク 4.2）", () => {
     const db = createTestDb();
     const ids = await seedBoth(db);
 
-    const states = await getReviewStates(db, A);
+    const states = await getReviewStates(db, A, Date.now());
 
     expect([...states.keys()]).toEqual([ids[A]]);
     expect(states.has(ids[B])).toBe(false);
@@ -96,8 +96,8 @@ describe("問答の分離（タスク 4.2）", () => {
     // B だけ問答なしのメモを増やす
     await createMemo(db, { content: "Bの未作成", now: NOW, userId: B });
 
-    await expect(countUnwritten(db, A)).resolves.toBe(0);
-    await expect(countUnwritten(db, B)).resolves.toBe(1);
+    await expect(countUnwritten(db, A, Date.now())).resolves.toBe(0);
+    await expect(countUnwritten(db, B, Date.now())).resolves.toBe(1);
   });
 });
 

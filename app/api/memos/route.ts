@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getDb, getDeferrer } from "@/lib/db";
 import { getCurrentUserId } from "@/lib/current-user";
 import { createMemo, listMemos } from "@/lib/memos";
 import { getReviewStates, countUnwritten } from "@/lib/quiz-items";
+import { startGeneration } from "@/lib/quiz-generation-run";
 
 /**
  * 保存済みメモを新しい順に返す。
@@ -17,10 +18,11 @@ export async function GET() {
   }
 
   const db = await getDb();
+  const now = Date.now();
   const [memos, states, unwritten] = await Promise.all([
     listMemos(db, userId),
-    getReviewStates(db, userId),
-    countUnwritten(db, userId),
+    getReviewStates(db, userId, now),
+    countUnwritten(db, userId, now),
   ]);
 
   const withState = memos.map((memo) => ({
@@ -53,11 +55,22 @@ export async function POST(req: NextRequest) {
   const db = await getDb();
 
   // 時計はここで読み、ドメイン層には値として渡す
-  const result = await createMemo(db, { content, now: Date.now(), userId });
+  const now = Date.now();
+  const result = await createMemo(db, { content, now, userId });
 
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
+
+  // 保存は生成を待たない（design.md D1）。鍵が無ければ何も起きず、
+  // そのメモは未作成のまま残る。
+  await startGeneration(db, {
+    memoId: result.memo.id,
+    userId,
+    now,
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    defer: await getDeferrer(),
+  });
 
   return NextResponse.json({ memo: result.memo }, { status: 201 });
 }
