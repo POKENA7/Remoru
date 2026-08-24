@@ -108,7 +108,6 @@ export function ReviewTab({
           <i />
         </div>
         <h2>今日は、なし</h2>
-        <p className="muted">出す番の問いがありません。</p>
         <p className="muted" style={{ marginBottom: "1.5rem" }}>
           また溜まったら、ここに出てきます。
         </p>
@@ -149,20 +148,12 @@ export function ReviewTab({
           <b />
           <i />
         </div>
-        <h2 style={{ fontSize: "1.9rem", margin: "0 0 0.75rem", lineHeight: 1.3 }}>
+        <h2 style={{ fontSize: "1.9rem", margin: "0 0 1.4rem", lineHeight: 1.3 }}>
           今日は
           <br />
           {total}枚
         </h2>
-        <p className="muted">ぜんぶで1分くらい。</p>
-        <p className="muted" style={{ marginBottom: "1.4rem" }}>
-          途中でやめても、また出てきます。
-        </p>
-
         <Cells total={total} done={0} />
-        <p className="hint" style={{ marginBottom: "1.2rem" }}>
-          1枚見るたび、ひとマス刷られます
-        </p>
 
         <button
           type="button"

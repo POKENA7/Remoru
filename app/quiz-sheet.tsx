@@ -76,8 +76,6 @@ export function QuizSheet({
         <p className="sheet-memo">{memoContent}</p>
 
         <p className="muted" style={{ marginBottom: "1rem" }}>
-          あとで思い出せるように、
-          <br />
           問いのかたちにしておく？
         </p>
 

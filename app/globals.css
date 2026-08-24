@@ -471,3 +471,14 @@ body {
   margin: 0 0 0.3rem; padding-left: 0.7rem; font-weight: 700;
   border-left: 3px solid var(--orange-soft);
 }
+
+/*
+ * 戻るの矢印。見た目は1文字だが、指で押せる大きさを保つ
+ * （小さい的を作らない）。読み上げ名は aria-label に残してある。
+ */
+.back {
+  font-size: 1.1rem; line-height: 1;
+  min-width: 44px; min-height: 44px;
+  display: inline-flex; align-items: center;
+  margin-left: -0.6rem; padding: 0 0.6rem;
+}

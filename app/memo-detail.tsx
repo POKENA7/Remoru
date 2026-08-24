@@ -151,8 +151,18 @@ export function MemoDetail({
   return (
     <div>
       <div className="review-head">
-        <button type="button" className="quit" ref={backRef} onClick={onClose}>
-          戻る
+        {/*
+          * 見た目は矢印1文字。**読み上げ名は「戻る」のまま**にする
+          * （design.md D2）。文字数を減らすのは目で読む側だけ。
+          */}
+        <button
+          type="button"
+          className="quit back"
+          aria-label="戻る"
+          ref={backRef}
+          onClick={onClose}
+        >
+          ←
         </button>
         <span className="counter">メモ</span>
       </div>
@@ -173,7 +183,7 @@ export function MemoDetail({
               onClick={() => void regenerate()}
               style={{ marginTop: "0.5rem" }}
             >
-              {regenerating ? "つくり直しています..." : "問と答をつくり直す"}
+              {regenerating ? "つくり直しています..." : "つくり直す"}
             </button>
           </>
         ) : review.kind === "generating" ? (
@@ -264,11 +274,6 @@ export function MemoDetail({
               ))}
             </div>
           )}
-          {current && (
-            <p className="hint" style={{ marginTop: "0.5rem" }}>
-              つけかえると、いまのタグは外れます
-            </p>
-          )}
         </div>
 
         {error && <p className="error">{error}</p>}
@@ -301,7 +306,7 @@ export function MemoDetail({
               disabled={busy}
               onClick={() => setConfirming(true)}
             >
-              このメモを消す
+              消す
             </button>
           )}
         </div>

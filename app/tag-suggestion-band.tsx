@@ -143,13 +143,9 @@ export function TagSuggestionBand({
   return (
     <div className="suggest-band">
       <p className="suggest-head">タグのないメモが{untaggedCount}件</p>
-      {error ? (
+      {error && (
         <p className="hint" style={{ marginBottom: "0.7rem" }}>
           {error}
-        </p>
-      ) : (
-        <p className="hint" style={{ marginBottom: "0.7rem" }}>
-          まとめて分けてみることもできます
         </p>
       )}
       <div className="suggest-foot">

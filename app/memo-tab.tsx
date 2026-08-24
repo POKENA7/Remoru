@@ -112,8 +112,12 @@ export function MemoTab({
           aria-label="メモの本文"
         />
         <div className="composer-foot">
+          {/*
+            * 何も書いていないときは何も出さない。以前は「ひとことでいい」を
+            * 置いていたが、プレースホルダが同じことを言っている。
+            */}
           <span className={over ? "hint over" : "hint"}>
-            {chars === 0 ? "ひとことでいい" : `${chars} / ${MAX_CONTENT_LENGTH}`}
+            {chars === 0 ? "" : `${chars} / ${MAX_CONTENT_LENGTH}`}
           </span>
           <button
             type="submit"
@@ -171,12 +175,10 @@ export function MemoTab({
         activeTagId !== null ? (
           <div className="empty">
             <strong>このタグのメモはありません</strong>
-            <p className="muted">上の「ぜんぶ」に戻すと、すべて表示されます。</p>
           </div>
         ) : (
           <div className="empty">
             <strong>まだ何もありません</strong>
-            <p className="muted">上の欄に、覚えておきたいことを書いてみてください。</p>
           </div>
         )
       ) : (

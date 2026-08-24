@@ -161,8 +161,8 @@ export function NotificationSettings({ onClose }: { onClose: () => void }) {
   return (
     <div>
       <div className="review-head">
-        <button type="button" className="quit" onClick={onClose}>
-          戻る
+        <button type="button" className="quit back" aria-label="戻る" onClick={onClose}>
+          ←
         </button>
         <span className="counter">通知</span>
       </div>
@@ -222,7 +222,7 @@ export function NotificationSettings({ onClose }: { onClose: () => void }) {
           {notice && <p className="error">{notice}</p>}
 
           <p className="hint" style={{ marginTop: "1.4rem" }}>
-            届くのは、その日の復習がある日だけです。無い日は鳴りません。
+            復習がある日だけ届きます
           </p>
           <p className="hint" style={{ marginTop: "0.5rem" }}>
             iPhone・iPad では、ホーム画面に追加したものからでないと通知が届きません。
