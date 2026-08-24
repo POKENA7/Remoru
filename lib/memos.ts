@@ -1,5 +1,5 @@
 import { and, desc, eq } from "drizzle-orm";
-import { memos, type Memo } from "../db/schema";
+import { memoTags, memos, type Memo } from "../db/schema";
 import type { AppDb } from "../db/types";
 
 /** 本文の長さ上限（文字数）。design.md 参照 — 実使用を見て見直す暫定値。 */
@@ -65,13 +65,34 @@ export async function createMemo(
 }
 
 /** 保存済みメモを保存時刻の新しい順に返す。 */
-export async function listMemos(db: AppDb, userId: string): Promise<Memo[]> {
-  return await db
-    .select()
-    .from(memos)
-    .where(eq(memos.userId, userId))
-    // 同じ保存時刻のときの順序を決定的にするため id を第二キーに使う
-    .orderBy(desc(memos.createdAt), desc(memos.id));
+export async function listMemos(
+  db: AppDb,
+  userId: string,
+  /**
+   * 絞り込むタグ。指定しなければ全件。
+   *
+   * 絞り込みはここ（サーバー側）で行う。クライアントで絞ると、メモが
+   * 増えたときに全件を毎回送ることになる（design.md D5）。
+   */
+  tagId?: string,
+): Promise<Memo[]> {
+  const owned = eq(memos.userId, userId);
+
+  const rows = tagId
+    ? await db
+        .select({ memo: memos })
+        .from(memos)
+        .innerJoin(memoTags, eq(memoTags.memoId, memos.id))
+        .where(and(owned, eq(memoTags.tagId, tagId)))
+        // 同じ保存時刻のときの順序を決定的にするため id を第二キーに使う
+        .orderBy(desc(memos.createdAt), desc(memos.id))
+    : await db
+        .select({ memo: memos })
+        .from(memos)
+        .where(owned)
+        .orderBy(desc(memos.createdAt), desc(memos.id));
+
+  return rows.map((r) => r.memo);
 }
 
 export type DeleteMemoResult = { ok: true } | { ok: false; error: "not_found" };

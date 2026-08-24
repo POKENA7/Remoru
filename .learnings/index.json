@@ -7,5 +7,6 @@
   { "id": "L06", "type": "process",  "capturedIn": "add-notifications", "cites": 0 },
   { "id": "L07", "type": "process",  "capturedIn": "add-notifications", "cites": 0 },
   { "id": "L08", "type": "process",  "capturedIn": "add-notifications", "cites": 0 },
-  { "id": "L09", "type": "process",  "capturedIn": "add-quiz-generation", "cites": 0 }
+  { "id": "L09", "type": "process",  "capturedIn": "add-quiz-generation", "cites": 0 },
+  { "id": "L10", "type": "process",  "capturedIn": "add-tags", "cites": 0 }
 ]

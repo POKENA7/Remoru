@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { MemoTab } from "./memo-tab";
+import { MemoSheet } from "./memo-sheet";
+import { TagSuggestionBand } from "./tag-suggestion-band";
 import { NotificationSettings } from "./notification-settings";
 import { ReviewTab } from "./review-tab";
 import type { DueItem, MemoRow } from "./types";
@@ -29,13 +31,26 @@ export function AppShell() {
   const [due, setDue] = useState<DueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [tags, setTags] = useState<{ id: string; name: string; count: number }[]>([]);
+  // 絞り込みは URL に持たない。タブと同じクライアント状態（design.md D5）
+  const [activeTagId, setActiveTagId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [suggestion, setSuggestion] = useState<{ show: boolean; untaggedCount: number }>({
+    show: false,
+    untaggedCount: 0,
+  });
 
   const load = useCallback(async () => {
     try {
-      const [m, d] = await Promise.all([
-        fetch("/api/memos").then((r) => r.json()),
+      const query = activeTagId ? `?tag=${encodeURIComponent(activeTagId)}` : "";
+      const [m, d, t, s] = await Promise.all([
+        fetch(`/api/memos${query}`).then((r) => r.json()),
         fetch("/api/review/due").then((r) => r.json()),
+        fetch("/api/tags").then((r) => r.json()),
+        fetch("/api/tags/suggestion").then((r) => r.json()),
       ]);
+      setTags((t as { tags: typeof tags }).tags ?? []);
+      setSuggestion(s as { show: boolean; untaggedCount: number });
       setMemos((m as { memos: MemoRow[] }).memos ?? []);
       setDue((d as { items: DueItem[] }).items ?? []);
     } catch {
@@ -43,7 +58,7 @@ export function AppShell() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeTagId]);
 
   useEffect(() => {
     void load();
@@ -90,13 +105,32 @@ export function AppShell() {
     return () => navigator.serviceWorker.removeEventListener("message", onMessage);
   }, [load]);
 
+  const detail = memos.find((m) => m.id === detailId) ?? null;
+
   return (
     <main className="app">
       <div className="body">
         {settingsOpen ? (
           <NotificationSettings onClose={() => setSettingsOpen(false)} />
         ) : tab === "memo" ? (
-          <MemoTab memos={memos} loading={loading} onChanged={load} />
+          <MemoTab
+            memos={memos}
+            loading={loading}
+            onChanged={load}
+            onOpenDetail={(memo) => setDetailId(memo.id)}
+            tags={tags}
+            activeTagId={activeTagId}
+            onSelectTag={setActiveTagId}
+            suggestion={
+              suggestion.show ? (
+                <TagSuggestionBand
+                  untaggedCount={suggestion.untaggedCount}
+                  onApplied={load}
+                  onDismissed={load}
+                />
+              ) : null
+            }
+          />
         ) : (
           <ReviewTab
             items={due}
@@ -107,6 +141,15 @@ export function AppShell() {
           />
         )}
       </div>
+
+      {detail && (
+        <MemoSheet
+          memo={detail}
+          knownTags={tags}
+          onChanged={load}
+          onClose={() => setDetailId(null)}
+        />
+      )}
 
       <nav className="tabs" role="tablist">
         <button

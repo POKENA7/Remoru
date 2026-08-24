@@ -1,4 +1,11 @@
-import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
+import {
+  sqliteTable,
+  text,
+  integer,
+  index,
+  uniqueIndex,
+  primaryKey,
+} from "drizzle-orm/sqlite-core";
 
 export const memos = sqliteTable("memos", {
   id: text("id").primaryKey(),
@@ -96,6 +103,66 @@ export const pushSubscriptions = sqliteTable(
   (t) => [index("push_subscriptions_user_id_idx").on(t.userId)],
 );
 
+/**
+ * タグ。名前は利用者ごとに一意。
+ *
+ * 利用者は Clerk 側にあるため外部キーは張らない（notification_settings と同じ）。
+ */
+export const tags = sqliteTable(
+  "tags",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    /** 表示名。前後の空白を落とした形で入る（lib/tags.ts が正規化する） */
+    name: text("name").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [
+    // 同じ利用者が同じ名前のタグを2つ持たない
+    uniqueIndex("tags_user_id_name_unique").on(t.userId, t.name),
+  ],
+);
+
+/**
+ * メモとタグの対応。
+ *
+ * **多対多のまま置く。** いまは1メモ1タグに絞っているが、それは
+ * `lib/tags.ts` の MAX_TAGS_PER_MEMO で決めている規則であって、表の形では
+ * 表現しない（design.md D2）。`memo_id` を単独の主キーにすると「1つ」を
+ * 表の形で固定することになり、あとで複数に戻すときマイグレーションが要る。
+ */
+export const memoTags = sqliteTable(
+  "memo_tags",
+  {
+    memoId: text("memo_id")
+      .notNull()
+      .references(() => memos.id, { onDelete: "cascade" }),
+    tagId: text("tag_id")
+      .notNull()
+      .references(() => tags.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [
+    // 同じ組を重ねて持たない。memo_id 単独ではないことが要点。
+    primaryKey({ columns: [t.memoId, t.tagId] }),
+    index("memo_tags_tag_id_idx").on(t.tagId),
+  ],
+);
+
+/**
+ * タグの提案の状態。利用者ごとに1行。
+ *
+ * 断られた提案を繰り返し出さないために、**断ったときの未分類の件数**を
+ * 覚えておく（design.md D10）。端末側で覚えると機種を変えたときにまた
+ * 出るので、利用者に紐づけて持つ。
+ */
+export const tagSuggestionState = sqliteTable("tag_suggestion_state", {
+  userId: text("user_id").primaryKey(),
+  /** 断ったときの未分類の件数。断っていなければ null。 */
+  dismissedAtCount: integer("dismissed_at_count"),
+  dismissedAt: integer("dismissed_at"),
+});
+
 export type Memo = typeof memos.$inferSelect;
 export type NewMemo = typeof memos.$inferInsert;
 export type QuizItem = typeof quizItems.$inferSelect;
@@ -103,3 +170,6 @@ export type NewQuizItem = typeof quizItems.$inferInsert;
 export type ReviewSchedule = typeof reviewSchedules.$inferSelect;
 export type NotificationSettings = typeof notificationSettings.$inferSelect;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type Tag = typeof tags.$inferSelect;
+export type MemoTag = typeof memoTags.$inferSelect;
+export type TagSuggestionState = typeof tagSuggestionState.$inferSelect;

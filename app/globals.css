@@ -18,6 +18,9 @@
   /* 2版目: インクブルー。白文字で 7.92:1 */
   --blue: #2b4c8c;
   --blue-soft: #dbe2f0;
+  /* 淡い地に載せる文字用（--orange-text と同じ役割）。塗りの色をそのまま
+     文字に使うと、ダークで 2.06:1 まで落ちる */
+  --blue-text: #2b4c8c;
 
   --on-ink: #fff8ee;
   --danger: #a8321a;
@@ -40,6 +43,7 @@
     --orange-text: #ef9670;
     --blue: #3a5a9e;
     --blue-soft: #232d42;
+    --blue-text: #7fa5e0;
 
     --on-ink: #fff8ee;
     --danger: #e08163;
@@ -358,3 +362,68 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .making::before { animation: none; opacity: 0.7; }
 }
+
+/* --- タグ --- */
+
+.tag-row {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  margin: 0 0 0.5rem;
+}
+
+.tag {
+  display: inline-block; font-size: 0.72rem; font-weight: 700;
+  padding: 0.15rem 0.55rem; border-radius: 999px;
+  background: var(--blue-soft); color: var(--blue-text);
+  border: 1px solid var(--blue-text);
+}
+/* タグを持たないメモも、持たないと分かる形で示す（spec の要件） */
+.tag-none {
+  background: transparent; color: var(--ink-soft);
+  border: 1px dashed var(--ink-soft); font-weight: 400;
+}
+.tag-pick { cursor: pointer; font: inherit; font-size: 0.72rem; font-weight: 700; }
+.tag-pick:disabled { cursor: not-allowed; }
+
+.tag-choices { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
+
+/* --- 絞り込みの帯 --- */
+
+.filter-band {
+  display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 0.5rem;
+  margin-bottom: 0.75rem; scrollbar-width: none;
+}
+.filter-band::-webkit-scrollbar { display: none; }
+
+.chip {
+  flex: none; font: inherit; font-size: 0.75rem; font-weight: 700; cursor: pointer;
+  padding: 0.25rem 0.7rem; border-radius: 999px; white-space: nowrap;
+  background: var(--card); color: var(--ink);
+  border: 1px solid var(--ink-soft);
+}
+.chip i { font-style: normal; color: var(--ink-soft); font-weight: 400; }
+/* 選ばれている側は2版のうちオレンジ。選択は1つだけ（design.md D5） */
+.chip-on { background: var(--orange); color: var(--on-ink); border-color: var(--orange); }
+/* 件数は承認と絞り込みの判断材料なので薄めない。opacity で下げると
+   3.56:1（ライト）/ 3.65:1（ダーク）まで落ちる */
+.chip-on i { color: var(--on-ink); }
+
+.detail-link { text-decoration: underline; }
+
+/* --- タグの提案の帯 --- */
+
+.suggest-band {
+  background: var(--card); border: 1px solid var(--blue-text);
+  border-radius: var(--radius); padding: 0.9rem 1rem; margin-bottom: 1rem;
+  box-shadow: 3px 4px 0 rgba(120, 105, 80, 0.14);
+}
+.suggest-head { margin: 0 0 0.3rem; font-weight: 700; font-size: 0.95rem; }
+.suggest-foot { display: flex; align-items: center; gap: 1rem; }
+.suggest-foot .btn { flex: 1; padding: 0.6rem; font-size: 0.9rem; }
+/* 同上。提案の承認はタグ名と件数だけで行うので、件数が読みにくいのは
+   判断材料が読みにくいのと同じ */
+.tag i { font-style: normal; font-weight: 400; }
+
+/* タグの入力。決定のボタンを欄の隣に置く（キーボードだけに頼らない） */
+.tag-form { display: flex; gap: 0.5rem; align-items: stretch; }
+.tag-form input { flex: 1; min-width: 0; }
+.tag-form .btn { flex: none; padding: 0.5rem 0.9rem; font-size: 0.85rem; }

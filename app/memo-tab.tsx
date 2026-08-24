@@ -19,16 +19,26 @@ export function MemoTab({
   memos,
   loading,
   onChanged,
+  onOpenDetail,
+  tags,
+  activeTagId,
+  onSelectTag,
+  suggestion,
 }: {
   memos: MemoRow[];
   loading: boolean;
   onChanged: () => void;
+  onOpenDetail: (memo: MemoRow) => void;
+  tags: { id: string; name: string; count: number }[];
+  activeTagId: string | null;
+  onSelectTag: (tagId: string | null) => void;
+  /** タグの提案の帯。出す条件は app-shell が決める */
+  suggestion: React.ReactNode;
 }) {
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
-  const [deleting, setDeleting] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState<string | null>(null);
 
   /**
@@ -88,27 +98,6 @@ export function MemoTab({
     [content, saving, onChanged],
   );
 
-  async function remove(memo: MemoRow) {
-    const ok = window.confirm(
-      `このメモを消します。問と答、復習の予定も一緒に消えます。\n\n「${memo.content.slice(0, 40)}」`,
-    );
-    if (!ok) return;
-
-    setDeleting(memo.id);
-    setError(null);
-    try {
-      const res = await fetch(`/api/memos/${memo.id}`, { method: "DELETE" });
-      if (!res.ok) {
-        setError("削除できませんでした。もう一度お試しください");
-        return;
-      }
-      onChanged();
-    } catch {
-      setError("削除できませんでした。もう一度お試しください");
-    } finally {
-      setDeleting(null);
-    }
-  }
 
   const chars = [...content].length;
   const over = chars > MAX_CONTENT_LENGTH;
@@ -156,17 +145,50 @@ export function MemoTab({
         )}
       </form>
 
+      {suggestion}
+
       <p className="section-head">
         書きとめたもの <span>新しい順</span>
       </p>
 
+      {tags.length > 0 && (
+        <div className="filter-band" role="group" aria-label="タグで絞り込む">
+          <button
+            type="button"
+            className={activeTagId === null ? "chip chip-on" : "chip"}
+            aria-pressed={activeTagId === null}
+            onClick={() => onSelectTag(null)}
+          >
+            ぜんぶ
+          </button>
+          {tags.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              className={activeTagId === t.id ? "chip chip-on" : "chip"}
+              aria-pressed={activeTagId === t.id}
+              onClick={() => onSelectTag(t.id)}
+            >
+              {t.name} <i>{t.count}</i>
+            </button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <p className="muted">読み込み中...</p>
       ) : memos.length === 0 ? (
-        <div className="empty">
-          <strong>まだ何もありません</strong>
-          <p className="muted">上の欄に、覚えておきたいことを書いてみてください。</p>
-        </div>
+        activeTagId !== null ? (
+          <div className="empty">
+            <strong>このタグのメモはありません</strong>
+            <p className="muted">上の「ぜんぶ」に戻すと、すべて表示されます。</p>
+          </div>
+        ) : (
+          <div className="empty">
+            <strong>まだ何もありません</strong>
+            <p className="muted">上の欄に、覚えておきたいことを書いてみてください。</p>
+          </div>
+        )
       ) : (
         <ul className="memo-list">
           {memos.map((memo) => (
@@ -175,6 +197,19 @@ export function MemoTab({
               className={memo.review.kind === "unwritten" ? "memo unwritten" : "memo"}
             >
               <p className="memo-text">{memo.content}</p>
+
+              {/* タグ。持たないメモは持たないと分かる形にする */}
+              <p className="tag-row">
+                {memo.tags.length > 0 ? (
+                  memo.tags.map((t) => (
+                    <span key={t.id} className="tag">
+                      {t.name}
+                    </span>
+                  ))
+                ) : (
+                  <span className="tag tag-none">タグなし</span>
+                )}
+              </p>
 
               {/* 問だけを出す。答えは出さない（想起の機会を壊さない） */}
               {memo.review.kind === "scheduled" && memo.review.question && (
@@ -207,13 +242,13 @@ export function MemoTab({
                     {regenerating === memo.id ? "つくり直しています..." : "つくり直す"}
                   </button>
                 )}
+                {/* 削除はここに置かない。詳細へ移した（design.md D4） */}
                 <button
                   type="button"
-                  className="trash"
-                  onClick={() => remove(memo)}
-                  disabled={deleting === memo.id}
+                  className="redo detail-link"
+                  onClick={() => onOpenDetail(memo)}
                 >
-                  {deleting === memo.id ? "消しています..." : "消す"}
+                  くわしく
                 </button>
               </div>
             </li>
