@@ -2,8 +2,8 @@
 
 import { useCallback, useState } from "react";
 import { UserButton } from "@clerk/nextjs";
-import { QuizSheet } from "./quiz-sheet";
-import { MAX_CONTENT_LENGTH, formatDay, type MemoRow } from "./types";
+import { stateLabel } from "./detail-selection";
+import { MAX_CONTENT_LENGTH, type MemoRow } from "./types";
 
 const ERRORS: Record<string, string> = {
   empty: "本文を入力してください",
@@ -13,13 +13,23 @@ const ERRORS: Record<string, string> = {
 };
 const FALLBACK = "保存できませんでした。もう一度お試しください";
 
-type Sheet = { memoId: string; content: string } | null;
+/**
+ * 復習の状態を示す印（design.md D3）。
+ *
+ * **色の違いだけに頼らない。** 塗りつぶし・点滅・輪郭で形を変え、
+ * 読み上げ用の名前も付ける。
+ */
+function StateMark({ kind }: { kind: MemoRow["review"]["kind"] }) {
+  return <span className={`state state-${kind}`} role="img" aria-label={stateLabel(kind)} />;
+}
 
 export function MemoTab({
   memos,
   loading,
   onChanged,
   onOpenDetail,
+  draft,
+  onDraftChange,
   tags,
   activeTagId,
   onSelectTag,
@@ -29,39 +39,19 @@ export function MemoTab({
   loading: boolean;
   onChanged: () => void;
   onOpenDetail: (memo: MemoRow) => void;
+  /** 書きかけの本文。詳細を開くとこの画面は unmount されるので、外で持つ */
+  draft: string;
+  onDraftChange: (value: string) => void;
   tags: { id: string; name: string; count: number }[];
   activeTagId: string | null;
   onSelectTag: (tagId: string | null) => void;
   /** タグの提案の帯。出す条件は app-shell が決める */
   suggestion: React.ReactNode;
 }) {
-  const [content, setContent] = useState("");
+  const content = draft;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sheet, setSheet] = useState<Sheet>(null);
-  const [regenerating, setRegenerating] = useState<string | null>(null);
 
-  /**
-   * 問と答を作り直す。
-   *
-   * 失敗しても以前の問答は残る（サーバー側で保証している）ので、
-   * 画面には何も出さない。責めない語り口と一貫させる。
-   */
-  const regenerate = useCallback(
-    async (memoId: string) => {
-      if (regenerating) return;
-      setRegenerating(memoId);
-      try {
-        await fetch(`/api/memos/${memoId}/quiz-item`, { method: "PUT" });
-      } catch {
-        // 以前の問答がそのまま残る
-      } finally {
-        setRegenerating(null);
-        onChanged();
-      }
-    },
-    [regenerating, onChanged],
-  );
 
   const save = useCallback(
     async (e: React.FormEvent) => {
@@ -84,7 +74,7 @@ export function MemoTab({
           setError(ERRORS[data.error ?? ""] ?? FALLBACK);
           return;
         }
-        setContent("");
+        onDraftChange("");
         onChanged();
         // 保存直後にシートをせり上げない。問と答は生成が作る。ここで手入力を
         // 求めると、書いたものが遅れて届く生成結果と競合する。手で書く経路は
@@ -95,7 +85,7 @@ export function MemoTab({
         setSaving(false);
       }
     },
-    [content, saving, onChanged],
+    [content, saving, onChanged, onDraftChange],
   );
 
 
@@ -114,7 +104,7 @@ export function MemoTab({
           className="input"
           value={content}
           onChange={(e) => {
-            setContent(e.target.value);
+            onDraftChange(e.target.value);
             if (error) setError(null);
           }}
           placeholder="いま、覚えておきたいこと"
@@ -192,81 +182,42 @@ export function MemoTab({
       ) : (
         <ul className="memo-list">
           {memos.map((memo) => (
-            <li
-              key={memo.id}
-              className={memo.review.kind === "unwritten" ? "memo unwritten" : "memo"}
-            >
-              <p className="memo-text">{memo.content}</p>
+            <li key={memo.id} className="memo-item">
+              {/*
+               * 行のどこを押しても詳細が開く（design.md D2）。押せる場所を
+               * 指す小さな的（「くわしく」）は置かない。button の中には
+               * 段落を入れられないので span で組む。
+               */}
+              <button
+                type="button"
+                data-memo-id={memo.id}
+                className={
+                  memo.review.kind === "unwritten" ? "memo memo-open unwritten" : "memo memo-open"
+                }
+                onClick={() => onOpenDetail(memo)}
+              >
+                <span className="memo-text">{memo.content}</span>
 
-              {/* タグ。持たないメモは持たないと分かる形にする */}
-              <p className="tag-row">
-                {memo.tags.length > 0 ? (
-                  memo.tags.map((t) => (
-                    <span key={t.id} className="tag">
-                      {t.name}
-                    </span>
-                  ))
-                ) : (
-                  <span className="tag tag-none">タグなし</span>
-                )}
-              </p>
-
-              {/* 問だけを出す。答えは出さない（想起の機会を壊さない） */}
-              {memo.review.kind === "scheduled" && memo.review.question && (
-                <p className="memo-q">問：{memo.review.question}</p>
-              )}
-
-              <div className="memo-foot">
-                {memo.review.kind === "scheduled" ? (
-                  <span className="due">
-                    次は {formatDay(memo.review.nextReviewAt)}
+                <span className="memo-meta">
+                  <span className="tag-row">
+                    {memo.tags.length > 0 ? (
+                      memo.tags.map((t) => (
+                        <span key={t.id} className="tag">
+                          {t.name}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="tag tag-none">タグなし</span>
+                    )}
                   </span>
-                ) : memo.review.kind === "generating" ? (
-                  <span className="making">問と答をつくっています</span>
-                ) : (
-                  <button
-                    type="button"
-                    className="write-link"
-                    onClick={() => setSheet({ memoId: memo.id, content: memo.content })}
-                  >
-                    問と答をつくる →
-                  </button>
-                )}
-                {memo.review.kind === "scheduled" && (
-                  <button
-                    type="button"
-                    className="redo"
-                    onClick={() => void regenerate(memo.id)}
-                    disabled={regenerating === memo.id}
-                  >
-                    {regenerating === memo.id ? "つくり直しています..." : "つくり直す"}
-                  </button>
-                )}
-                {/* 削除はここに置かない。詳細へ移した（design.md D4） */}
-                <button
-                  type="button"
-                  className="redo detail-link"
-                  onClick={() => onOpenDetail(memo)}
-                >
-                  くわしく
-                </button>
-              </div>
+                  <StateMark kind={memo.review.kind} />
+                </span>
+              </button>
             </li>
           ))}
         </ul>
       )}
 
-      {sheet && (
-        <QuizSheet
-          memoId={sheet.memoId}
-          memoContent={sheet.content}
-          onDone={() => {
-            setSheet(null);
-            onChanged();
-          }}
-          onLater={() => setSheet(null)}
-        />
-      )}
     </>
   );
 }

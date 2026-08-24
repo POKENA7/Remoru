@@ -1,15 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { MemoTab } from "./memo-tab";
-import { MemoSheet } from "./memo-sheet";
+import { MemoDetail } from "./memo-detail";
+import { resolveDetail } from "./detail-selection";
 import { TagSuggestionBand } from "./tag-suggestion-band";
 import { NotificationSettings } from "./notification-settings";
 import { ReviewTab } from "./review-tab";
 import type { DueItem, MemoRow } from "./types";
 
 type Tab = "memo" | "review";
+
+/** 受け取ったタグの提案。承認されるまで保持する。 */
+export type SuggestionResult = {
+  summary: { tag: string; count: number }[];
+  assignments: { memoId: string; tag: string }[];
+} | null;
 
 /**
  * 「作成中」が残る間だけ、上限を決めて一覧を取り直す（design.md D9）。
@@ -35,6 +42,18 @@ export function AppShell() {
   // 絞り込みは URL に持たない。タブと同じクライアント状態（design.md D5）
   const [activeTagId, setActiveTagId] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailMemo, setDetailMemo] = useState<MemoRow | null>(null);
+  /**
+   * 書きかけの本文と、受け取った提案。
+   *
+   * **詳細を開くと MemoTab が unmount される**ので、そちらに持たせると
+   * メモを1件開いただけで消える。下書きは黙って失われ、提案は取り直しに
+   * モデルの呼び出し（＝課金）が要る。
+   */
+  const [draft, setDraft] = useState("");
+  const [suggestionResult, setSuggestionResult] = useState<SuggestionResult>(null);
+  /** 詳細を開く前の位置と、開いた行。戻ったときに元の場所へ返す。 */
+  const restore = useRef<{ scrollY: number; memoId: string } | null>(null);
   const [suggestion, setSuggestion] = useState<{ show: boolean; untaggedCount: number }>({
     show: false,
     untaggedCount: 0,
@@ -63,6 +82,47 @@ export function AppShell() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  /** 詳細を開く。戻り先（位置と行）を控える。 */
+  const openDetail = useCallback((memo: MemoRow) => {
+    restore.current = { scrollY: window.scrollY, memoId: memo.id };
+    setDetailId(memo.id);
+    setDetailMemo(memo);
+    window.scrollTo(0, 0);
+  }, []);
+
+  /**
+   * 詳細を閉じる。**閉じる経路は3つある**（戻る・下部タブ・通知のタップ）。
+   * 別々に書くと、どれかに書き忘れて画面が切り替わらなくなる。
+   */
+  const closeDetail = useCallback(() => {
+    setDetailId(null);
+    setDetailMemo(null);
+  }, []);
+
+
+  /**
+   * 詳細から戻ったとき、元の場所へ返す。
+   *
+   * 一覧は文書そのものがスクロールするので、詳細（短い）を開くと
+   * スクロール位置が切り詰められ、戻ると先頭に飛ぶ。キーボードで
+   * 辿ってきた人は焦点も失う。**探していた場所へ返すのが一覧の役目**。
+   */
+  useEffect(() => {
+    if (detailId !== null) return;
+    const saved = restore.current;
+    if (!saved) return;
+    restore.current = null;
+
+    requestAnimationFrame(() => {
+      const row = document.querySelector<HTMLElement>(
+        `[data-memo-id="${CSS.escape(saved.memoId)}"]`,
+      );
+      // 焦点を当てると勝手にスクロールするので、先に止めてから位置を戻す
+      row?.focus({ preventScroll: true });
+      window.scrollTo(0, saved.scrollY);
+    });
+  }, [detailId]);
 
   // 生成中のメモの並び。変わったら数え直す（新しく書いたときなど）
   const generatingKey = useMemo(
@@ -97,6 +157,9 @@ export function AppShell() {
     const onMessage = (event: MessageEvent) => {
       if (event.data?.type !== "remoru:open-review") return;
       setSettingsOpen(false);
+      // 詳細を開いたままだと、描画の分岐が詳細を先に見るので画面が
+      // 切り替わらない（spec「すでにアプリが開いているとき」）
+      closeDetail();
       setTab("review");
       void load();
     };
@@ -105,19 +168,33 @@ export function AppShell() {
     return () => navigator.serviceWorker.removeEventListener("message", onMessage);
   }, [load]);
 
-  const detail = memos.find((m) => m.id === detailId) ?? null;
+  const detail = resolveDetail(memos, detailId, detailMemo);
+  const found = memos.find((m) => m.id === detailId) ?? null;
+  if (found && found !== detailMemo) setDetailMemo(found);
 
   return (
     <main className="app">
       <div className="body">
         {settingsOpen ? (
           <NotificationSettings onClose={() => setSettingsOpen(false)} />
+        ) : detail ? (
+          <MemoDetail
+            // メモが変わったら作り直す。画面が自分で持つ状態（タグ）を
+            // 前のメモから引き継がせない
+            key={detail.id}
+            memo={detail}
+            knownTags={tags}
+            onChanged={load}
+            onClose={closeDetail}
+          />
         ) : tab === "memo" ? (
           <MemoTab
             memos={memos}
             loading={loading}
             onChanged={load}
-            onOpenDetail={(memo) => setDetailId(memo.id)}
+            onOpenDetail={openDetail}
+            draft={draft}
+            onDraftChange={setDraft}
             tags={tags}
             activeTagId={activeTagId}
             onSelectTag={setActiveTagId}
@@ -125,6 +202,8 @@ export function AppShell() {
               suggestion.show ? (
                 <TagSuggestionBand
                   untaggedCount={suggestion.untaggedCount}
+                  result={suggestionResult}
+                  onResult={setSuggestionResult}
                   onApplied={load}
                   onDismissed={load}
                 />
@@ -142,15 +221,6 @@ export function AppShell() {
         )}
       </div>
 
-      {detail && (
-        <MemoSheet
-          memo={detail}
-          knownTags={tags}
-          onChanged={load}
-          onClose={() => setDetailId(null)}
-        />
-      )}
-
       <nav className="tabs" role="tablist">
         <button
           type="button"
@@ -159,6 +229,7 @@ export function AppShell() {
           aria-selected={tab === "memo"}
           onClick={() => {
             setSettingsOpen(false);
+            closeDetail();
             setTab("memo");
           }}
         >
@@ -172,6 +243,7 @@ export function AppShell() {
           aria-selected={tab === "review"}
           onClick={() => {
             setSettingsOpen(false);
+            closeDetail();
             setTab("review");
           }}
         >

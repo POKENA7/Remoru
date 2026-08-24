@@ -25,7 +25,7 @@ export function QuizSheet({
 }: {
   memoId: string;
   memoContent: string;
-  onDone: () => void;
+  onDone: (created: { question: string; nextReviewAt: number }) => void;
   onLater: () => void;
 }) {
   const [question, setQuestion] = useState("");
@@ -45,13 +45,20 @@ export function QuizSheet({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question, answer }),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as {
+        error?: string;
+        quizItem?: { question: string };
+        nextReviewAt?: number;
+      };
       if (!res.ok) {
         // 失敗しても入力は消さない。そのまま押し直せる
         setError(ERRORS[data.error ?? ""] ?? FALLBACK);
         return;
       }
-      onDone();
+      onDone({
+        question: data.quizItem?.question ?? question,
+        nextReviewAt: data.nextReviewAt ?? Date.now(),
+      });
     } catch {
       setError(FALLBACK);
     } finally {

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import type { SuggestionResult } from "./app-shell";
+
 type Summary = { tag: string; count: number };
 type Assignment = { memoId: string; tag: string };
 
@@ -14,17 +16,29 @@ type Assignment = { memoId: string; tag: string };
  */
 export function TagSuggestionBand({
   untaggedCount,
+  result,
+  onResult,
   onApplied,
   onDismissed,
 }: {
   untaggedCount: number;
+  /**
+   * 受け取った提案。**この部品では持たない。**
+   *
+   * 詳細を開くと一覧ごと unmount されるため、ここに持つとメモを1件
+   * 開いただけで提案が消える。取り直すにはモデルの呼び出しが要る
+   * （＝もう一度課金する）。
+   */
+  result: SuggestionResult;
+  onResult: (result: SuggestionResult) => void;
   onApplied: () => void;
   onDismissed: () => void;
 }) {
   const [busy, setBusy] = useState(false);
-  const [summary, setSummary] = useState<Summary[] | null>(null);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const summary: Summary[] | null = result?.summary ?? null;
+  const assignments: Assignment[] = result?.assignments ?? [];
 
   async function propose() {
     if (busy) return;
@@ -38,8 +52,7 @@ export function TagSuggestionBand({
         return;
       }
       const data = (await res.json()) as { summary: Summary[]; assignments: Assignment[] };
-      setSummary(data.summary);
-      setAssignments(data.assignments);
+      onResult({ summary: data.summary, assignments: data.assignments });
     } catch {
       setError("いまはうまくいきませんでした。あとでまた試せます");
     } finally {
@@ -68,7 +81,7 @@ export function TagSuggestionBand({
         setError("いまはつけられませんでした。もう一度押せます");
         return;
       }
-      setSummary(null);
+      onResult(null);
       onApplied();
     } catch {
       setError("いまはつけられませんでした。もう一度押せます");
@@ -118,7 +131,7 @@ export function TagSuggestionBand({
             type="button"
             className="later"
             disabled={busy}
-            onClick={() => setSummary(null)}
+            onClick={() => onResult(null)}
           >
             やめておく
           </button>
