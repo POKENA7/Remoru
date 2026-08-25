@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MAX_TAG_NAME_LENGTH } from "@/lib/tag-text";
 import { QuizSheet } from "./quiz-sheet";
+import { enterTarget, pickerView } from "./tag-picker";
 import { formatDay, type MemoRow, type TagRef } from "./types";
 
 /**
@@ -49,6 +50,8 @@ export function MemoDetail({
    */
   const [review, setReview] = useState<MemoRow["review"]>(memo.review);
   const backRef = useRef<HTMLButtonElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const [picking, setPicking] = useState(false);
 
   // 画面が変わったことを読み上げにも伝える。開いた直後の焦点を先頭に置く
   useEffect(() => {
@@ -74,6 +77,7 @@ export function MemoDetail({
       const { tag } = (await res.json()) as { tag: TagRef };
       setTags([tag]);
       setName("");
+      setPicking(false);
       onChanged();
     } catch {
       setError("つけられませんでした。もう一度お試しください");
@@ -112,16 +116,16 @@ export function MemoDetail({
     try {
       const res = await fetch(`/api/memos/${memo.id}`, { method: "DELETE" });
       if (!res.ok) {
-        // 消えていないので閉じない。押し直せる状態のまま残す。
+        // 消えていないのでシートは閉じない。押し直せる状態のまま残す
+        // （design.md D5）。閉じてから結果が分かる形だと、どこで失敗した
+        // のかが分からなくなる。
         setError("消せませんでした。もう一度お試しください");
-        setConfirming(false);
         return;
       }
       onChanged();
       onClose();
     } catch {
       setError("消せませんでした。もう一度お試しください");
-      setConfirming(false);
     } finally {
       setBusy(false);
     }
@@ -145,8 +149,17 @@ export function MemoDetail({
     }
   }
 
-  // 付け替えの候補。いま付いているものは出さない。
-  const candidates = knownTags.filter((t) => t.id !== current?.id);
+  const view = pickerView(knownTags, current?.id, name);
+
+  // 選び手の外に触れたら閉じる。スマホには Escape が無い（design.md D1）
+  useEffect(() => {
+    if (!picking) return;
+    const onDown = (e: PointerEvent) => {
+      if (!pickerRef.current?.contains(e.target as Node)) setPicking(false);
+    };
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [picking]);
 
   return (
     <div>
@@ -201,119 +214,157 @@ export function MemoDetail({
       </div>
 
         <div className="field">
-          <label htmlFor="tag-input">タグ</label>
-          {current ? (
-            <p className="tag-row">
-              <span className="tag">{current.name}</span>
+          <p className="field-label">タグ</p>
+
+          {picking ? (
+            <div className="picker" ref={pickerRef}>
+              <input
+                id="tag-input"
+                /*
+                 * iOS は欄の id や name に "name" が入っていると連絡先の
+                 * 名前欄だと推測し、「連絡先を自動入力」を出してくる。
+                 */
+                name="tag"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                enterKeyHint="done"
+                autoFocus
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    setPicking(false);
+                    return;
+                  }
+                  if (e.key !== "Enter") return;
+                  e.preventDefault();
+                  const target = enterTarget(knownTags, name);
+                  if (target) void assign(target);
+                }}
+                placeholder="さがす / つくる"
+                maxLength={MAX_TAG_NAME_LENGTH}
+                disabled={busy}
+              />
+
+              {/*
+                * 候補と「つくる」を同じ一覧に並べる。**どちらも押せる行**で、
+                * 利用者が「作る」か「選ぶ」かを先に決める必要は無い。
+                */}
+              <div className="picker-list">
+                {view.matches.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className="picker-row"
+                    disabled={busy}
+                    onClick={() => void assign(t.name)}
+                  >
+                    {t.name}
+                  </button>
+                ))}
+                {view.createName && (
+                  <button
+                    type="button"
+                    className="picker-row picker-new"
+                    disabled={busy}
+                    onClick={() => void assign(view.createName!)}
+                  >
+                    ＋「{view.createName}」をつくる
+                  </button>
+                )}
+                {view.matches.length === 0 && !view.createName && (
+                  <p className="picker-empty">見つかりません</p>
+                )}
+              </div>
+            </div>
+          ) : current ? (
+            /* × は外す、それ以外は開く。当たり判定を分ける（design.md D1） */
+            <span className="tag tag-chip">
               <button
                 type="button"
-                className="redo"
+                className="tag-open"
+                disabled={busy}
+                aria-expanded={false}
+                onClick={() => setPicking(true)}
+              >
+                {current.name}
+              </button>
+              <button
+                type="button"
+                className="tag-x"
+                aria-label="タグを外す"
                 disabled={busy}
                 onClick={() => void unassign(current.id)}
               >
-                外す
+                ×
               </button>
-            </p>
+            </span>
           ) : (
-            <p className="muted" style={{ marginBottom: "0.5rem" }}>
-              まだついていません
-            </p>
-          )}
-
-          <form
-            className="tag-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (name.trim()) void assign(name);
-            }}
-          >
-            <input
-              id="tag-input"
-              /*
-               * iOS は欄の id や name に "name" が入っていると連絡先の
-               * 名前欄だと推測し、「連絡先を自動入力」を出してくる。
-               * 自動補完も補正も要らない欄なので、すべて切る。
-               */
-              name="tag"
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="none"
-              spellCheck={false}
-              enterKeyHint="done"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={current ? "つけかえる" : "ひとことで"}
-              maxLength={MAX_TAG_NAME_LENGTH}
-              disabled={busy}
-            />
-            {/*
-             * 決定のボタンを置く。ソフトウェアキーボードだけに頼ると、
-             * 確定する手段が無い端末がある（実機の iPhone で確認）。
-             */}
             <button
-              type="submit"
-              className="btn btn-blue"
-              disabled={busy || name.trim().length === 0}
+              type="button"
+              className="tag tag-add"
+              disabled={busy}
+              aria-expanded={false}
+              onClick={() => setPicking(true)}
             >
-              つける
+              ＋ タグ
             </button>
-          </form>
-
-          {candidates.length > 0 && (
-            <div className="tag-choices">
-              {candidates.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className="tag tag-pick"
-                  disabled={busy}
-                  onClick={() => void assign(t.name)}
-                >
-                  {t.name}
-                </button>
-              ))}
-            </div>
           )}
         </div>
 
         {error && <p className="error">{error}</p>}
 
         <div className="detail-foot">
-          {confirming ? (
-            <>
-              <button
-                type="button"
-                className="btn btn-orange"
-                disabled={busy}
-                onClick={() => void remove()}
-              >
-                {busy ? "消しています..." : "ほんとうに消す"}
-              </button>
-              {/* 確認をやめて詳細に留まる手段。無いと「戻る」しか逃げ道が無い */}
-              <button
-                type="button"
-                className="later"
-                disabled={busy}
-                onClick={() => setConfirming(false)}
-              >
-                やめる
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="later"
-              disabled={busy}
-              onClick={() => setConfirming(true)}
-            >
-              消す
-            </button>
-          )}
+          <button
+            type="button"
+            className="later"
+            disabled={busy}
+            onClick={() => setConfirming(true)}
+          >
+            消す
+          </button>
         </div>
+
+        {/*
+          * 確認はシートで出す（design.md D4）。要点は見た目ではなく位置で、
+          * **起動した「消す」と実行の「消す」が同じ場所に出ない**こと。
+          * 同じ位置だと、続けて二度触れただけで消える（spec の要件）。
+          */}
         {confirming && (
-          <p className="hint" style={{ marginTop: "0.6rem" }}>
-            問と答、復習の記録も一緒に消えます。戻せません
-          </p>
+          <div className="sheet-backdrop" role="dialog" aria-label="メモを消す">
+            <div className="sheet">
+              <div className="grip" />
+              <p className="sheet-label">このメモを消しますか</p>
+              <p className="sheet-memo">{memo.content}</p>
+              <p className="hint">問と答、復習の記録も一緒に消えます。戻せません</p>
+
+              {error && <p className="error">{error}</p>}
+
+              <div className="sheet-foot">
+                <button
+                  type="button"
+                  className="btn btn-orange"
+                  disabled={busy}
+                  onClick={() => void remove()}
+                >
+                  {busy ? "消しています..." : "消す"}
+                </button>
+                <button
+                  type="button"
+                  className="later"
+                  disabled={busy}
+                  onClick={() => {
+                    setConfirming(false);
+                    setError(null);
+                  }}
+                >
+                  やめる
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
       {writing && (

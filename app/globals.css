@@ -482,3 +482,44 @@ body {
   display: inline-flex; align-items: center;
   margin-left: -0.6rem; padding: 0 0.6rem;
 }
+
+/* --- タグの選び手（change 9） --- */
+
+/* 印そのものを押すと開く。× は外す。当たり判定を分ける */
+.tag-chip { padding: 0; display: inline-flex; align-items: center; overflow: hidden; }
+/*
+ * 押せる大きさを 44px 確保する。印は小さく見えるが、これは**この画面の
+ * 主要な操作**（押すと選び手が開く）なので、的を小さくしない。
+ */
+.tag-open, .tag-x {
+  font: inherit; font-size: 0.78rem; font-weight: 700; cursor: pointer;
+  background: none; border: none; color: inherit;
+  min-height: 44px; display: inline-flex; align-items: center; justify-content: center;
+}
+.tag-open { padding: 0 0.4rem 0 0.9rem; min-width: 44px; }
+.tag-x { padding: 0 0.6rem 0 0.4rem; min-width: 44px; font-size: 1.05rem; }
+.tag-open:disabled, .tag-x:disabled { cursor: not-allowed; }
+
+.tag-add {
+  cursor: pointer; font: inherit; font-size: 0.78rem; font-weight: 700;
+  background: transparent; color: var(--ink-soft);
+  border: 1px dashed var(--ink-soft); min-height: 44px; padding: 0 0.9rem;
+}
+
+.picker { position: relative; }
+.picker-list {
+  margin-top: 0.4rem; background: var(--card);
+  border: 1px solid var(--rule); border-radius: 10px; padding: 0.25rem;
+  max-height: 12rem; overflow-y: auto;
+}
+.picker-row {
+  display: block; width: 100%; text-align: left; font: inherit; font-size: 0.9rem;
+  background: none; border: none; color: var(--ink); cursor: pointer;
+  padding: 0.55rem 0.6rem; border-radius: 7px; min-height: 44px;
+}
+.picker-row:hover:not(:disabled) { background: var(--paper); }
+.picker-row:focus-visible { outline: 2px solid var(--orange); outline-offset: -2px; }
+.picker-row:disabled { cursor: not-allowed; }
+/* 作る行は色でも位置でも分かるようにする（一覧の最後・オレンジ） */
+.picker-new { color: var(--orange-text); border-top: 1px solid var(--rule); border-radius: 0; }
+.picker-empty { font-size: 0.82rem; color: var(--ink-soft); margin: 0; padding: 0.55rem 0.6rem; }
