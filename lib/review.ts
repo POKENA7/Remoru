@@ -1,5 +1,5 @@
 import { and, asc, eq, lte } from "drizzle-orm";
-import { memos, quizItems, reviewSchedules } from "../db/schema";
+import { memos, quizItems, reviewEvents, reviewSchedules } from "../db/schema";
 import type { AppDb } from "../db/types";
 import {
   schedule,
@@ -112,6 +112,22 @@ export async function gradeReview(
       state: serializeState(result.state),
     })
     .where(eq(reviewSchedules.quizItemId, params.quizItemId));
+
+  /*
+   * 採点の出来事を残す（learning-record）。**更新のあとに行う。**
+   *
+   * D1 は対話的なトランザクションを持たず、テストで使う better-sqlite3 は
+   * batch を持たないので、両方で動く原子的な書き方が無い。順序で倒れ方を
+   * 選ぶ：更新が先なら next_review_at が動くので、挿入が落ちても押し直しは
+   * 二重送信として弾かれる（記録1件の取りこぼしで済む）。逆順だと、記録が
+   * 二重になり、間隔が負になってその問答が層から消える。
+   */
+  await db.insert(reviewEvents).values({
+    id: crypto.randomUUID(),
+    quizItemId: params.quizItemId,
+    occurredAt: params.now,
+    recalled: params.recalled,
+  });
 
   return { ok: true, nextReviewAt: result.nextReviewAt, applied: true };
 }

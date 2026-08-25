@@ -523,3 +523,26 @@ body {
 /* 作る行は色でも位置でも分かるようにする（一覧の最後・オレンジ） */
 .picker-new { color: var(--orange-text); border-top: 1px solid var(--rule); border-radius: 0; }
 .picker-empty { font-size: 0.82rem; color: var(--ink-soft); margin: 0; padding: 0.55rem 0.6rem; }
+
+/* --- 記録（change 10） --- */
+
+.record-total {
+  font-size: 3rem; font-weight: 800; line-height: 1;
+  margin: 0.8rem 0 0.2rem; color: var(--orange-text);
+}
+.record-total span { font-size: 1rem; font-weight: 700; margin-left: 0.3rem; }
+
+/*
+ * 層。下が土台になるよう、間隔の短いものから積む。
+ * **上限を描かない** ── 届いていない場所を作らないため（分母を持たない）。
+ */
+.layer { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.55rem; }
+.layer-name { flex: none; width: 5.4rem; font-size: 0.78rem; color: var(--ink-soft); }
+/*
+ * **枠を描かない。** 枠があると、埋まっていない部分が「足りない量」に
+ * 見える ── それは分母であり、責める形になる（proposal の ## Why）。
+ * 見えるのは積み上がった長さだけにする。
+ */
+.layer-bar { flex: 1; height: 1.1rem; display: flex; align-items: center; }
+.layer-bar i { display: block; height: 100%; background: var(--orange); border-radius: 3px; min-width: 3px; }
+.layer-count { flex: none; width: 1.6rem; text-align: right; font-weight: 700; font-size: 0.9rem; }

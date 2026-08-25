@@ -163,6 +163,32 @@ export const tagSuggestionState = sqliteTable("tag_suggestion_state", {
   dismissedAt: integer("dismissed_at"),
 });
 
+/**
+ * 想起の出来事。復習で自己採点するたびに1行増える。
+ *
+ * **二重採点の防止には使わない。** それは review_schedules の
+ * next_review_at と occurrenceAt の比較で行っており、履歴テーブル無しで
+ * べき等になっている（change 2）。ここは記録を足すだけで、判定には
+ * 関わらない（design.md D4）。
+ *
+ * 問答が消えれば記録も消える。メモを消すと問答が消え、記録も消える。
+ */
+export const reviewEvents = sqliteTable(
+  "review_events",
+  {
+    id: text("id").primaryKey(),
+    quizItemId: text("quiz_item_id")
+      .notNull()
+      .references(() => quizItems.id, { onDelete: "cascade" }),
+    /** エポックミリ秒 */
+    occurredAt: integer("occurred_at").notNull(),
+    /** 思い出せたか。思い出せなかった回も残す */
+    recalled: integer("recalled", { mode: "boolean" }).notNull(),
+  },
+  // 問答ごとに最後の採点日を求めるとき（保持の層の集計）に引く
+  (t) => [index("review_events_quiz_item_id_idx").on(t.quizItemId)],
+);
+
 export type Memo = typeof memos.$inferSelect;
 export type NewMemo = typeof memos.$inferInsert;
 export type QuizItem = typeof quizItems.$inferSelect;
@@ -173,3 +199,4 @@ export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 export type Tag = typeof tags.$inferSelect;
 export type MemoTag = typeof memoTags.$inferSelect;
 export type TagSuggestionState = typeof tagSuggestionState.$inferSelect;
+export type ReviewEvent = typeof reviewEvents.$inferSelect;

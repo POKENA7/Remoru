@@ -4,13 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { MemoTab } from "./memo-tab";
 import { MemoDetail } from "./memo-detail";
+import { RecordTab } from "./record-tab";
 import { resolveDetail } from "./detail-selection";
 import { TagSuggestionBand } from "./tag-suggestion-band";
 import { NotificationSettings } from "./notification-settings";
 import { ReviewTab } from "./review-tab";
 import type { DueItem, MemoRow } from "./types";
 
-type Tab = "memo" | "review";
+type Tab = "memo" | "review" | "record";
 
 /** 受け取ったタグの提案。承認されるまで保持する。 */
 export type SuggestionResult = {
@@ -187,6 +188,8 @@ export function AppShell() {
             onChanged={load}
             onClose={closeDetail}
           />
+        ) : tab === "record" ? (
+          <RecordTab />
         ) : tab === "memo" ? (
           <MemoTab
             memos={memos}
@@ -250,6 +253,20 @@ export function AppShell() {
           <i />
           復習
           {due.length > 0 && <span className="count">{due.length}</span>}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          className="tab"
+          aria-selected={tab === "record"}
+          onClick={() => {
+            setSettingsOpen(false);
+            closeDetail();
+            setTab("record");
+          }}
+        >
+          <i />
+          記録
         </button>
       </nav>
     </main>
