@@ -34,6 +34,7 @@ export function MemoTab({
   activeTagId,
   onSelectTag,
   suggestion,
+  announcement,
 }: {
   memos: MemoRow[];
   loading: boolean;
@@ -47,6 +48,8 @@ export function MemoTab({
   onSelectTag: (tagId: string | null) => void;
   /** タグの提案の帯。出す条件は app-shell が決める */
   suggestion: React.ReactNode;
+  /** 初回の告知。付けるメモと、その中身。無ければ null */
+  announcement: { memoId: string; node: React.ReactNode } | null;
 }) {
   const content = draft;
   const [saving, setSaving] = useState(false);
@@ -215,6 +218,8 @@ export function MemoTab({
                   <StateMark kind={memo.review.kind} />
                 </span>
               </button>
+
+              {announcement?.memoId === memo.id && announcement.node}
             </li>
           ))}
         </ul>

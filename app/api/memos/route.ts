@@ -5,6 +5,7 @@ import { createMemo, listMemos } from "@/lib/memos";
 import { getReviewStates, countUnwritten } from "@/lib/quiz-items";
 import { startGeneration } from "@/lib/quiz-generation-run";
 import { getTagsForMemos } from "@/lib/tags";
+import { hasFinishedGuide } from "@/lib/first-run";
 
 /**
  * 保存済みメモを新しい順に返す。
@@ -23,11 +24,13 @@ export async function GET(req: NextRequest) {
 
   const db = await getDb();
   const now = Date.now();
-  const [memos, states, unwritten, tagsByMemo] = await Promise.all([
+  const [memos, states, unwritten, tagsByMemo, guided] = await Promise.all([
     listMemos(db, userId, tagId),
     getReviewStates(db, userId, now),
     countUnwritten(db, userId, now),
     getTagsForMemos(db, userId),
+    // 初回の導きを終えているか。誘いと告知の出し分けに要る（first-run）
+    hasFinishedGuide(db, userId),
   ]);
 
   const withState = memos.map((memo) => ({
@@ -36,7 +39,7 @@ export async function GET(req: NextRequest) {
     tags: (tagsByMemo.get(memo.id) ?? []).map((t) => ({ id: t.id, name: t.name })),
   }));
 
-  return NextResponse.json({ memos: withState, unwrittenCount: unwritten });
+  return NextResponse.json({ memos: withState, unwrittenCount: unwritten, guided });
 }
 
 /** メモを1件保存する。 */

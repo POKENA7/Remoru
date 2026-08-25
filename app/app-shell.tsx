@@ -6,6 +6,8 @@ import { MemoTab } from "./memo-tab";
 import { MemoDetail } from "./memo-detail";
 import { RecordTab } from "./record-tab";
 import { resolveDetail } from "./detail-selection";
+import { announcement } from "./first-run-view";
+import { FirstRunNotice, type NoticeAnswer } from "./first-run-notice";
 import { TagSuggestionBand } from "./tag-suggestion-band";
 import { NotificationSettings } from "./notification-settings";
 import { ReviewTab } from "./review-tab";
@@ -38,6 +40,9 @@ export function AppShell() {
   const [memos, setMemos] = useState<MemoRow[]>([]);
   const [due, setDue] = useState<DueItem[]>([]);
   const [loading, setLoading] = useState(true);
+  /** 初回の導きを終えているか。読み込むまでは終えている扱い（first-run）。
+   * 未了を既定にすると、読み込みの一瞬だけ誘いが出て消える。 */
+  const [guided, setGuided] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tags, setTags] = useState<{ id: string; name: string; count: number }[]>([]);
   // 絞り込みは URL に持たない。タブと同じクライアント状態（design.md D5）
@@ -55,6 +60,24 @@ export function AppShell() {
   const [suggestionResult, setSuggestionResult] = useState<SuggestionResult>(null);
   /** 詳細を開く前の位置と、開いた行。戻ったときに元の場所へ返す。 */
   const restore = useRef<{ scrollY: number; memoId: string } | null>(null);
+  /**
+   * 出している告知。**一度掴んだら離さない。**
+   *
+   * 見せた時点で導きを終える（`guided` が true になる）ので、そのまま
+   * 計算し直すと出した瞬間に消える。
+   */
+  const [notice, setNotice] = useState<{
+    memoId: string;
+    nextReviewAt: number;
+    now: number;
+  } | null>(null);
+  /**
+   * 告知に答えたかどうか。**画面の外で持つ。**
+   *
+   * タブの切り替えとメモの詳細は `MemoTab` を unmount する。告知の中に
+   * 持たせると、答えたのに戻ってきたとき同じ問いがもう一度出る。
+   */
+  const [noticeAnswer, setNoticeAnswer] = useState<NoticeAnswer>(null);
   const [suggestion, setSuggestion] = useState<{ show: boolean; untaggedCount: number }>({
     show: false,
     untaggedCount: 0,
@@ -72,6 +95,7 @@ export function AppShell() {
       setTags((t as { tags: typeof tags }).tags ?? []);
       setSuggestion(s as { show: boolean; untaggedCount: number });
       setMemos((m as { memos: MemoRow[] }).memos ?? []);
+      setGuided((m as { guided?: boolean }).guided ?? true);
       setDue((d as { items: DueItem[] }).items ?? []);
     } catch {
       // 読み込みの失敗は各タブの空状態として現れる
@@ -124,6 +148,22 @@ export function AppShell() {
       window.scrollTo(0, saved.scrollY);
     });
   }, [detailId]);
+
+  /**
+   * 初めて問答ができたら告知を出し、その時点で導きを終える。
+   *
+   * 見送っても終える（design.md D5）。この場面が二度と訪れないことが、
+   * 通知を繰り返し求めないことの担保になっている。
+   */
+  useEffect(() => {
+    if (notice) return;
+    const next = announcement({ guided, memos, now: Date.now() });
+    if (!next) return;
+    setNotice(next);
+    // 記録に失敗しても告知は出したままにする。次に開いたときにまた出るが、
+    // 一度も見せないよりよい
+    void fetch("/api/first-run", { method: "POST" }).catch(() => {});
+  }, [guided, memos, notice]);
 
   // 生成中のメモの並び。変わったら数え直す（新しく書いたときなど）
   const generatingKey = useMemo(
@@ -201,6 +241,21 @@ export function AppShell() {
             tags={tags}
             activeTagId={activeTagId}
             onSelectTag={setActiveTagId}
+            announcement={
+              notice
+                ? {
+                    memoId: notice.memoId,
+                    node: (
+                      <FirstRunNotice
+                        nextReviewAt={notice.nextReviewAt}
+                        now={notice.now}
+                        answer={noticeAnswer}
+                        onAnswer={setNoticeAnswer}
+                      />
+                    ),
+                  }
+                : null
+            }
             suggestion={
               suggestion.show ? (
                 <TagSuggestionBand

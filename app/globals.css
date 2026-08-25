@@ -546,3 +546,14 @@ body {
 .layer-bar { flex: 1; height: 1.1rem; display: flex; align-items: center; }
 .layer-bar i { display: block; height: 100%; background: var(--orange); border-radius: 3px; min-width: 3px; }
 .layer-count { flex: none; width: 1.6rem; text-align: right; font-weight: 700; font-size: 0.9rem; }
+
+/* --- 初回の告知（change 11） ---
+   そのメモの行の下に付く。行と地続きに見えるよう、上の角だけ落とす */
+.first-run-notice {
+  background: var(--card); border: 1px solid var(--blue-text);
+  border-top: none; border-radius: 0 0 var(--radius) var(--radius);
+  padding: 0.75rem 1rem; margin: -0.55rem 0 1rem;
+}
+.first-run-text { margin: 0; font-size: 0.9rem; font-weight: 700; }
+.first-run-notice .btn { margin-top: 0.6rem; width: 100%; padding: 0.6rem; font-size: 0.9rem; }
+.first-run-sub { margin: 0.6rem 0 0; font-size: 0.85rem; }

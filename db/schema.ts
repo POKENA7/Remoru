@@ -164,6 +164,22 @@ export const tagSuggestionState = sqliteTable("tag_suggestion_state", {
 });
 
 /**
+ * 初回の導きの状態。利用者ごとに1行。
+ *
+ * **持ち物の数では代用できない。** メモ0件という状態には「初めて開いた人」と
+ * 「全部消した人」の2つがあり、後者はもう使い方を知っている。誘いを出し直す
+ * 理由が無いので、終えたことを憶えておく（design.md D1）。
+ *
+ * 端末ではなく利用者に紐づける。使い方を知っているのは人であって端末では
+ * ないので、機種を変えても戻ってこない。
+ */
+export const firstRunState = sqliteTable("first_run_state", {
+  userId: text("user_id").primaryKey(),
+  /** 導きを終えた時刻（エポックミリ秒）。終えていなければ null。 */
+  guidedAt: integer("guided_at"),
+});
+
+/**
  * 想起の出来事。復習で自己採点するたびに1行増える。
  *
  * **二重採点の防止には使わない。** それは review_schedules の
@@ -200,3 +216,4 @@ export type Tag = typeof tags.$inferSelect;
 export type MemoTag = typeof memoTags.$inferSelect;
 export type TagSuggestionState = typeof tagSuggestionState.$inferSelect;
 export type ReviewEvent = typeof reviewEvents.$inferSelect;
+export type FirstRunState = typeof firstRunState.$inferSelect;
