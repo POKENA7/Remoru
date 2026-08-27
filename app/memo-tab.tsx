@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { UserButton } from "@clerk/nextjs";
 import { stateLabel } from "./detail-selection";
+import { takeFresh, type FreshMemo } from "./fresh-memo";
 import { MAX_CONTENT_LENGTH, type MemoRow } from "./types";
 
 const ERRORS: Record<string, string> = {
@@ -30,6 +31,9 @@ export function MemoTab({
   onOpenDetail,
   draft,
   onDraftChange,
+  fresh,
+  onSaved,
+  onPrinted,
   tags,
   activeTagId,
   onSelectTag,
@@ -43,6 +47,11 @@ export function MemoTab({
   /** 書きかけの本文。詳細を開くとこの画面は unmount されるので、外で持つ */
   draft: string;
   onDraftChange: (value: string) => void;
+  /** いま書いた1件の id。刷りの合図。**この画面では持てない**（design.md D2） */
+  fresh: FreshMemo;
+  onSaved: (memoId: string) => void;
+  /** 刷り終えた。憶えを外す */
+  onPrinted: () => void;
   tags: { id: string; name: string; count: number }[];
   activeTagId: string | null;
   onSelectTag: (tagId: string | null) => void;
@@ -78,6 +87,7 @@ export function MemoTab({
           return;
         }
         onDraftChange("");
+        onSaved(data.memo.id);
         onChanged();
         // 保存直後にシートをせり上げない。問と答は生成が作る。ここで手入力を
         // 求めると、書いたものが遅れて届く生成結果と競合する。手で書く経路は
@@ -88,9 +98,49 @@ export function MemoTab({
         setSaving(false);
       }
     },
-    [content, saving, onChanged, onDraftChange],
+    [content, saving, onChanged, onDraftChange, onSaved],
   );
 
+
+  /**
+   * 刷りの動きを付ける（design.md D1）。
+   *
+   * **高さは動かす前に測る。** 本文は最大1000文字で、行の高さは中身で
+   * 変わる。固定値を置くと長い本文が切れる。アニメーションを先に付けると
+   * 0 を測ってしまうので、測る → 付ける の順に要る。
+   */
+  const printRef = useRef<HTMLLIElement | null>(null);
+  useLayoutEffect(() => {
+    const row = printRef.current;
+    if (!row) return;
+    row.style.setProperty("--print-h", `${row.getBoundingClientRect().height}px`);
+    row.classList.add("printing");
+    // 動きを止めた人には橙の版が残る。次のフレームで引きはじめる（D4）。
+    // 動く人には効かない指定なので、分岐せずに常に付ける
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => row.classList.add("printed")),
+    );
+    // 刷ったら憶えを外す。残すと次の unmount でまた刷る（design.md D2）
+    onPrinted();
+    // **memos も要る。** 保存は `fresh` を先に立て、一覧はそのあとの取得で
+    // 届く。`fresh` だけを見ていると、行が現れた回に走らず刷られない。
+  }, [fresh, memos, onPrinted]);
+
+  /**
+   * 押した位置から波紋を出す（design.md D5）。ボタンの中心からではなく
+   * **指の位置から**出すことで、押したのが自分だという手応えになる。
+   * `click` を待つと押してから発火までに間が空くので `pointerdown` を使う。
+   */
+  const ripple = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    const btn = e.currentTarget;
+    const box = btn.getBoundingClientRect();
+    const mark = document.createElement("span");
+    mark.className = "ripple";
+    mark.style.left = `${e.clientX - box.left}px`;
+    mark.style.top = `${e.clientY - box.top}px`;
+    btn.appendChild(mark);
+    setTimeout(() => mark.remove(), 500);
+  }, []);
 
   const chars = [...content].length;
   const over = chars > MAX_CONTENT_LENGTH;
@@ -126,6 +176,7 @@ export function MemoTab({
             type="submit"
             className="btn btn-orange"
             disabled={saving || over || chars === 0}
+            onPointerDown={ripple}
           >
             {saving ? "保存中..." : "書きとめる"}
           </button>
@@ -187,7 +238,11 @@ export function MemoTab({
       ) : (
         <ul className="memo-list">
           {memos.map((memo) => (
-            <li key={memo.id} className="memo-item">
+            <li
+              key={memo.id}
+              className="memo-item"
+              ref={takeFresh(fresh, memo.id) ? printRef : undefined}
+            >
               {/*
                * 行のどこを押しても詳細が開く（design.md D2）。押せる場所を
                * 指す小さな的（「くわしく」）は置かない。button の中には

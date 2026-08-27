@@ -6,6 +6,7 @@ import { MemoTab } from "./memo-tab";
 import { MemoDetail } from "./memo-detail";
 import { RecordTab } from "./record-tab";
 import { resolveDetail } from "./detail-selection";
+import { markFresh, type FreshMemo } from "./fresh-memo";
 import { announcement } from "./first-run-view";
 import { FirstRunNotice, type NoticeAnswer } from "./first-run-notice";
 import { TagSuggestionBand } from "./tag-suggestion-band";
@@ -58,6 +59,13 @@ export function AppShell() {
    */
   const [draft, setDraft] = useState("");
   const [suggestionResult, setSuggestionResult] = useState<SuggestionResult>(null);
+  /**
+   * いま書いた1件。刷りの合図（design.md D2）。
+   *
+   * **mount を合図にしない。** 一覧は unmount されるので、戻るたびに全行が
+   * 刷り直される。刷り終えたら `null` に戻す ― 残すと次の unmount でまた刷る。
+   */
+  const [fresh, setFresh] = useState<FreshMemo>(null);
   /** 詳細を開く前の位置と、開いた行。戻ったときに元の場所へ返す。 */
   const restore = useRef<{ scrollY: number; memoId: string } | null>(null);
   /**
@@ -82,6 +90,10 @@ export function AppShell() {
     show: false,
     untaggedCount: 0,
   });
+
+  // 刷りの合図。**同一性を保つ**（毎回作り直すと刷る効果が再実行される）
+  const onSaved = useCallback((memoId: string) => setFresh(markFresh(memoId)), []);
+  const onPrinted = useCallback(() => setFresh(null), []);
 
   const load = useCallback(async () => {
     try {
@@ -238,6 +250,9 @@ export function AppShell() {
             onOpenDetail={openDetail}
             draft={draft}
             onDraftChange={setDraft}
+            fresh={fresh}
+            onSaved={onSaved}
+            onPrinted={onPrinted}
             tags={tags}
             activeTagId={activeTagId}
             onSelectTag={setActiveTagId}

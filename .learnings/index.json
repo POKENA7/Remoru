@@ -8,5 +8,6 @@
   { "id": "L07", "type": "process",  "capturedIn": "add-notifications", "cites": 0 },
   { "id": "L08", "type": "process",  "capturedIn": "add-notifications", "cites": 0 },
   { "id": "L09", "type": "process",  "capturedIn": "add-quiz-generation", "cites": 0 },
-  { "id": "L10", "type": "process",  "capturedIn": "add-tags", "cites": 0 }
+  { "id": "L10", "type": "process",  "capturedIn": "add-tags", "cites": 0 },
+  { "id": "L11", "type": "process",  "capturedIn": "guide-the-first-memo", "cites": 0 }
 ]

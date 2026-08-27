@@ -557,3 +557,82 @@ body {
 .first-run-text { margin: 0; font-size: 0.9rem; font-weight: 700; }
 .first-run-notice .btn { margin-top: 0.6rem; width: 100%; padding: 0.6rem; font-size: 0.9rem; }
 .first-run-sub { margin: 0.6rem 0 0; font-size: 0.85rem; }
+
+/* --- 刷り上がる（change 12） ---
+ *
+ * 書きとめた行が刷られる。高さが開いて場所ができ、少し遅れて左から右へ
+ * インクが載る（design.md D1）。
+ *
+ *   0ms   高さが 0 から開きはじめる
+ *  60ms   インクが左端から入る
+ * 200ms   高さが開ききる（下の行はここまで滑る）
+ * 480ms   インクが右端まで抜ける
+ *
+ * **尺は中身の長さで変えない。** 変えると繰り返したときにリズムが揺れる。
+ * 高さだけ実測した値（--print-h）を使う。
+ */
+.memo-item.printing {
+  overflow: hidden;
+  animation:
+    print-open 200ms cubic-bezier(.25, .9, .3, 1) both,
+    print-wipe 420ms cubic-bezier(.35, .75, .3, 1) 60ms both;
+}
+@keyframes print-open {
+  from { height: 0; }
+  to   { height: var(--print-h); }
+}
+@keyframes print-wipe {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0 0 0); }
+}
+
+/* インクの層。地の明暗で重ね方が反転する（既存の2版と同じ扱い） */
+.memo-item.printing::after {
+  content: ""; position: absolute; inset: 0; border-radius: var(--radius);
+  background: linear-gradient(90deg,
+    transparent 0%, var(--orange) 45%, var(--orange) 55%, transparent 100%);
+  mix-blend-mode: multiply;
+  animation: print-ink 420ms cubic-bezier(.35, .75, .3, 1) 60ms both;
+  pointer-events: none;
+}
+@keyframes print-ink {
+  from { transform: translateX(-100%); opacity: 0.7; }
+  to   { transform: translateX(100%);  opacity: 0; }
+}
+@media (prefers-color-scheme: dark) {
+  .memo-item.printing::after { mix-blend-mode: screen; }
+}
+
+.memo-item { position: relative; }
+
+/* 押した位置から出る波紋。ボタンの中心からではない（design.md D5） */
+.composer .btn { position: relative; overflow: hidden; }
+.composer .btn .ripple {
+  position: absolute; border-radius: 50%; transform: translate(-50%, -50%);
+  background: var(--on-ink); pointer-events: none;
+  animation: print-ripple 460ms ease-out forwards;
+}
+@keyframes print-ripple {
+  from { width: 0; height: 0; opacity: 0.45; }
+  to   { width: 220px; height: 220px; opacity: 0; }
+}
+
+/*
+ * 動きを止めた人（design.md D4）。
+ *
+ * **消して何も残らない形にしない。** change 10 で点滅を止めたら「作成中」と
+ * 「予定あり」が同じ丸になった前例がある。橙の版を1本残し、0.4秒おいて
+ * 1.2秒かけて引く。位置は動かさず、色だけを減衰させる。
+ */
+@media (prefers-reduced-motion: reduce) {
+  .memo-item.printing,
+  .memo-item.printing::after,
+  .composer .btn .ripple { animation: none !important; }
+  .memo-item.printing::after { content: none; }
+  .memo-item.printing {
+    overflow: visible;
+    box-shadow: inset 3px 0 0 var(--orange-text);
+    transition: box-shadow 1.2s linear 0.4s;
+  }
+  .memo-item.printed { box-shadow: inset 3px 0 0 transparent; }
+}
