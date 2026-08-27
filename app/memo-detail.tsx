@@ -31,8 +31,12 @@ export function MemoDetail({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
   const [writing, setWriting] = useState(false);
+  /**
+   * 答え。**一覧の応答には載っていない**ので、詳細を開いたときに引く
+   * （design.md D1）。載せるとメモの数だけ答えを運ぶことになる。
+   */
+  const [answer, setAnswer] = useState<string | null>(null);
   /**
    * この画面が持つタグ。
    *
@@ -57,6 +61,23 @@ export function MemoDetail({
   useEffect(() => {
     backRef.current?.focus({ preventScroll: true });
   }, []);
+
+  // 答えを引く。問答が無いメモでは引かない
+  useEffect(() => {
+    if (review.kind !== "scheduled") return;
+    let alive = true;
+    void fetch(`/api/memos/${memo.id}/quiz-item`)
+      .then((r) => (r.ok ? (r.json() as Promise<{ quizItem: { answer: string } }>) : null))
+      .then((d) => {
+        if (alive && d) setAnswer(d.quizItem.answer);
+      })
+      .catch(() => {
+        // 引けなくても問と出題日は読める。答えの行だけ出さない
+      });
+    return () => {
+      alive = false;
+    };
+  }, [memo.id, review.kind]);
 
   const current: TagRef | undefined = tags[0];
 
@@ -131,24 +152,6 @@ export function MemoDetail({
     }
   }
 
-  /** 問と答を作り直す。失敗しても以前のものが残るので、画面には出さない。 */
-  async function regenerate() {
-    if (regenerating) return;
-    setRegenerating(true);
-    try {
-      const res = await fetch(`/api/memos/${memo.id}/quiz-item`, { method: "PUT" });
-      if (res.ok) {
-        const { question } = (await res.json()) as { question: string | null };
-        if (question && review.kind === "scheduled") setReview({ ...review, question });
-      }
-    } catch {
-      // 以前の問答がそのまま残る
-    } finally {
-      setRegenerating(false);
-      onChanged();
-    }
-  }
-
   const view = pickerView(knownTags, current?.id, name);
 
   // 選び手の外に触れたら閉じる。スマホには Escape が無い（design.md D1）
@@ -177,27 +180,63 @@ export function MemoDetail({
         >
           ←
         </button>
-        <span className="counter">メモ</span>
+        {/*
+          * 消すは上の帯（design.md D3）。取り消せない操作なので `--danger` を
+          * 当て、他と見分けられるようにする。下の `.detail-foot` は子が1つで
+          * gap が働いておらず、change 7 の残骸だったので落とした。
+          */}
+        <button
+          type="button"
+          className="head-del"
+          disabled={busy}
+          onClick={() => setConfirming(true)}
+        >
+          消す
+        </button>
       </div>
 
       <p className="detail-memo">{memo.content}</p>
 
-      {/* 問と、次回の出題日。**答えは出さない**（design.md D5） */}
+      {/*
+        * 問・答・次回の出題日（design.md D2）。札を作らず、タグと同じ骨格の
+        * まま並べる。**2版を問と答に1つずつ割り当て**、日付には版を当てない
+        * ことで、書き直しが触らないものが形の上で分かれる。
+        *
+        * 答えは示す（design.md D1）。隠しても、上のメモ本文から読み取れる。
+        */}
       <div className="field">
-        <p className="field-label">復習</p>
-        {review.kind === "scheduled" ? (
-          <>
-            <p className="detail-q">問：{review.question}</p>
-            <p className="muted">次は {formatDay(review.nextReviewAt)}</p>
+        <div className="rv-head">
+          <p className="field-label">復習</p>
+          {review.kind === "scheduled" && (
             <button
               type="button"
-              className="redo"
-              disabled={regenerating}
-              onClick={() => void regenerate()}
-              style={{ marginTop: "0.5rem" }}
+              className="pencil"
+              aria-label="問と答を書き直す"
+              disabled={busy || answer === null}
+              onClick={() => setWriting(true)}
             >
-              {regenerating ? "つくり直しています..." : "つくり直す"}
+              <span>
+                <svg
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M13.7 3.4a1.4 1.4 0 0 1 2 0l.9.9a1.4 1.4 0 0 1 0 2L7.2 15.7l-3.6.7.7-3.6z" />
+                  <path d="M12.4 4.7l2.9 2.9" />
+                </svg>
+              </span>
             </button>
+          )}
+        </div>
+        {review.kind === "scheduled" ? (
+          <>
+            <p className="qa-line"><b>問</b>{review.question}</p>
+            {answer !== null && <p className="qa-line ans"><b>答</b>{answer}</p>}
+            <p className="muted">次は {formatDay(review.nextReviewAt)}</p>
           </>
         ) : review.kind === "generating" ? (
           <p className="making">問と答をつくっています</p>
@@ -316,17 +355,6 @@ export function MemoDetail({
 
         {error && <p className="error">{error}</p>}
 
-        <div className="detail-foot">
-          <button
-            type="button"
-            className="later"
-            disabled={busy}
-            onClick={() => setConfirming(true)}
-          >
-            消す
-          </button>
-        </div>
-
         {/*
           * 確認はシートで出す（design.md D4）。要点は見た目ではなく位置で、
           * **起動した「消す」と実行の「消す」が同じ場所に出ない**こと。
@@ -367,10 +395,20 @@ export function MemoDetail({
           </div>
         )}
 
+      {/*
+        * 同じシートを作成と書き直しの両方に使う（design.md D6）。**いまの
+        * 問と答を渡す**ので、書き直しは空欄から始まらない。渡さなければ
+        * 作成として開く。
+        */}
       {writing && (
         <QuizSheet
           memoId={memo.id}
           memoContent={memo.content}
+          initial={
+            review.kind === "scheduled" && answer !== null
+              ? { question: review.question, answer }
+              : undefined
+          }
           onDone={(created) => {
             setWriting(false);
             setReview({
@@ -378,6 +416,7 @@ export function MemoDetail({
               question: created.question,
               nextReviewAt: created.nextReviewAt,
             });
+            setAnswer(created.answer);
             onChanged();
           }}
           onLater={() => setWriting(false)}

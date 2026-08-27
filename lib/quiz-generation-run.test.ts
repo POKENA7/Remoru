@@ -89,7 +89,7 @@ describe("生成が成功したとき", () => {
       memoId, userId: "u1", now: NOW, apiKey: "key", ...succeeds(),
     });
 
-    expect(result).toEqual({ ok: true, replaced: false });
+    expect(result).toEqual({ ok: true });
     const state = (await getReviewStates(db, "u1", NOW)).get(memoId);
     expect(state?.kind).toBe("scheduled");
   });
@@ -182,7 +182,7 @@ describe("生成の持ち主", () => {
   });
 });
 
-describe("作り直し", () => {
+describe("生成は最初の1回だけ", () => {
   /** 何度か復習を終えた状態を作る。 */
   async function advancedReview(db: ReturnType<typeof createTestDb>) {
     const memoId = await seedMemo(db);
@@ -193,38 +193,27 @@ describe("作り直し", () => {
     const { quizItems, reviewSchedules } = await import("../db/schema");
     const item = (await db.select().from(quizItems).where(eq(quizItems.memoId, memoId)))[0];
 
-    // 段階を進めた状態に置き換える
     const advanced = { nextReviewAt: NOW + 14 * 24 * 60 * 60 * 1000, state: '{"stage":3,"recoverTo":null}' };
     await db.update(reviewSchedules).set(advanced).where(eq(reviewSchedules.quizItemId, item.id));
 
     return { memoId, quizItemId: item.id, advanced };
   }
 
-  it("復習の進みが残る", async () => {
+  it("すでに問答があれば置き換えない", async () => {
     const db = createTestDb();
-    const { memoId, quizItemId, advanced } = await advancedReview(db);
+    const { memoId } = await advancedReview(db);
 
+    // 保存直後に利用者が手で書いた場合、遅れて届いた生成結果が
+    // それを上書きしてはいけない
     const result = await finishGeneration(db, {
-      memoId, userId: "u1", now: NOW, apiKey: "key", replaceExisting: true,
-      ...succeeds("新しい問", "新しい答"),
+      memoId, userId: "u1", now: NOW, apiKey: "key",
+      ...succeeds("あとから来た問", "あとから来た答"),
     });
-    expect(result).toEqual({ ok: true, replaced: true });
 
-    const { quizItems, reviewSchedules } = await import("../db/schema");
+    expect(result).toEqual({ ok: true });
+    const { quizItems } = await import("../db/schema");
     const items = await db.select().from(quizItems).where(eq(quizItems.memoId, memoId));
-    expect(items).toHaveLength(1);
-    expect(items[0].question).toBe("新しい問");
-    // 行そのものが同じであること。消して作り直すと id が変わり、
-    // 外部キーの連鎖で段階まで消える（design.md D5）。
-    expect(items[0].id).toBe(quizItemId);
-
-    const schedules = await db
-      .select()
-      .from(reviewSchedules)
-      .where(eq(reviewSchedules.quizItemId, quizItemId));
-    expect(schedules).toHaveLength(1);
-    expect(schedules[0].nextReviewAt).toBe(advanced.nextReviewAt);
-    expect(schedules[0].state).toBe(advanced.state);
+    expect(items[0].question).toBe("最初の問");
   });
 
   it("失敗したら以前の問と答が残り、復習の対象からも外れない", async () => {
@@ -251,24 +240,7 @@ describe("作り直し", () => {
     expect((await getReviewStates(db, "u1", NOW)).get(memoId)?.kind).toBe("scheduled");
   });
 
-  it("保存時の生成は、すでにある問答を置き換えない", async () => {
-    const db = createTestDb();
-    const { memoId } = await advancedReview(db);
-
-    // 保存直後に利用者が手で書いた場合、遅れて届いた生成結果が
-    // それを上書きしてはいけない
-    const result = await finishGeneration(db, {
-      memoId, userId: "u1", now: NOW, apiKey: "key",
-      ...succeeds("あとから来た問", "あとから来た答"),
-    });
-
-    expect(result).toEqual({ ok: true, replaced: false });
-    const { quizItems } = await import("../db/schema");
-    const items = await db.select().from(quizItems).where(eq(quizItems.memoId, memoId));
-    expect(items[0].question).toBe("最初の問");
-  });
-
-  it("他人のメモは作り直せない", async () => {
+  it("他人のメモには生成が走らない", async () => {
     const db = createTestDb();
     const { memoId } = await advancedReview(db);
     const { calls, call } = succeeds("乗っ取り", "乗っ取り");

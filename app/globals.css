@@ -215,8 +215,6 @@ body {
 }
 .field input:focus { outline: 2px solid var(--orange); outline-offset: 1px; }
 .sheet-foot { display: flex; align-items: center; gap: 1rem; margin-top: 1.1rem; }
-/* 詳細は全画面。削除は主要動作ではないので、幅いっぱいに広げない */
-.detail-foot { display: flex; align-items: center; gap: 1rem; margin-top: 2rem; }
 .field-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em;
                color: var(--ink-soft); margin: 0 0 0.4rem; }
 .sheet-foot .btn { flex: 1; }
@@ -319,20 +317,6 @@ body {
 
 /* --- 問答の生成 --- */
 
-
-/*
- * 作り直しは副次の操作。未作成のメモに出る「問と答をつくる」と同じ
- * 塗りにすると、やることが2つあるように見える。文字だけにして下げる。
- */
-.redo {
-  font: inherit; font-size: 0.75rem; cursor: pointer;
-  background: none; border: none; padding: 0;
-  color: var(--ink-soft); text-decoration: underline;
-}
-/* opacity で薄めると 2.51:1（ライト）/ 2.79:1（ダーク）まで落ちる。
-   このボタンは disabled のとき「つくり直しています...」という読ませたい
-   文言を出しているので、薄めずに下線だけ外す */
-.redo:disabled { cursor: not-allowed; text-decoration: none; }
 
 .making {
   font-size: 0.75rem; font-weight: 700; color: var(--ink-soft);
@@ -467,10 +451,58 @@ body {
   margin: 0 0 1.2rem; font-size: 1.05rem; line-height: 1.8;
   white-space: pre-wrap; word-break: break-word;
 }
-.detail-q {
-  margin: 0 0 0.3rem; padding-left: 0.7rem; font-weight: 700;
-  border-left: 3px solid var(--orange-soft);
+/*
+ * 復習の欄（change 13、design.md D2）。札を作らず、タグと同じ骨格のまま
+ * 並べる。**2版を問と答に1つずつ割り当てる**。日付には版を当てない ―
+ * 書き直しが触らないものを、形の上で分ける。
+ */
+.rv-head { display: flex; align-items: center; justify-content: space-between;
+           margin-bottom: 0.2rem; }
+.rv-head .field-label { margin: 0; }
+.qa-line {
+  margin: 0 0 0.35rem; padding-left: 0.7rem; font-weight: 700;
+  /* 淡色（--orange-soft）だと地との比が 1.11 で、版が見分けられない。
+     塗りの色そのもの（--orange / --blue）もダークで 2.49 まで落ちるので、
+     地に載せる用の *-text を使う。既存のトークンが同じ理由で用意されている */
+  border-left: 3px solid var(--orange-text);
+  white-space: pre-wrap; word-break: break-word;
 }
+.qa-line.ans { border-left-color: var(--blue-text); font-weight: 400; }
+.qa-line b {
+  font-size: 0.68rem; letter-spacing: 0.1em; color: var(--ink-soft);
+  margin-right: 0.5rem; font-weight: 700;
+}
+
+/*
+ * 書き直しの鉛筆。**印だけで文字を添えない**（design.md D4）。鉛筆は
+ * 「自分で書き換える」を意味し、この change でそれが本当になった。
+ * 読み上げ名は残す（`docs/design-decisions.md`「読み上げ名は短くしない」）。
+ */
+.pencil {
+  flex: none; cursor: pointer; background: none; border: none; padding: 0;
+  min-width: 44px; min-height: 44px; color: var(--blue-text);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.pencil span {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid var(--blue-text);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.pencil svg { width: 17px; height: 17px; display: block; }
+.pencil:active span { background: var(--blue-soft); }
+.pencil:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/*
+ * 消すは上の帯（design.md D3）。**取り消せない操作を、そうでない操作と
+ * 同じ見た目にしない**（spec の要件）。戻ると同じ灰色だった状態を直す。
+ */
+.head-del {
+  font: inherit; font-size: 0.85rem; font-weight: 700; cursor: pointer;
+  background: none; border: none; color: var(--danger);
+  min-height: 44px; padding: 0 0.6rem; margin-right: -0.6rem;
+  display: inline-flex; align-items: center;
+}
+.head-del:disabled { cursor: not-allowed; }
 
 /*
  * 戻るの矢印。見た目は1文字だが、指で押せる大きさを保つ

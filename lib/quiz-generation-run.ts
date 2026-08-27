@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { memos } from "../db/schema";
 import type { AppDb } from "../db/types";
-import { createQuizItem, replaceQuizText } from "./quiz-items";
+import { createQuizItem } from "./quiz-items";
 import {
   generateQuiz,
   type CallModel,
@@ -25,18 +25,10 @@ export type GenerationParams = {
   now: number;
   apiKey: string | undefined | null;
   call?: CallModel;
-  /**
-   * すでにある問答を置き換えるか。
-   *
-   * 作り直し（利用者が押した）だけが true。保存時の生成は false で、
-   * すでに問答があれば**何もしない**。true のままだと、保存直後に利用者が
-   * 手で書いた問答を、遅れて届いた生成結果が上書きしてしまう。
-   */
-  replaceExisting?: boolean;
 };
 
 export type FinishOutcome =
-  | { ok: true; replaced: boolean }
+  | { ok: true }
   | { ok: false; reason: GenerationFailure | "memo_not_found" };
 
 /** そのメモを生成中の印にする。持ち主でなければ何もしない。 */
@@ -109,19 +101,10 @@ export async function finishGeneration(
       userId: params.userId,
     });
 
-    // すでに問答があるメモは作り直し。行は消さず中身を書き換える。
-    if (!created.ok && created.error === "already_exists" && !params.replaceExisting) {
-      return { ok: true, replaced: false };
-    }
+    // すでに問答があるなら何もしない。生成は最初の1回だけを担い、
+    // 直すのは人の手（change 13）。二重に走ったときの取りこぼしでもある。
     if (!created.ok && created.error === "already_exists") {
-      const replaced = await replaceQuizText(db, {
-        memoId: params.memoId,
-        question: generated.question,
-        answer: generated.answer,
-        userId: params.userId,
-      });
-      if (!replaced.ok) return { ok: false, reason: "invalid_output" };
-      return { ok: true, replaced: true };
+      return { ok: true };
     }
 
     if (!created.ok) {
@@ -130,7 +113,7 @@ export async function finishGeneration(
         reason: created.error === "memo_not_found" ? "memo_not_found" : "invalid_output",
       };
     }
-    return { ok: true, replaced: false };
+    return { ok: true };
   } finally {
     // 成否によらず印を落とす。残すと、上限を過ぎるまで作成中に見える。
     await clearPending(db, { memoId: params.memoId, userId: params.userId });

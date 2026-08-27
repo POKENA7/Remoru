@@ -12,24 +12,36 @@ const ERRORS: Record<string, string> = {
 const FALLBACK = "保存できませんでした。もう一度お試しください";
 
 /**
- * 問と答の作成シート。一覧の「問と答をつくる →」から開く。
+ * 問と答のシート。2つの経路から開く（design.md D6）。
  *
- * change 5 で**保存直後にはせり上がらなくなった**。問と答は生成が作り、
- * ここは生成に失敗して未作成のまま残ったメモを手で書くための経路。
+ * - **作成**: 生成に失敗して未作成のまま残ったメモを手で書く
+ * - **書き直し**: 生成が外したとき、利用者が自分の言葉で直す（change 13）
+ *
+ * **画面を分けない。** 検証（空でない・長さの上限）も、失敗しても入力を
+ * 残す挙動も、両方に同じものが要る。分けると片方だけ直したときにずれる。
  */
 export function QuizSheet({
   memoId,
   memoContent,
+  initial,
   onDone,
   onLater,
 }: {
   memoId: string;
   memoContent: string;
-  onDone: (created: { question: string; nextReviewAt: number }) => void;
+  /**
+   * いまの問と答。**書き直しのときは必ず渡す。**
+   *
+   * 空欄から始めると、直したいものを書き写させることになる
+   * （spec「いまの内容から直す」）。
+   */
+  initial?: { question: string; answer: string };
+  onDone: (created: { question: string; answer: string; nextReviewAt: number }) => void;
   onLater: () => void;
 }) {
-  const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
+  const rewriting = initial !== undefined;
+  const [question, setQuestion] = useState(initial?.question ?? "");
+  const [answer, setAnswer] = useState(initial?.answer ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,13 +53,14 @@ export function QuizSheet({
 
     try {
       const res = await fetch(`/api/memos/${memoId}/quiz-item`, {
-        method: "POST",
+        // 書き直しは置き換え。作成と保存先を分ける
+        method: rewriting ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question, answer }),
       });
       const data = (await res.json()) as {
         error?: string;
-        quizItem?: { question: string };
+        quizItem?: { question: string; answer?: string };
         nextReviewAt?: number;
       };
       if (!res.ok) {
@@ -57,6 +70,7 @@ export function QuizSheet({
       }
       onDone({
         question: data.quizItem?.question ?? question,
+        answer: data.quizItem?.answer ?? answer,
         nextReviewAt: data.nextReviewAt ?? Date.now(),
       });
     } catch {
@@ -69,15 +83,17 @@ export function QuizSheet({
   const ready = question.trim().length > 0 && answer.trim().length > 0;
 
   return (
-    <div className="sheet-backdrop" role="dialog" aria-label="問と答の作成">
+    <div className="sheet-backdrop" role="dialog" aria-label={rewriting ? "問と答の書き直し" : "問と答の作成"}>
       <form className="sheet" onSubmit={submit}>
         <div className="grip" />
         <p className="sheet-label">書きとめた</p>
         <p className="sheet-memo">{memoContent}</p>
 
-        <p className="muted" style={{ marginBottom: "1rem" }}>
-          問いのかたちにしておく？
-        </p>
+        {!rewriting && (
+          <p className="muted" style={{ marginBottom: "1rem" }}>
+            問いのかたちにしておく？
+          </p>
+        )}
 
         <div className="field">
           <label htmlFor="q">問</label>
@@ -118,10 +134,10 @@ export function QuizSheet({
             className="btn btn-orange"
             disabled={saving || !ready}
           >
-            {saving ? "保存中..." : "これでいい"}
+            {saving ? "保存中..." : rewriting ? "直す" : "これでいい"}
           </button>
           <button type="button" className="later" onClick={onLater}>
-            あとで
+            {rewriting ? "やめる" : "あとで"}
           </button>
         </div>
       </form>
