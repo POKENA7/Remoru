@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Sheet } from "./sheet";
 
 const ERRORS: Record<string, string> = {
   empty: "本文を入力してください",
@@ -135,9 +136,8 @@ export function QuizSheet({
     (!withQuiz || (question.trim().length > 0 && answer.trim().length > 0));
 
   return (
-    <div className="sheet-backdrop" role="dialog" aria-label={rewriting ? "問と答の書き直し" : "問と答の作成"}>
-      <form className="sheet" onSubmit={submit}>
-        <div className="grip" />
+    <Sheet label={rewriting ? "問と答の書き直し" : "問と答の作成"} onClose={onLater}>
+      <form onSubmit={submit}>
         <p className="sheet-label">{rewriting ? "このメモを直す" : "書きとめた"}</p>
 
         {/* 書き直しでは本文も直せる（change 14 D1）。作成では読むだけ */}
@@ -215,6 +215,6 @@ export function QuizSheet({
           </button>
         </div>
       </form>
-    </div>
+    </Sheet>
   );
 }

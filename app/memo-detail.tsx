@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MAX_TAG_NAME_LENGTH } from "@/lib/tag-text";
 import { QuizSheet } from "./quiz-sheet";
+import { Sheet } from "./sheet";
 import { enterTarget, pickerView } from "./tag-picker";
 import { formatDay, type MemoRow, type TagRef } from "./types";
 
@@ -383,10 +384,15 @@ export function MemoDetail({
           * 同じ位置だと、続けて二度触れただけで消える（spec の要件）。
           */}
         {confirming && (
-          <div className="sheet-backdrop" role="dialog" aria-label="メモを消す">
-            <div className="sheet">
-              <div className="grip" />
-              <p className="sheet-label">このメモを消しますか</p>
+          <Sheet
+            label="メモを消す"
+            onClose={() => {
+              // 閉じることは取り消しにあたる（memo-capture の要件）
+              setConfirming(false);
+              setError(null);
+            }}
+          >
+            <p className="sheet-label">このメモを消しますか</p>
               <p className="sheet-memo">{content}</p>
               <p className="hint">問と答、復習の記録も一緒に消えます。戻せません</p>
 
@@ -413,8 +419,7 @@ export function MemoDetail({
                   やめる
                 </button>
               </div>
-            </div>
-          </div>
+          </Sheet>
         )}
 
       {/*
