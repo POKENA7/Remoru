@@ -88,3 +88,53 @@ describe("2版は地に載せる色を使う", () => {
     expect(dateLine).not.toMatch(/qa-line/);
   });
 });
+
+describe("メモ全体を直す鉛筆（change 14）", () => {
+  const detail = readFileSync("app/memo-detail.tsx", "utf8");
+  const sheet = readFileSync("app/quiz-sheet.tsx", "utf8");
+
+  it("画面の鉛筆は1つだけ", () => {
+    // 本文まで直せるようになり、鉛筆が指すのはこのメモ全体になった。
+    // 復習の見出しの隣に残すと、範囲の違う鉛筆が2つ並ぶ（design.md D2）
+    expect(detail.match(/className="pencil"/g) ?? []).toHaveLength(1);
+    expect(detail).toMatch(/aria-label="このメモを書き直す"/);
+    expect(detail).not.toMatch(/className="rv-head"/);
+  });
+
+  it("鉛筆は上の帯にある", () => {
+    const bar = detail.slice(detail.indexOf('className="review-head"'), detail.indexOf("detail-memo"));
+    expect(bar).toMatch(/className="pencil"/);
+    expect(bar).toMatch(/className="head-del"/);
+  });
+
+  it("作るのか直すのかを initial の有無で決めない", () => {
+    // 問答を持たないメモでも本文は直せる ―「直す」かつ「問答の欄なし」が
+    // 表せなければならない（design.md D3）
+    expect(sheet).toMatch(/mode:\s*"create"\s*\|\s*"rewrite"/);
+    expect(sheet).toMatch(/const rewriting = mode === "rewrite"/);
+    expect(sheet).not.toMatch(/const rewriting = initial !== undefined/);
+  });
+
+  it("本文を先に書く", () => {
+    /*
+     * 逆順だと、途中で落ちたとき本文が古いまま答えが新しくなり、
+     * 食い違いに気づけない（design.md D4）。
+     */
+    /*
+     * `/api/memos/${memoId}` は `/quiz-item` の接頭辞なので、素朴に
+     * indexOf で探すと**常に先にヒットして常に緑になる**。行ごとに見て、
+     * 末尾が `}\`` で終わる本文側だけを拾う。
+     */
+    const lines = sheet.split("\n");
+    const body = lines.findIndex((l) => /fetch\(`\/api\/memos\/\$\{memoId\}`/.test(l));
+    const quiz = lines.findIndex((l) => /fetch\(`\/api\/memos\/\$\{memoId\}\/quiz-item`/.test(l));
+    expect(body, "本文への PUT が見つからない").toBeGreaterThan(-1);
+    expect(quiz, "問答への要求が見つからない").toBeGreaterThan(-1);
+    expect(body).toBeLessThan(quiz);
+  });
+
+  it("変更が無い側は書かない", () => {
+    // 触っていない本文へ要求を投げない
+    expect(sheet).toMatch(/content\.trim\(\) !== memoContent/);
+  });
+});

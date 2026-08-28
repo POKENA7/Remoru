@@ -32,11 +32,20 @@ export function MemoDetail({
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [writing, setWriting] = useState(false);
+  /** 作るのか直すのか。鉛筆は直す、「問と答をつくる →」は作る */
+  const [writingMode, setWritingMode] = useState<"create" | "rewrite">("rewrite");
   /**
    * 答え。**一覧の応答には載っていない**ので、詳細を開いたときに引く
    * （design.md D1）。載せるとメモの数だけ答えを運ぶことになる。
    */
   const [answer, setAnswer] = useState<string | null>(null);
+  /**
+   * この画面が持つ本文。
+   *
+   * タグや復習の状態と同じ理由（絞り込み中に一覧から外れて更新が止まる）で、
+   * この画面で変えるものはこの画面が持つ。
+   */
+  const [content, setContent] = useState(memo.content);
   /**
    * この画面が持つタグ。
    *
@@ -185,17 +194,49 @@ export function MemoDetail({
           * 当て、他と見分けられるようにする。下の `.detail-foot` は子が1つで
           * gap が働いておらず、change 7 の残骸だったので落とした。
           */}
-        <button
-          type="button"
-          className="head-del"
-          disabled={busy}
-          onClick={() => setConfirming(true)}
-        >
-          消す
-        </button>
+        <div className="head-right">
+          {/*
+            * 鉛筆はこのメモ全体を指す（change 14 D2）。復習の見出しの隣に
+            * 置いていたが、本文まで直せるようになると指す範囲が広がるので
+            * 上の帯へ移した。**画面に鉛筆は1つだけ。**
+            */}
+          <button
+            type="button"
+            className="pencil"
+            aria-label="このメモを書き直す"
+            disabled={busy || (review.kind === "scheduled" && answer === null)}
+            onClick={() => {
+              setWritingMode("rewrite");
+              setWriting(true);
+            }}
+          >
+            <span>
+              <svg
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M13.7 3.4a1.4 1.4 0 0 1 2 0l.9.9a1.4 1.4 0 0 1 0 2L7.2 15.7l-3.6.7.7-3.6z" />
+                <path d="M12.4 4.7l2.9 2.9" />
+              </svg>
+            </span>
+          </button>
+          <button
+            type="button"
+            className="head-del"
+            disabled={busy}
+            onClick={() => setConfirming(true)}
+          >
+            消す
+          </button>
+        </div>
       </div>
 
-      <p className="detail-memo">{memo.content}</p>
+      <p className="detail-memo">{content}</p>
 
       {/*
         * 問・答・次回の出題日（design.md D2）。札を作らず、タグと同じ骨格の
@@ -205,33 +246,7 @@ export function MemoDetail({
         * 答えは示す（design.md D1）。隠しても、上のメモ本文から読み取れる。
         */}
       <div className="field">
-        <div className="rv-head">
-          <p className="field-label">復習</p>
-          {review.kind === "scheduled" && (
-            <button
-              type="button"
-              className="pencil"
-              aria-label="問と答を書き直す"
-              disabled={busy || answer === null}
-              onClick={() => setWriting(true)}
-            >
-              <span>
-                <svg
-                  viewBox="0 0 20 20"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M13.7 3.4a1.4 1.4 0 0 1 2 0l.9.9a1.4 1.4 0 0 1 0 2L7.2 15.7l-3.6.7.7-3.6z" />
-                  <path d="M12.4 4.7l2.9 2.9" />
-                </svg>
-              </span>
-            </button>
-          )}
-        </div>
+        <p className="field-label">復習</p>
         {review.kind === "scheduled" ? (
           <>
             <p className="qa-line"><b>問</b>{review.question}</p>
@@ -245,7 +260,14 @@ export function MemoDetail({
             <p className="muted" style={{ marginBottom: "0.5rem" }}>
               まだ問と答がありません
             </p>
-            <button type="button" className="write-link" onClick={() => setWriting(true)}>
+            <button
+              type="button"
+              className="write-link"
+              onClick={() => {
+                setWritingMode("create");
+                setWriting(true);
+              }}
+            >
               問と答をつくる →
             </button>
           </>
@@ -365,7 +387,7 @@ export function MemoDetail({
             <div className="sheet">
               <div className="grip" />
               <p className="sheet-label">このメモを消しますか</p>
-              <p className="sheet-memo">{memo.content}</p>
+              <p className="sheet-memo">{content}</p>
               <p className="hint">問と答、復習の記録も一緒に消えます。戻せません</p>
 
               {error && <p className="error">{error}</p>}
@@ -403,7 +425,8 @@ export function MemoDetail({
       {writing && (
         <QuizSheet
           memoId={memo.id}
-          memoContent={memo.content}
+          memoContent={content}
+          mode={writingMode}
           initial={
             review.kind === "scheduled" && answer !== null
               ? { question: review.question, answer }
@@ -411,12 +434,16 @@ export function MemoDetail({
           }
           onDone={(created) => {
             setWriting(false);
-            setReview({
-              kind: "scheduled",
-              question: created.question,
-              nextReviewAt: created.nextReviewAt,
-            });
-            setAnswer(created.answer);
+            setContent(created.content);
+            // 問答を持たないメモの書き直しでは、復習の状態はそのまま
+            if (created.nextReviewAt > 0) {
+              setReview({
+                kind: "scheduled",
+                question: created.question,
+                nextReviewAt: created.nextReviewAt,
+              });
+              setAnswer(created.answer);
+            }
             onChanged();
           }}
           onLater={() => setWriting(false)}

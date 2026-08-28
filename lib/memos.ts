@@ -116,3 +116,39 @@ export async function deleteMemo(
   await db.delete(memos).where(eq(memos.id, params.memoId));
   return { ok: true };
 }
+
+export type UpdateMemoResult =
+  | { ok: true; memo: Memo }
+  | { ok: false; error: ValidationError | "not_found" };
+
+/**
+ * メモの本文を書き換える。
+ *
+ * **`quiz_items` にも `review_schedules` にも触れない**（design.md D5）。
+ * 触らないことが、復習の進み具合を保つことの担保そのものになる。
+ *
+ * 消して書き直せば進みは失われる（削除は cascade で問答と記録を巻き添えに
+ * する）。それを避けるための経路である。
+ */
+export async function updateMemoContent(
+  db: AppDb,
+  params: { memoId: string; content: string; userId: string },
+): Promise<UpdateMemoResult> {
+  // 投入時と同じ検証を通す。片方だけ緩めると、書き直しで抜けられる
+  const validated = validateMemoContent(params.content);
+  if (!validated.ok) return validated;
+
+  const owned = await db
+    .select({ id: memos.id })
+    .from(memos)
+    .where(and(eq(memos.id, params.memoId), eq(memos.userId, params.userId)));
+  if (owned.length === 0) return { ok: false, error: "not_found" };
+
+  await db
+    .update(memos)
+    .set({ content: validated.content })
+    .where(eq(memos.id, params.memoId));
+
+  const rows = await db.select().from(memos).where(eq(memos.id, params.memoId));
+  return { ok: true, memo: rows[0] };
+}

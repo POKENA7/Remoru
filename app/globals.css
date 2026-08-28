@@ -668,3 +668,13 @@ body {
   }
   .memo-item.printed { box-shadow: inset 3px 0 0 transparent; }
 }
+
+/* 上の帯の右側。直す（青の印）と消す（赤い文字）を並べる（change 14 D2） */
+.head-right { display: flex; align-items: center; gap: 0.2rem; }
+/* 本文の書き直し。1行では収まらないので textarea */
+.sheet .field textarea {
+  width: 100%; padding: 0.6rem 0.7rem; font: inherit; color: var(--ink);
+  background: var(--paper); border: 1px solid var(--rule); border-radius: 10px;
+  resize: vertical; line-height: 1.7;
+}
+.sheet .field textarea:focus { outline: 2px solid var(--orange); outline-offset: 1px; }
