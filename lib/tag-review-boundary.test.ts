@@ -1,11 +1,11 @@
-import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { createTestDb } from "./test-db";
+import { describe, expect, it } from "vitest";
 import { createMemo } from "./memos";
 import { createQuizItem } from "./quiz-items";
 import { getDueItems } from "./review";
 import { setTag } from "./tags";
+import { createTestDb } from "./test-db";
 
 /**
  * spec「タグは復習に影響しない」を検査で固定する。
@@ -41,8 +41,11 @@ describe("タグを付けても復習は変わらない", () => {
     const memo = await createMemo(db, { content, now: NOW - TWO_DAYS, userId: "u1" });
     if (!memo.ok) throw new Error("メモを作れなかった");
     await createQuizItem(db, {
-      memoId: memo.memo.id, question: `${content}の問`, answer: "答",
-      now: NOW - TWO_DAYS, userId: "u1",
+      memoId: memo.memo.id,
+      question: `${content}の問`,
+      answer: "答",
+      now: NOW - TWO_DAYS,
+      userId: "u1",
     });
     return memo.memo.id;
   }
@@ -58,9 +61,7 @@ describe("タグを付けても復習は変わらない", () => {
 
     expect(before).toHaveLength(2);
     // 絞り込みは一覧の話であって、出題の話ではない
-    expect(after.map((i) => i.quizItemId).sort()).toEqual(
-      before.map((i) => i.quizItemId).sort(),
-    );
+    expect(after.map((i) => i.quizItemId).sort()).toEqual(before.map((i) => i.quizItemId).sort());
   });
 
   it("タグを付けても次回出題日と段階は変わらない", async () => {

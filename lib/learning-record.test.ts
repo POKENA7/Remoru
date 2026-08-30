@@ -1,10 +1,10 @@
-import { describe, it, expect } from "vitest";
 import { eq } from "drizzle-orm";
-import { createTestDb } from "./test-db";
+import { describe, expect, it } from "vitest";
 import { memos, quizItems, reviewEvents, reviewSchedules } from "../db/schema";
 import { createMemo } from "./memos";
 import { createQuizItem } from "./quiz-items";
 import { gradeReview } from "./review";
+import { createTestDb } from "./test-db";
 
 const NOW = Date.UTC(2026, 7, 26, 3, 0, 0);
 
@@ -12,7 +12,11 @@ async function seedItem(db: ReturnType<typeof createTestDb>, userId = "u1", labe
   const memo = await createMemo(db, { content: `メモ ${label}`, now: NOW, userId });
   if (!memo.ok) throw new Error("メモを作れなかった");
   const quiz = await createQuizItem(db, {
-    memoId: memo.memo.id, question: `問 ${label}`, answer: `答 ${label}`, now: NOW, userId,
+    memoId: memo.memo.id,
+    question: `問 ${label}`,
+    answer: `答 ${label}`,
+    now: NOW,
+    userId,
   });
   if (!quiz.ok) throw new Error("問答を作れなかった");
   return { memoId: memo.memo.id, quizItemId: quiz.quizItem.id, nextReviewAt: quiz.nextReviewAt };
@@ -28,8 +32,11 @@ describe("想起の記録", () => {
     const item = await seedItem(db);
 
     const result = await gradeReview(db, {
-      quizItemId: item.quizItemId, recalled: true,
-      occurrenceAt: item.nextReviewAt, now: NOW, userId: "u1",
+      quizItemId: item.quizItemId,
+      recalled: true,
+      occurrenceAt: item.nextReviewAt,
+      now: NOW,
+      userId: "u1",
     });
 
     expect(result.ok && result.applied).toBe(true);
@@ -46,8 +53,11 @@ describe("想起の記録", () => {
     const item = await seedItem(db);
 
     await gradeReview(db, {
-      quizItemId: item.quizItemId, recalled: false,
-      occurrenceAt: item.nextReviewAt, now: NOW, userId: "u1",
+      quizItemId: item.quizItemId,
+      recalled: false,
+      occurrenceAt: item.nextReviewAt,
+      now: NOW,
+      userId: "u1",
     });
 
     expect((await events(db))[0].recalled).toBe(false);
@@ -60,12 +70,18 @@ describe("想起の記録", () => {
     // 二重送信。べき等の判定は occurrenceAt の比較で行っており、
     // 記録側では見ていない（design.md D4）
     await gradeReview(db, {
-      quizItemId: item.quizItemId, recalled: true,
-      occurrenceAt: item.nextReviewAt, now: NOW, userId: "u1",
+      quizItemId: item.quizItemId,
+      recalled: true,
+      occurrenceAt: item.nextReviewAt,
+      now: NOW,
+      userId: "u1",
     });
     const second = await gradeReview(db, {
-      quizItemId: item.quizItemId, recalled: true,
-      occurrenceAt: item.nextReviewAt, now: NOW + 1000, userId: "u1",
+      quizItemId: item.quizItemId,
+      recalled: true,
+      occurrenceAt: item.nextReviewAt,
+      now: NOW + 1000,
+      userId: "u1",
     });
 
     expect(second.ok && second.applied).toBe(false);
@@ -77,8 +93,11 @@ describe("想起の記録", () => {
     const item = await seedItem(db, "u1");
 
     const result = await gradeReview(db, {
-      quizItemId: item.quizItemId, recalled: true,
-      occurrenceAt: item.nextReviewAt, now: NOW, userId: "u2",
+      quizItemId: item.quizItemId,
+      recalled: true,
+      occurrenceAt: item.nextReviewAt,
+      now: NOW,
+      userId: "u2",
     });
 
     expect(result).toEqual({ ok: false, error: "not_found" });
@@ -89,8 +108,11 @@ describe("想起の記録", () => {
     const db = createTestDb();
     const item = await seedItem(db);
     await gradeReview(db, {
-      quizItemId: item.quizItemId, recalled: true,
-      occurrenceAt: item.nextReviewAt, now: NOW, userId: "u1",
+      quizItemId: item.quizItemId,
+      recalled: true,
+      occurrenceAt: item.nextReviewAt,
+      now: NOW,
+      userId: "u1",
     });
 
     await db.delete(quizItems).where(eq(quizItems.id, item.quizItemId));
@@ -101,8 +123,11 @@ describe("想起の記録", () => {
     const db = createTestDb();
     const item = await seedItem(db);
     await gradeReview(db, {
-      quizItemId: item.quizItemId, recalled: true,
-      occurrenceAt: item.nextReviewAt, now: NOW, userId: "u1",
+      quizItemId: item.quizItemId,
+      recalled: true,
+      occurrenceAt: item.nextReviewAt,
+      now: NOW,
+      userId: "u1",
     });
 
     await db.delete(memos).where(eq(memos.id, item.memoId));
@@ -123,8 +148,11 @@ describe("累計", () => {
       .from(reviewSchedules)
       .where(eq(reviewSchedules.quizItemId, item.quizItemId));
     return await gradeReview(db, {
-      quizItemId: item.quizItemId, recalled,
-      occurrenceAt: rows[0].nextReviewAt, now, userId,
+      quizItemId: item.quizItemId,
+      recalled,
+      occurrenceAt: rows[0].nextReviewAt,
+      now,
+      userId,
     });
   }
 
@@ -176,7 +204,11 @@ describe("累計", () => {
 });
 
 describe("いま持っているもの", () => {
-  async function advance(db: ReturnType<typeof createTestDb>, item: { quizItemId: string }, times: number) {
+  async function advance(
+    db: ReturnType<typeof createTestDb>,
+    item: { quizItemId: string },
+    times: number,
+  ) {
     let now = NOW;
     for (let i = 0; i < times; i++) {
       const rows = await db
@@ -185,8 +217,11 @@ describe("いま持っているもの", () => {
         .where(eq(reviewSchedules.quizItemId, item.quizItemId));
       now = rows[0].nextReviewAt;
       await gradeReview(db, {
-        quizItemId: item.quizItemId, recalled: true,
-        occurrenceAt: rows[0].nextReviewAt, now, userId: "u1",
+        quizItemId: item.quizItemId,
+        recalled: true,
+        occurrenceAt: rows[0].nextReviewAt,
+        now,
+        userId: "u1",
       });
     }
   }
@@ -224,8 +259,11 @@ describe("いま持っているもの", () => {
       .from(reviewSchedules)
       .where(eq(reviewSchedules.quizItemId, item.quizItemId));
     await gradeReview(db, {
-      quizItemId: item.quizItemId, recalled: false,
-      occurrenceAt: rows[0].nextReviewAt, now: rows[0].nextReviewAt, userId: "u1",
+      quizItemId: item.quizItemId,
+      recalled: false,
+      occurrenceAt: rows[0].nextReviewAt,
+      now: rows[0].nextReviewAt,
+      userId: "u1",
     });
 
     expect(await retentionLayers(db, "u1")).toEqual([
@@ -260,8 +298,11 @@ describe("いま持っているもの", () => {
         .where(eq(reviewSchedules.quizItemId, theirs.quizItemId));
       now = rows[0].nextReviewAt;
       await gradeReview(db, {
-        quizItemId: theirs.quizItemId, recalled: true,
-        occurrenceAt: rows[0].nextReviewAt, now, userId: "u2",
+        quizItemId: theirs.quizItemId,
+        recalled: true,
+        occurrenceAt: rows[0].nextReviewAt,
+        now,
+        userId: "u2",
       });
     }
 
@@ -279,11 +320,16 @@ describe("いま持っているもの", () => {
     const memo = await createMemo(db, { content: "古いメモ", now: old, userId: "u1" });
     if (!memo.ok) throw new Error("メモを作れなかった");
     const quiz = await createQuizItem(db, {
-      memoId: memo.memo.id, question: "問", answer: "答", now: old, userId: "u1",
+      memoId: memo.memo.id,
+      question: "問",
+      answer: "答",
+      now: old,
+      userId: "u1",
     });
     if (!quiz.ok) throw new Error("問答を作れなかった");
     // いま「忘れてた」を押した状態＝次回は明日
-    await db.update(reviewSchedules)
+    await db
+      .update(reviewSchedules)
       .set({ nextReviewAt: NOW + 24 * 3600_000 })
       .where(eq(reviewSchedules.quizItemId, quiz.quizItem.id));
 

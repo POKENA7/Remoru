@@ -1,18 +1,18 @@
-import { describe, it, expect } from "vitest";
 import { eq } from "drizzle-orm";
-import { createTestDb } from "./test-db";
+import { describe, expect, it } from "vitest";
 import { memos, quizItems, reviewSchedules } from "../db/schema";
+import type { AppDb } from "../db/types";
 import { createMemo, deleteMemo } from "./memos";
 import {
-  createQuizItem,
-  validateQuizItem,
-  getReviewStates,
   countUnwritten,
+  createQuizItem,
+  getReviewStates,
   MAX_QUESTION_LENGTH,
+  validateQuizItem,
 } from "./quiz-items";
 import { getDueItems, gradeReview } from "./review";
 import { startOfReviewDay } from "./review-scheduler";
-import type { AppDb } from "../db/types";
+import { createTestDb } from "./test-db";
 
 /** テスト用の利用者。認証導入後は userId が必須になった。 */
 const USER = "user_a";
@@ -40,7 +40,9 @@ describe("validateQuizItem（タスク 3.1）", () => {
 
   it("両方あれば通り、前後の空白を落とす", () => {
     expect(validateQuizItem(" 定休日は？ ", " 火曜日 ")).toEqual({
-      ok: true, question: "定休日は？", answer: "火曜日",
+      ok: true,
+      question: "定休日は？",
+      answer: "火曜日",
     });
   });
 
@@ -56,7 +58,12 @@ describe("createQuizItem（タスク 3.1）", () => {
     const memo = await seedMemo(db, "近所のパン屋は火曜定休");
 
     const r = await createQuizItem(db, {
-      memoId: memo.id, question: "定休日は？", answer: "火曜日", now: NOW, userId: USER });
+      memoId: memo.id,
+      question: "定休日は？",
+      answer: "火曜日",
+      now: NOW,
+      userId: USER,
+    });
 
     expect(r.ok).toBe(true);
     if (!r.ok) return;
@@ -68,7 +75,12 @@ describe("createQuizItem（タスク 3.1）", () => {
     const memo = await seedMemo(db, "本文");
 
     const r = await createQuizItem(db, {
-      memoId: memo.id, question: "問だけ", answer: "", now: NOW, userId: USER });
+      memoId: memo.id,
+      question: "問だけ",
+      answer: "",
+      now: NOW,
+      userId: USER,
+    });
 
     expect(r).toEqual({ ok: false, error: "empty_answer" });
     await expect(db.select().from(quizItems)).resolves.toEqual([]);
@@ -78,10 +90,21 @@ describe("createQuizItem（タスク 3.1）", () => {
   it("1メモに2つ目の問答は作れない", async () => {
     const db = createTestDb();
     const memo = await seedMemo(db, "本文");
-    await createQuizItem(db, { memoId: memo.id, question: "問", answer: "答", now: NOW, userId: USER });
+    await createQuizItem(db, {
+      memoId: memo.id,
+      question: "問",
+      answer: "答",
+      now: NOW,
+      userId: USER,
+    });
 
     const second = await createQuizItem(db, {
-      memoId: memo.id, question: "別の問", answer: "別の答", now: NOW, userId: USER });
+      memoId: memo.id,
+      question: "別の問",
+      answer: "別の答",
+      now: NOW,
+      userId: USER,
+    });
 
     expect(second).toEqual({ ok: false, error: "already_exists" });
   });
@@ -92,7 +115,12 @@ describe("createQuizItem（タスク 3.1）", () => {
     if (!r.ok) throw new Error("失敗");
 
     const created = await createQuizItem(db, {
-      memoId: r.memo.id, question: "問", answer: "答", now: NOW, userId: USER });
+      memoId: r.memo.id,
+      question: "問",
+      answer: "答",
+      now: NOW,
+      userId: USER,
+    });
 
     expect(created).toEqual({ ok: false, error: "memo_not_found" });
   });
@@ -103,13 +131,21 @@ describe("一覧の復習状態（タスク 3.2）", () => {
     const db = createTestDb();
     const withQuiz = await seedMemo(db, "問答あり", NOW);
     const without = await seedMemo(db, "問答なし", NOW);
-    await createQuizItem(db, { memoId: withQuiz.id, question: "問", answer: "答", now: NOW, userId: USER });
+    await createQuizItem(db, {
+      memoId: withQuiz.id,
+      question: "問",
+      answer: "答",
+      now: NOW,
+      userId: USER,
+    });
 
     const states = await getReviewStates(db, USER, Date.now());
 
     expect(states.get(without.id)).toEqual({ kind: "unwritten" });
     expect(states.get(withQuiz.id)).toEqual({
-      kind: "scheduled", nextReviewAt: startOfReviewDay(NOW) + DAY, question: "問",
+      kind: "scheduled",
+      nextReviewAt: startOfReviewDay(NOW) + DAY,
+      question: "問",
     });
   });
 
@@ -118,7 +154,13 @@ describe("一覧の復習状態（タスク 3.2）", () => {
     const a = await seedMemo(db, "A");
     await seedMemo(db, "B");
     await seedMemo(db, "C");
-    await createQuizItem(db, { memoId: a.id, question: "問", answer: "答", now: NOW, userId: USER });
+    await createQuizItem(db, {
+      memoId: a.id,
+      question: "問",
+      answer: "答",
+      now: NOW,
+      userId: USER,
+    });
 
     await expect(countUnwritten(db, USER, Date.now())).resolves.toBe(2);
   });
@@ -130,13 +172,26 @@ describe("出題対象（タスク 4.1）", () => {
     const future = await seedMemo(db, "まだ先");
     await seedMemo(db, "問答がない");
 
-    await createQuizItem(db, { memoId: due.id, question: "来てる？", answer: "はい", now: NOW, userId: USER });
-    await createQuizItem(db, { memoId: future.id, question: "まだ？", answer: "はい", now: NOW, userId: USER });
+    await createQuizItem(db, {
+      memoId: due.id,
+      question: "来てる？",
+      answer: "はい",
+      now: NOW,
+      userId: USER,
+    });
+    await createQuizItem(db, {
+      memoId: future.id,
+      question: "まだ？",
+      answer: "はい",
+      now: NOW,
+      userId: USER,
+    });
 
     // future だけ遠くへ動かす
     const items = await db.select().from(quizItems);
     const futureItem = items.find((q) => q.memoId === future.id)!;
-    await db.update(reviewSchedules)
+    await db
+      .update(reviewSchedules)
       .set({ nextReviewAt: startOfReviewDay(NOW) + 30 * DAY })
       .where(eq(reviewSchedules.quizItemId, futureItem.id));
     return { due, future };
@@ -179,7 +234,13 @@ describe("出題対象（タスク 4.1）", () => {
   it("他人のメモは対象にならない", async () => {
     const db = createTestDb();
     const mine = await seedMemo(db, "自分の");
-    await createQuizItem(db, { memoId: mine.id, question: "問", answer: "答", now: NOW, userId: USER });
+    await createQuizItem(db, {
+      memoId: mine.id,
+      question: "問",
+      answer: "答",
+      now: NOW,
+      userId: USER,
+    });
 
     await expect(getDueItems(db, later(1), OTHER)).resolves.toEqual([]);
   });
@@ -189,7 +250,12 @@ describe("自己採点の記録（タスク 4.2）", () => {
   async function seedDue(db: AppDb) {
     const memo = await seedMemo(db, "近所のパン屋は火曜定休");
     await createQuizItem(db, {
-      memoId: memo.id, question: "定休日は？", answer: "火曜日", now: NOW, userId: USER });
+      memoId: memo.id,
+      question: "定休日は？",
+      answer: "火曜日",
+      now: NOW,
+      userId: USER,
+    });
     const [item] = await getDueItems(db, later(1), USER);
     return item;
   }
@@ -199,8 +265,12 @@ describe("自己採点の記録（タスク 4.2）", () => {
     const item = await seedDue(db);
 
     const r = await gradeReview(db, {
-      quizItemId: item.quizItemId, recalled: true,
-      occurrenceAt: item.occurrenceAt, now: later(1), userId: USER });
+      quizItemId: item.quizItemId,
+      recalled: true,
+      occurrenceAt: item.occurrenceAt,
+      now: later(1),
+      userId: USER,
+    });
 
     expect(r.ok).toBe(true);
     if (!r.ok) return;
@@ -213,8 +283,12 @@ describe("自己採点の記録（タスク 4.2）", () => {
     const item = await seedDue(db);
 
     const r = await gradeReview(db, {
-      quizItemId: item.quizItemId, recalled: false,
-      occurrenceAt: item.occurrenceAt, now: later(1), userId: USER });
+      quizItemId: item.quizItemId,
+      recalled: false,
+      occurrenceAt: item.occurrenceAt,
+      now: later(1),
+      userId: USER,
+    });
 
     expect(r.ok).toBe(true);
     if (!r.ok) return;
@@ -226,8 +300,12 @@ describe("自己採点の記録（タスク 4.2）", () => {
     const item = await seedDue(db);
 
     await gradeReview(db, {
-      quizItemId: item.quizItemId, recalled: true,
-      occurrenceAt: item.occurrenceAt, now: later(1), userId: USER });
+      quizItemId: item.quizItemId,
+      recalled: true,
+      occurrenceAt: item.occurrenceAt,
+      now: later(1),
+      userId: USER,
+    });
 
     await expect(getDueItems(db, later(1), USER)).resolves.toEqual([]);
   });
@@ -237,15 +315,29 @@ describe("記録のべき等性（タスク 4.3・design.md D4）", () => {
   it("同じ出題日で2回送っても1回分しか進まない", async () => {
     const db = createTestDb();
     const memo = await seedMemo(db, "本文");
-    await createQuizItem(db, { memoId: memo.id, question: "問", answer: "答", now: NOW, userId: USER });
+    await createQuizItem(db, {
+      memoId: memo.id,
+      question: "問",
+      answer: "答",
+      now: NOW,
+      userId: USER,
+    });
     const [item] = await getDueItems(db, later(1), USER);
 
     const first = await gradeReview(db, {
-      quizItemId: item.quizItemId, recalled: true,
-      occurrenceAt: item.occurrenceAt, now: later(1), userId: USER });
+      quizItemId: item.quizItemId,
+      recalled: true,
+      occurrenceAt: item.occurrenceAt,
+      now: later(1),
+      userId: USER,
+    });
     const second = await gradeReview(db, {
-      quizItemId: item.quizItemId, recalled: true,
-      occurrenceAt: item.occurrenceAt, now: later(1), userId: USER });
+      quizItemId: item.quizItemId,
+      recalled: true,
+      occurrenceAt: item.occurrenceAt,
+      now: later(1),
+      userId: USER,
+    });
 
     expect(first.ok && second.ok).toBe(true);
     if (!first.ok || !second.ok) return;
@@ -260,13 +352,26 @@ describe("記録のべき等性（タスク 4.3・design.md D4）", () => {
   it("3回送っても同じ", async () => {
     const db = createTestDb();
     const memo = await seedMemo(db, "本文");
-    await createQuizItem(db, { memoId: memo.id, question: "問", answer: "答", now: NOW, userId: USER });
+    await createQuizItem(db, {
+      memoId: memo.id,
+      question: "問",
+      answer: "答",
+      now: NOW,
+      userId: USER,
+    });
     const [item] = await getDueItems(db, later(1), USER);
 
-    const send = () => gradeReview(db, {
-      quizItemId: item.quizItemId, recalled: true,
-      occurrenceAt: item.occurrenceAt, now: later(1), userId: USER });
-    const a = await send(); const b = await send(); const c = await send();
+    const send = () =>
+      gradeReview(db, {
+        quizItemId: item.quizItemId,
+        recalled: true,
+        occurrenceAt: item.occurrenceAt,
+        now: later(1),
+        userId: USER,
+      });
+    const a = await send();
+    const b = await send();
+    const c = await send();
 
     expect([a, b, c].every((r) => r.ok)).toBe(true);
     if (!a.ok || !c.ok) return;
@@ -276,19 +381,33 @@ describe("記録のべき等性（タスク 4.3・design.md D4）", () => {
   it("存在しない問答は not_found を返す", async () => {
     const db = createTestDb();
     const r = await gradeReview(db, {
-      quizItemId: "missing", recalled: true, occurrenceAt: 0, now: NOW, userId: USER });
+      quizItemId: "missing",
+      recalled: true,
+      occurrenceAt: 0,
+      now: NOW,
+      userId: USER,
+    });
     expect(r).toEqual({ ok: false, error: "not_found" });
   });
 
   it("他人の問答は採点できない", async () => {
     const db = createTestDb();
     const memo = await seedMemo(db, "自分の");
-    await createQuizItem(db, { memoId: memo.id, question: "問", answer: "答", now: NOW, userId: USER });
+    await createQuizItem(db, {
+      memoId: memo.id,
+      question: "問",
+      answer: "答",
+      now: NOW,
+      userId: USER,
+    });
     const [item] = await getDueItems(db, later(1), USER);
 
     const r = await gradeReview(db, {
-      quizItemId: item.quizItemId, recalled: true,
-      occurrenceAt: item.occurrenceAt, now: later(1), userId: OTHER,
+      quizItemId: item.quizItemId,
+      recalled: true,
+      occurrenceAt: item.occurrenceAt,
+      now: later(1),
+      userId: OTHER,
     });
 
     expect(r).toEqual({ ok: false, error: "not_found" });
@@ -299,7 +418,13 @@ describe("メモの削除", () => {
   it("削除すると出題対象からも外れる", async () => {
     const db = createTestDb();
     const memo = await seedMemo(db, "消される");
-    await createQuizItem(db, { memoId: memo.id, question: "問", answer: "答", now: NOW, userId: USER });
+    await createQuizItem(db, {
+      memoId: memo.id,
+      question: "問",
+      answer: "答",
+      now: NOW,
+      userId: USER,
+    });
     expect(await getDueItems(db, later(1), USER)).toHaveLength(1);
 
     const r = await deleteMemo(db, { memoId: memo.id, userId: USER });

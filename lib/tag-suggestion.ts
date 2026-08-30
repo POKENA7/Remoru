@@ -6,7 +6,7 @@
  * lib/quiz-generation.ts と同じ形）。
  */
 
-import { MAX_TAGS_PER_MEMO, MAX_TAG_NAME_LENGTH, validateTagName } from "./tag-text";
+import { MAX_TAG_NAME_LENGTH, MAX_TAGS_PER_MEMO, validateTagName } from "./tag-text";
 
 /**
  * 1回の提案に渡すメモの上限（design.md D7）。
@@ -127,10 +127,7 @@ export type Assignment = { memoId: string; tag: string };
  *
  * タグ名は手で付けるときと同じ検証を通す。
  */
-export function extractAssignments(
-  response: unknown,
-  knownMemoIds: string[],
-): Assignment[] {
+export function extractAssignments(response: unknown, knownMemoIds: string[]): Assignment[] {
   if (typeof response !== "object" || response === null) return [];
 
   const content = (response as { content?: unknown }).content;
@@ -192,10 +189,7 @@ export function summarize(assignments: Assignment[]): SuggestionSummary[] {
  *
  * 断られたら、そのときの件数を一定数上回るまで出さない（design.md D10）。
  */
-export function shouldSuggest(
-  untaggedCount: number,
-  dismissedAtCount: number | null,
-): boolean {
+export function shouldSuggest(untaggedCount: number, dismissedAtCount: number | null): boolean {
   if (untaggedCount < SUGGESTION_THRESHOLD) return false;
   if (dismissedAtCount === null) return true;
   return untaggedCount >= dismissedAtCount + SUGGESTION_THRESHOLD;

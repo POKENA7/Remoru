@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { createTestDb } from "./test-db";
+import { describe, expect, it } from "vitest";
 import { memos } from "../db/schema";
+import { createTestDb } from "./test-db";
 
 describe("createTestDb", () => {
   it("マイグレーション適用済みの memos テーブルを持つ", async () => {

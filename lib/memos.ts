@@ -1,5 +1,5 @@
 import { and, desc, eq } from "drizzle-orm";
-import { memoTags, memos, type Memo } from "../db/schema";
+import { type Memo, memos, memoTags } from "../db/schema";
 import type { AppDb } from "../db/types";
 
 /** 本文の長さ上限（文字数）。design.md 参照 — 実使用を見て見直す暫定値。 */
@@ -31,9 +31,7 @@ export function validateMemoContent(raw: string): ValidatedContent {
   return { ok: true, content };
 }
 
-export type CreateMemoResult =
-  | { ok: true; memo: Memo }
-  | { ok: false; error: ValidationError };
+export type CreateMemoResult = { ok: true; memo: Memo } | { ok: false; error: ValidationError };
 
 /**
  * メモを1件保存する。
@@ -144,10 +142,7 @@ export async function updateMemoContent(
     .where(and(eq(memos.id, params.memoId), eq(memos.userId, params.userId)));
   if (owned.length === 0) return { ok: false, error: "not_found" };
 
-  await db
-    .update(memos)
-    .set({ content: validated.content })
-    .where(eq(memos.id, params.memoId));
+  await db.update(memos).set({ content: validated.content }).where(eq(memos.id, params.memoId));
 
   const rows = await db.select().from(memos).where(eq(memos.id, params.memoId));
   return { ok: true, memo: rows[0] };

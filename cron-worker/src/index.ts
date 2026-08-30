@@ -1,5 +1,5 @@
-import { selectTargets, type NotificationTarget } from "../../lib/notification-timing";
 import { buildNotification } from "../../lib/notification-message";
+import { type NotificationTarget, selectTargets } from "../../lib/notification-timing";
 import { deliver, type SendOne, type Subscription } from "../../lib/push";
 import { startOfReviewDay } from "../../lib/review-scheduler";
 import { sendOne } from "./send";
@@ -47,14 +47,9 @@ async function summarizeDue(
   return { count: results.length, firstQuestion: results[0].question };
 }
 
-async function subscriptionsFor(
-  db: D1Database,
-  userId: string,
-): Promise<Subscription[]> {
+async function subscriptionsFor(db: D1Database, userId: string): Promise<Subscription[]> {
   const rows = await db
-    .prepare(
-      `SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?1`,
-    )
+    .prepare(`SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?1`)
     .bind(userId)
     .all<Subscription>();
   return rows.results ?? [];
@@ -76,8 +71,11 @@ export async function runNotifications(
             last_sent_on AS lastSentOn
        FROM notification_settings`,
   ).all<{
-    userId: string; enabled: number; hour: number;
-    timeZone: string; lastSentOn: string | null;
+    userId: string;
+    enabled: number;
+    hour: number;
+    timeZone: string;
+    lastSentOn: string | null;
   }>();
 
   const targets: NotificationTarget[] = (settings.results ?? []).map((r) => ({
@@ -122,17 +120,13 @@ export async function runNotifications(
         .run();
       if ((claim.meta?.changes ?? 0) === 0) continue;
 
-      const payload = JSON.stringify(
-        buildNotification(due.count, { question: due.firstQuestion }),
-      );
+      const payload = JSON.stringify(buildNotification(due.count, { question: due.firstQuestion }));
       const result = await deliver(subs, payload, send);
 
       // 期限切れの購読を取り除く。1件の失敗で残りを止めない。
       for (const id of result.expired) {
         try {
-          await env.DB.prepare(`DELETE FROM push_subscriptions WHERE id = ?1`)
-            .bind(id)
-            .run();
+          await env.DB.prepare(`DELETE FROM push_subscriptions WHERE id = ?1`).bind(id).run();
         } catch (error) {
           console.error("期限切れの購読を削除できなかった", id, error);
         }

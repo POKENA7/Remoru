@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { createTestDb } from "./test-db";
-import { sql } from "drizzle-orm";
 import { readFileSync } from "node:fs";
-import { hasFinishedGuide, finishGuide } from "./first-run";
+import { sql } from "drizzle-orm";
+import { describe, expect, it } from "vitest";
+import { finishGuide, hasFinishedGuide } from "./first-run";
+import { createTestDb } from "./test-db";
 
 /**
  * 埋め戻しの SQL は**マイグレーションから読む**。ここに書き写すと、

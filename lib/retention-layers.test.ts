@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { LAYERS, countByLayer, layerOf } from "./retention-layers";
+import { describe, expect, it } from "vitest";
+import { countByLayer, LAYERS, layerOf } from "./retention-layers";
 
 describe("層の境目", () => {
   it("段階の間隔がそれぞれの層に入る", () => {

@@ -1,11 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { createMemo, listMemos, MAX_CONTENT_LENGTH, validateMemoContent } from "./memos";
 import { createTestDb } from "./test-db";
-import {
-  validateMemoContent,
-  createMemo,
-  listMemos,
-  MAX_CONTENT_LENGTH,
-} from "./memos";
 
 /** テスト用の利用者。認証導入後は userId が必須になった。 */
 const USER = "user_a";
@@ -58,7 +53,9 @@ describe("createMemo", () => {
 
     const result = await createMemo(db, {
       content: "近所のパン屋は火曜定休",
-      now: 1_700_000_000_000, userId: USER });
+      now: 1_700_000_000_000,
+      userId: USER,
+    });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -92,7 +89,9 @@ describe("createMemo", () => {
 
     const result = await createMemo(db, {
       content: "あ".repeat(MAX_CONTENT_LENGTH + 1),
-      now: 1, userId: USER });
+      now: 1,
+      userId: USER,
+    });
 
     expect(result).toEqual({ ok: false, error: "too_long" });
     await expect(listMemos(db, USER)).resolves.toEqual([]);

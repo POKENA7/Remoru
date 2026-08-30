@@ -79,10 +79,7 @@ export function schedule(
     return { state: next, nextReviewAt: scheduleAtStage(next.stage, now) };
   }
 
-  const stage =
-    state.recoverTo !== null
-      ? state.recoverTo
-      : Math.min(state.stage + 1, LAST_STAGE);
+  const stage = state.recoverTo !== null ? state.recoverTo : Math.min(state.stage + 1, LAST_STAGE);
 
   const next: SchedulerState = { stage, recoverTo: null };
   return { state: next, nextReviewAt: scheduleAtStage(stage, now) };
@@ -93,9 +90,7 @@ export function parseState(raw: string): SchedulerState {
   try {
     const v = JSON.parse(raw) as Partial<SchedulerState>;
     const stage =
-      typeof v.stage === "number" && v.stage >= 0 && v.stage <= LAST_STAGE
-        ? v.stage
-        : 0;
+      typeof v.stage === "number" && v.stage >= 0 && v.stage <= LAST_STAGE ? v.stage : 0;
     const recoverTo =
       typeof v.recoverTo === "number" && v.recoverTo >= 0 && v.recoverTo <= LAST_STAGE
         ? v.recoverTo

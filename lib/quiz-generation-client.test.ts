@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QUIZ_TOOL_NAME } from "./quiz-generation";
-import { generateQuiz, type CallModel } from "./quiz-generation-client";
+import { type CallModel, generateQuiz } from "./quiz-generation-client";
 import { MAX_ANSWER_LENGTH } from "./quiz-text";
 
 function toolResponse(input: unknown) {
@@ -40,12 +40,11 @@ afterEach(() => {
 
 describe("生成の呼び出し", () => {
   it("成功すると問と答を返す", async () => {
-    const { calls, call } = recorder(
-      toolResponse({ question: "定休日は？", answer: "火曜" }),
-    );
+    const { calls, call } = recorder(toolResponse({ question: "定休日は？", answer: "火曜" }));
 
     const result = await generateQuiz("近所のパン屋は火曜定休", {
-      apiKey: "key", call,
+      apiKey: "key",
+      call,
     });
 
     expect(result).toEqual({ ok: true, question: "定休日は？", answer: "火曜" });
@@ -60,7 +59,8 @@ describe("生成の呼び出し", () => {
 
     // 呼び出し側は「未作成に落とす」以外の分岐を持たない
     expect(await generateQuiz("メモ", { apiKey: "key", call })).toEqual({
-      ok: false, reason: "request_failed",
+      ok: false,
+      reason: "request_failed",
     });
   });
 
@@ -68,7 +68,8 @@ describe("生成の呼び出し", () => {
     const { call } = recorder({ content: [{ type: "text", text: "問と答です" }] });
 
     expect(await generateQuiz("メモ", { apiKey: "key", call })).toEqual({
-      ok: false, reason: "invalid_output",
+      ok: false,
+      reason: "invalid_output",
     });
   });
 
@@ -94,7 +95,8 @@ describe("鍵が無い環境", () => {
 
     for (const apiKey of [undefined, null, ""]) {
       expect(await generateQuiz("メモ", { apiKey, call })).toEqual({
-        ok: false, reason: "no_key",
+        ok: false,
+        reason: "no_key",
       });
     }
     expect(calls).toEqual([]);
@@ -125,7 +127,8 @@ describe("出力の扱い", () => {
     );
 
     expect(await generateQuiz("メモ", { apiKey: "key", call })).toEqual({
-      ok: false, reason: "invalid_output",
+      ok: false,
+      reason: "invalid_output",
     });
   });
 });

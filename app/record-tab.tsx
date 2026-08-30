@@ -70,13 +70,11 @@ export function RecordTab() {
               <span className="layer-name">{layer.label}</span>
               <span className="layer-bar">
                 {/*
-                  * **1件あたりの長さを固定にする。** 最大値で割ると、件数が
-                  * 変わっていない層の棒が、別の層が伸びただけで縮む。何も
-                  * 失っていないのに短くなるのは、分母を持つのと同じこと。
-                  */}
-                {layer.count > 0 && (
-                  <i style={{ width: `min(100%, ${layer.count * 5}%)` }} />
-                )}
+                 * **1件あたりの長さを固定にする。** 最大値で割ると、件数が
+                 * 変わっていない層の棒が、別の層が伸びただけで縮む。何も
+                 * 失っていないのに短くなるのは、分母を持つのと同じこと。
+                 */}
+                {layer.count > 0 && <i style={{ width: `min(100%, ${layer.count * 5}%)` }} />}
               </span>
               <b className="layer-count">{layer.count}</b>
             </div>

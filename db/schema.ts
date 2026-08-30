@@ -1,10 +1,10 @@
 import {
+  index,
+  integer,
+  primaryKey,
   sqliteTable,
   text,
-  integer,
-  index,
   uniqueIndex,
-  primaryKey,
 } from "drizzle-orm/sqlite-core";
 
 export const memos = sqliteTable("memos", {

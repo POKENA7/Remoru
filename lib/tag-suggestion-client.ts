@@ -1,8 +1,8 @@
 import {
+  type Assignment,
   buildSuggestionInput,
   extractAssignments,
   targetsOf,
-  type Assignment,
 } from "./tag-suggestion";
 
 /**

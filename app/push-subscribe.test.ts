@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { pushSupported, subscribeToPush } from "./push-subscribe";
 
 /**
@@ -55,7 +55,10 @@ describe("購読", () => {
 
   it("その場で断られたら購読しない", async () => {
     setupWindow();
-    vi.stubGlobal("Notification", { permission: "default", requestPermission: async () => "default" });
+    vi.stubGlobal("Notification", {
+      permission: "default",
+      requestPermission: async () => "default",
+    });
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
 

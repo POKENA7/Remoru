@@ -1,10 +1,6 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
-import {
-  ANTHROPIC_VERSION,
-  ENDPOINT,
-  callAnthropic,
-} from "./quiz-generation-client";
-import { QUIZ_TOOL_NAME, buildGenerationInput } from "./quiz-generation";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { buildGenerationInput, QUIZ_TOOL_NAME } from "./quiz-generation";
+import { ANTHROPIC_VERSION, callAnthropic, ENDPOINT } from "./quiz-generation-client";
 
 /**
  * **本物の呼び出しを実行するテスト。**
@@ -61,10 +57,11 @@ describe("Anthropic への要求", () => {
   });
 
   it("成功したら本文を解釈して返す", async () => {
-    stubFetch(() =>
-      new Response(JSON.stringify({ content: [{ type: "tool_use", name: QUIZ_TOOL_NAME }] }), {
-        status: 200,
-      }),
+    stubFetch(
+      () =>
+        new Response(JSON.stringify({ content: [{ type: "tool_use", name: QUIZ_TOOL_NAME }] }), {
+          status: 200,
+        }),
     );
 
     const result = await callAnthropic({}, "sk-test");

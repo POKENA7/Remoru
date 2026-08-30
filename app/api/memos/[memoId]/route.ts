@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { type NextRequest, NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/current-user";
+import { getDb } from "@/lib/db";
 import { deleteMemo, updateMemoContent } from "@/lib/memos";
 
 /**
@@ -9,10 +9,7 @@ import { deleteMemo, updateMemoContent } from "@/lib/memos";
  * **問答とスケジュールには触れない**（design.md D5）。消して書き直すと
  * 連鎖で復習の進み具合まで失うので、それを避けるための経路である。
  */
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: Promise<{ memoId: string }> },
-) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ memoId: string }> }) {
   const { memoId } = await params;
 
   const userId = await getCurrentUserId();

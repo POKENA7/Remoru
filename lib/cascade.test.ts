@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
 import { eq } from "drizzle-orm";
-import { createTestDb } from "./test-db";
+import { describe, expect, it } from "vitest";
 import { memos, quizItems, reviewSchedules } from "../db/schema";
+import { createTestDb } from "./test-db";
 
 /**
  * design.md D5: 削除はデータベース側で連鎖させる。
@@ -11,14 +11,22 @@ describe("メモ削除の連鎖", () => {
   async function seed() {
     const db = createTestDb();
     await db.insert(memos).values({
-      id: "m1", userId: "u1", content: "近所のパン屋は火曜定休", createdAt: 1_000,
+      id: "m1",
+      userId: "u1",
+      content: "近所のパン屋は火曜定休",
+      createdAt: 1_000,
     });
     await db.insert(quizItems).values({
-      id: "q1", memoId: "m1",
-      question: "近所のパン屋の定休日は？", answer: "火曜日", createdAt: 1_000,
+      id: "q1",
+      memoId: "m1",
+      question: "近所のパン屋の定休日は？",
+      answer: "火曜日",
+      createdAt: 1_000,
     });
     await db.insert(reviewSchedules).values({
-      quizItemId: "q1", nextReviewAt: 90_000, state: '{"stage":0,"recoverTo":null}',
+      quizItemId: "q1",
+      nextReviewAt: 90_000,
+      state: '{"stage":0,"recoverTo":null}',
     });
     return db;
   }
@@ -28,7 +36,11 @@ describe("メモ削除の連鎖", () => {
     // 存在しないメモを参照する問答は挿入できない
     await expect(
       db.insert(quizItems).values({
-        id: "q0", memoId: "missing", question: "q", answer: "a", createdAt: 1,
+        id: "q0",
+        memoId: "missing",
+        question: "q",
+        answer: "a",
+        createdAt: 1,
       }),
     ).rejects.toThrow();
   });
@@ -46,10 +58,17 @@ describe("メモ削除の連鎖", () => {
   it("他のメモは巻き添えにならない", async () => {
     const db = await seed();
     await db.insert(memos).values({
-      id: "m2", userId: "u1", content: "山田さんの誕生日は3月4日", createdAt: 2_000,
+      id: "m2",
+      userId: "u1",
+      content: "山田さんの誕生日は3月4日",
+      createdAt: 2_000,
     });
     await db.insert(quizItems).values({
-      id: "q2", memoId: "m2", question: "山田さんの誕生日は？", answer: "3月4日", createdAt: 2_000,
+      id: "q2",
+      memoId: "m2",
+      question: "山田さんの誕生日は？",
+      answer: "3月4日",
+      createdAt: 2_000,
     });
 
     await db.delete(memos).where(eq(memos.id, "m1"));
@@ -64,7 +83,11 @@ describe("メモ削除の連鎖", () => {
     const db = await seed();
     await expect(
       db.insert(quizItems).values({
-        id: "q9", memoId: "m1", question: "別の問", answer: "別の答", createdAt: 3_000,
+        id: "q9",
+        memoId: "m1",
+        question: "別の問",
+        answer: "別の答",
+        createdAt: 3_000,
       }),
     ).rejects.toThrow();
   });

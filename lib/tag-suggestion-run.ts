@@ -1,13 +1,14 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { memoTags, memos, tagSuggestionState, tags } from "../db/schema";
+import { memos, memoTags, tagSuggestionState, tags } from "../db/schema";
 import type { AppDb } from "../db/types";
-import { setTag } from "./tags";
-import { shouldSuggest, summarize, type Assignment, type SuggestionSummary } from "./tag-suggestion";
 import {
-  suggestTags,
-  type CallModel,
-  type SuggestionFailure,
-} from "./tag-suggestion-client";
+  type Assignment,
+  type SuggestionSummary,
+  shouldSuggest,
+  summarize,
+} from "./tag-suggestion";
+import { type CallModel, type SuggestionFailure, suggestTags } from "./tag-suggestion-client";
+import { setTag } from "./tags";
 
 /** タグを1つも持たないメモ。提案の対象。 */
 export async function listUntaggedMemos(

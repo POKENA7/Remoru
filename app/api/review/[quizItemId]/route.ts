@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { type NextRequest, NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/current-user";
+import { getDb } from "@/lib/db";
 import { gradeReview } from "@/lib/review";
 
 /**

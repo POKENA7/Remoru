@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 
 /**
  * 認証の境界を検査で固定する。
@@ -19,9 +19,7 @@ const ROOT = process.cwd();
 
 /** コメントを除いた本体だけを返す。言及と使用を区別するため。 */
 function codeOnly(src: string): string {
-  return src
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/^\s*\/\/.*$/gm, "");
+  return src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 }
 
 function routeFiles(dir: string): string[] {
@@ -150,8 +148,9 @@ describe("ドメイン層の依存", () => {
   }
 
   it("Clerk を知るのは lib/current-user.ts だけ", () => {
-    const libFiles = readdirSync(join(ROOT, "lib"))
-      .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"));
+    const libFiles = readdirSync(join(ROOT, "lib")).filter(
+      (f) => f.endsWith(".ts") && !f.endsWith(".test.ts"),
+    );
     const importers = libFiles.filter((f) =>
       readFileSync(join(ROOT, "lib", f), "utf8").includes("@clerk"),
     );

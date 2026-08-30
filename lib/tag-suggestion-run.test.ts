@@ -1,10 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { eq } from "drizzle-orm";
-import { createTestDb } from "./test-db";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { memoTags, tags } from "../db/schema";
 import { createMemo } from "./memos";
-import { getTagsForMemos, setTag } from "./tags";
-import { SUGGESTION_THRESHOLD, SUGGEST_TOOL_NAME } from "./tag-suggestion";
+import { SUGGEST_TOOL_NAME, SUGGESTION_THRESHOLD } from "./tag-suggestion";
 import type { CallModel } from "./tag-suggestion-client";
 import {
   applyAssignments,
@@ -13,6 +11,8 @@ import {
   proposeTags,
   suggestionStatus,
 } from "./tag-suggestion-run";
+import { getTagsForMemos, setTag } from "./tags";
+import { createTestDb } from "./test-db";
 
 const NOW = Date.UTC(2026, 7, 25, 3, 0, 0);
 
@@ -122,7 +122,10 @@ describe("提案の実行", () => {
     const db = createTestDb();
     const [a, b] = await seedMemos(db, 2);
     const call: CallModel = async () =>
-      toolResponse([{ memoId: a, tag: "仕事" }, { memoId: b, tag: "仕事" }]);
+      toolResponse([
+        { memoId: a, tag: "仕事" },
+        { memoId: b, tag: "仕事" },
+      ]);
 
     const result = await proposeTags(db, { userId: "u1", apiKey: "key", call });
 
@@ -134,7 +137,8 @@ describe("提案の実行", () => {
     const db = createTestDb();
     await seedMemos(db, 2);
     expect(await proposeTags(db, { userId: "u1", apiKey: undefined })).toEqual({
-      ok: false, reason: "no_key",
+      ok: false,
+      reason: "no_key",
     });
   });
 });
@@ -146,7 +150,10 @@ describe("提案の受け入れ", () => {
 
     const result = await applyAssignments(db, {
       userId: "u1",
-      assignments: [{ memoId: a, tag: "仕事" }, { memoId: b, tag: "読書" }],
+      assignments: [
+        { memoId: a, tag: "仕事" },
+        { memoId: b, tag: "読書" },
+      ],
       now: NOW,
     });
 
@@ -162,7 +169,10 @@ describe("提案の受け入れ", () => {
 
     const result = await applyAssignments(db, {
       userId: "u1",
-      assignments: [{ memoId: "存在しない", tag: "のっとり" }, { memoId: a, tag: "仕事" }],
+      assignments: [
+        { memoId: "存在しない", tag: "のっとり" },
+        { memoId: a, tag: "仕事" },
+      ],
       now: NOW,
     });
 
@@ -212,7 +222,8 @@ describe("提案の失敗", () => {
     };
 
     expect(await proposeTags(db, { userId: "u1", apiKey: "key", call })).toEqual({
-      ok: false, reason: "request_failed",
+      ok: false,
+      reason: "request_failed",
     });
     expect(await db.select().from(memoTags)).toEqual(before);
     expect(await db.select().from(tags)).toHaveLength(1);
@@ -230,7 +241,9 @@ describe("提案の契機はサーバー側でも見る", () => {
     };
 
     expect(await proposeTags(db, { userId: "u1", apiKey: "key", call })).toEqual({
-      ok: true, assignments: [], summary: [],
+      ok: true,
+      assignments: [],
+      summary: [],
     });
     // 呼び出し1回がそのまま課金になるので、対象が無いときは出さない
     expect(calls).toEqual([]);
@@ -245,7 +258,10 @@ describe("受け入れで同じメモに2つ来ても", () => {
     // 同じ now が全件に渡るので、memo_tags の createdAt が同値になる
     await applyAssignments(db, {
       userId: "u1",
-      assignments: [{ memoId: a, tag: "さいしょ" }, { memoId: a, tag: "あと" }],
+      assignments: [
+        { memoId: a, tag: "さいしょ" },
+        { memoId: a, tag: "あと" },
+      ],
       now: NOW,
     });
 

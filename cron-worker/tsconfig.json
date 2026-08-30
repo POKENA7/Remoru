@@ -12,5 +12,12 @@
     "resolveJsonModule": true,
     "isolatedModules": true
   },
-  "include": ["src/**/*.ts", "../lib/test-d1.ts", "../lib/notification-timing.ts", "../lib/notification-message.ts", "../lib/push.ts", "../lib/review-scheduler.ts"]
+  "include": [
+    "src/**/*.ts",
+    "../lib/test-d1.ts",
+    "../lib/notification-timing.ts",
+    "../lib/notification-message.ts",
+    "../lib/push.ts",
+    "../lib/review-scheduler.ts"
+  ]
 }

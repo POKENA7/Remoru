@@ -1,17 +1,17 @@
-import { describe, it, expect } from "vitest";
 import { eq } from "drizzle-orm";
-import { createTestDb } from "./test-db";
-import { memoTags, memos, tags } from "../db/schema";
+import { describe, expect, it } from "vitest";
+import { memos, memoTags, tags } from "../db/schema";
 import { createMemo } from "./memos";
 import {
-  MAX_TAGS_PER_MEMO,
-  MAX_TAG_NAME_LENGTH,
   getTagsForMemos,
   listTagsWithCounts,
+  MAX_TAG_NAME_LENGTH,
+  MAX_TAGS_PER_MEMO,
   removeTag,
   setTag,
   validateTagName,
 } from "./tags";
+import { createTestDb } from "./test-db";
 
 const NOW = Date.UTC(2026, 7, 25, 3, 0, 0);
 
@@ -38,7 +38,8 @@ describe("タグ名の検証", () => {
 
   it("長すぎる名前を拒否する", () => {
     expect(validateTagName("あ".repeat(MAX_TAG_NAME_LENGTH + 1))).toEqual({
-      ok: false, error: "too_long",
+      ok: false,
+      error: "too_long",
     });
   });
 });
@@ -102,7 +103,8 @@ describe("タグの付与", () => {
     const memoId = await seedMemo(db);
 
     expect(await setTag(db, { memoId, userId: "u1", name: "  ", now: NOW })).toEqual({
-      ok: false, error: "empty_name",
+      ok: false,
+      error: "empty_name",
     });
     expect(await tagNamesOf(db, memoId)).toEqual([]);
   });
@@ -153,7 +155,8 @@ describe("タグの分離", () => {
     const memoId = await seedMemo(db, "A", "u1");
 
     expect(await setTag(db, { memoId, userId: "u2", name: "仕事", now: NOW })).toEqual({
-      ok: false, error: "memo_not_found",
+      ok: false,
+      error: "memo_not_found",
     });
     expect(await tagNamesOf(db, memoId)).toEqual([]);
   });

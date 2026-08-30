@@ -1,15 +1,15 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
-import { memoTags, memos, tags, type Tag } from "../db/schema";
+import { memos, memoTags, type Tag, tags } from "../db/schema";
 import type { AppDb } from "../db/types";
 import {
-  MAX_TAGS_PER_MEMO,
   MAX_TAG_NAME_LENGTH,
-  validateTagName,
+  MAX_TAGS_PER_MEMO,
   type TagNameError,
+  validateTagName,
 } from "./tag-text";
 
 // 既存の import 元を変えずに済むよう、規則はここから再輸出する
-export { MAX_TAGS_PER_MEMO, MAX_TAG_NAME_LENGTH, validateTagName };
+export { MAX_TAG_NAME_LENGTH, MAX_TAGS_PER_MEMO, validateTagName };
 
 export type TagError = TagNameError | "memo_not_found";
 
@@ -42,9 +42,7 @@ async function findOrCreateTag(
   return tag;
 }
 
-export type SetTagResult =
-  | { ok: true; tag: Tag; replaced: Tag[] }
-  | { ok: false; error: TagError };
+export type SetTagResult = { ok: true; tag: Tag; replaced: Tag[] } | { ok: false; error: TagError };
 
 /**
  * メモにタグを付ける。
@@ -84,9 +82,7 @@ export async function setTag(
     .where(and(eq(memoTags.memoId, params.memoId), eq(memoTags.tagId, tag.id)));
   if (already.length > 0) return { ok: true, tag, replaced: [] };
 
-  await db
-    .insert(memoTags)
-    .values({ memoId: params.memoId, tagId: tag.id, createdAt: params.now });
+  await db.insert(memoTags).values({ memoId: params.memoId, tagId: tag.id, createdAt: params.now });
 
   // 上限を超えたぶんを古いものから落とす。ここが「1つだけ」の実体で、
   // 表の形ではなく規則として持っている（design.md D2）。
@@ -101,9 +97,7 @@ export async function setTag(
   // tagId 次第で自分が候補に入り、1件も落ちずに上限を超えて残る。
   // 提案の受け入れは全件に同じ now を渡すので、同値は普通に起きる。
   const others = held.filter((row) => row.tagId !== tag.id);
-  const droppedIds = others
-    .slice(0, Math.max(held.length - limit, 0))
-    .map((row) => row.tagId);
+  const droppedIds = others.slice(0, Math.max(held.length - limit, 0)).map((row) => row.tagId);
 
   if (droppedIds.length > 0) {
     await db
@@ -139,10 +133,7 @@ export async function removeTag(
 }
 
 /** メモごとのタグ。一覧の描画に使う。 */
-export async function getTagsForMemos(
-  db: AppDb,
-  userId: string,
-): Promise<Map<string, Tag[]>> {
+export async function getTagsForMemos(db: AppDb, userId: string): Promise<Map<string, Tag[]>> {
   const rows = await db
     .select({
       memoId: memoTags.memoId,

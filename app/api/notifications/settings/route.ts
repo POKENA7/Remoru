@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { type NextRequest, NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/current-user";
+import { getDb } from "@/lib/db";
 import {
-  SELECTABLE_HOURS,
   getSettings,
+  SELECTABLE_HOURS,
   saveSettings,
   validateSettings,
 } from "@/lib/notification-settings";

@@ -1,10 +1,10 @@
-import { describe, it, expect } from "vitest";
 import { eq } from "drizzle-orm";
-import { createTestDb } from "./test-db";
+import { describe, expect, it } from "vitest";
 import { createMemo } from "./memos";
-import { createQuizItem, replaceQuizText, getQuizItem } from "./quiz-items";
+import { createQuizItem, getQuizItem, replaceQuizText } from "./quiz-items";
+import { MAX_ANSWER_LENGTH, MAX_QUESTION_LENGTH } from "./quiz-text";
 import { gradeReview } from "./review";
-import { MAX_QUESTION_LENGTH, MAX_ANSWER_LENGTH } from "./quiz-text";
+import { createTestDb } from "./test-db";
 
 /**
  * 問と答の書き直し（change 13）。
@@ -92,10 +92,16 @@ describe("問と答の書き直し", () => {
     const { memoId } = await seed(db);
 
     const longQ = await replaceQuizText(db, {
-      memoId, question: "あ".repeat(MAX_QUESTION_LENGTH + 1), answer: "答", userId: "u1",
+      memoId,
+      question: "あ".repeat(MAX_QUESTION_LENGTH + 1),
+      answer: "答",
+      userId: "u1",
     });
     const longA = await replaceQuizText(db, {
-      memoId, question: "問", answer: "あ".repeat(MAX_ANSWER_LENGTH + 1), userId: "u1",
+      memoId,
+      question: "問",
+      answer: "あ".repeat(MAX_ANSWER_LENGTH + 1),
+      userId: "u1",
     });
 
     expect(longQ).toEqual({ ok: false, error: "too_long" });
@@ -107,7 +113,10 @@ describe("問と答の書き直し", () => {
     const { memoId } = await seed(db);
 
     const result = await replaceQuizText(db, {
-      memoId, question: "乗っ取り", answer: "乗っ取り", userId: "u2",
+      memoId,
+      question: "乗っ取り",
+      answer: "乗っ取り",
+      userId: "u2",
     });
 
     expect(result).toEqual({ ok: false, error: "memo_not_found" });
@@ -127,7 +136,10 @@ describe("書き直しは復習の進みを変えない", () => {
     expect(JSON.parse(before.state).stage).toBeGreaterThan(0);
 
     await replaceQuizText(db, {
-      memoId, question: "新しい問", answer: "新しい答", userId: "u1",
+      memoId,
+      question: "新しい問",
+      answer: "新しい答",
+      userId: "u1",
     });
 
     const { reviewSchedules, quizItems } = await import("../db/schema");

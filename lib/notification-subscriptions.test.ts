@@ -1,11 +1,11 @@
-import { describe, it, expect } from "vitest";
-import { createTestDb } from "./test-db";
+import { describe, expect, it } from "vitest";
 import {
   deleteSubscription,
   listSubscriptions,
   saveSubscription,
   validateSubscription,
 } from "./notification-subscriptions";
+import { createTestDb } from "./test-db";
 
 const ENDPOINT_A = "https://push.example.com/a";
 const ENDPOINT_B = "https://push.example.com/b";
@@ -92,9 +92,7 @@ describe("購読の分離", () => {
 
     await saveSubscription(db, { userId: "u1", subscription: sub(ENDPOINT_A), now: 1 });
 
-    expect(
-      await deleteSubscription(db, { userId: "u1", endpoint: ENDPOINT_A }),
-    ).toBe(true);
+    expect(await deleteSubscription(db, { userId: "u1", endpoint: ENDPOINT_A })).toBe(true);
     expect(await listSubscriptions(db, "u1")).toHaveLength(0);
   });
 });
@@ -104,7 +102,10 @@ describe("要求の検証", () => {
     expect(validateSubscription(null)).toBeNull();
     expect(validateSubscription({ endpoint: ENDPOINT_A })).toBeNull();
     expect(validateSubscription({ endpoint: "", p256dh: "k", auth: "a" })).toBeNull();
-    expect(validateSubscription({ endpoint: ENDPOINT_A, p256dh: "k", auth: "a" }))
-      .toEqual({ endpoint: ENDPOINT_A, p256dh: "k", auth: "a" });
+    expect(validateSubscription({ endpoint: ENDPOINT_A, p256dh: "k", auth: "a" })).toEqual({
+      endpoint: ENDPOINT_A,
+      p256dh: "k",
+      auth: "a",
+    });
   });
 });

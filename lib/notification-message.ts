@@ -25,10 +25,7 @@ const MAX_QUESTION_LENGTH = 60;
  */
 export const REVIEW_URL = "/?tab=review";
 
-export function buildNotification(
-  count: number,
-  first: FirstQuestion,
-): NotificationBody {
+export function buildNotification(count: number, first: FirstQuestion): NotificationBody {
   const chars = [...first.question];
   const question =
     chars.length > MAX_QUESTION_LENGTH

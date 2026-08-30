@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { notificationSettings, type NotificationSettings } from "../db/schema";
+import { type NotificationSettings, notificationSettings } from "../db/schema";
 import type { AppDb } from "../db/types";
 import { localHourAndDate } from "./notification-timing";
 
@@ -69,10 +69,7 @@ export function defaultSettings(userId: string): NotificationSettings {
   };
 }
 
-export async function getSettings(
-  db: AppDb,
-  userId: string,
-): Promise<NotificationSettings> {
+export async function getSettings(db: AppDb, userId: string): Promise<NotificationSettings> {
   const rows = await db
     .select()
     .from(notificationSettings)

@@ -1,12 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import { memos } from "../db/schema";
 import type { AppDb } from "../db/types";
+import { type CallModel, type GenerationFailure, generateQuiz } from "./quiz-generation-client";
 import { createQuizItem } from "./quiz-items";
-import {
-  generateQuiz,
-  type CallModel,
-  type GenerationFailure,
-} from "./quiz-generation-client";
 
 /**
  * 生成の起動と後始末。
@@ -55,10 +51,7 @@ async function markPending(
  * 呼び出し前に持ち主は確認済みだが、ここでも絞る。「memoId だけで memos を
  * 更新する関数」を残しておくと、あとから別の場所から呼ばれたときに穴が開く。
  */
-async function clearPending(
-  db: AppDb,
-  params: { memoId: string; userId: string },
-): Promise<void> {
+async function clearPending(db: AppDb, params: { memoId: string; userId: string }): Promise<void> {
   await db
     .update(memos)
     .set({ quizPendingSince: null })

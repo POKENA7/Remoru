@@ -15,10 +15,7 @@ export type Subscription = {
 export type SendOutcome = "sent" | "expired" | "failed";
 
 /** 1件送る関数。実体は cron worker が Web Crypto を使う実装を渡す。 */
-export type SendOne = (
-  subscription: Subscription,
-  payload: string,
-) => Promise<SendOutcome>;
+export type SendOne = (subscription: Subscription, payload: string) => Promise<SendOutcome>;
 
 /**
  * 送信先からの応答を、扱いの分類に落とす。

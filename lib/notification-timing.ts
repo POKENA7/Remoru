@@ -19,15 +19,9 @@ export type NotificationTarget = {
   lastSentOn: string | null;
 };
 
-export type SkipReason =
-  | "disabled"
-  | "different_hour"
-  | "already_sent_today"
-  | "invalid_time_zone";
+export type SkipReason = "disabled" | "different_hour" | "already_sent_today" | "invalid_time_zone";
 
-export type Decision =
-  | { send: true; localDate: string }
-  | { send: false; reason: SkipReason };
+export type Decision = { send: true; localDate: string } | { send: false; reason: SkipReason };
 
 /**
  * ある瞬間における、その地域での「時」と「日付」を返す。
@@ -64,10 +58,7 @@ export function localHourAndDate(
 }
 
 /** その利用者へ、いま送るべきか。 */
-export function shouldNotify(
-  target: NotificationTarget,
-  now: number,
-): Decision {
+export function shouldNotify(target: NotificationTarget, now: number): Decision {
   if (!target.enabled) return { send: false, reason: "disabled" };
 
   const local = localHourAndDate(now, target.timeZone);

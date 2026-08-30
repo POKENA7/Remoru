@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { cellFills as fills } from "./cells";
 
 // 規則の説明は app/cells.ts を参照。ここでは境界を固定する。

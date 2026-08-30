@@ -1,19 +1,22 @@
-import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import {
-  shouldNotify,
-  selectTargets,
   localHourAndDate,
   type NotificationTarget,
+  selectTargets,
+  shouldNotify,
 } from "./notification-timing";
 
 /** 2026-08-23 21:00 JST = 12:00 UTC */
 const AT_21_JST = Date.UTC(2026, 7, 23, 12, 0, 0);
 
 const base: NotificationTarget = {
-  userId: "u1", enabled: true, hour: 21,
-  timeZone: "Asia/Tokyo", lastSentOn: null,
+  userId: "u1",
+  enabled: true,
+  hour: 21,
+  timeZone: "Asia/Tokyo",
+  lastSentOn: null,
 };
 const t = (o: Partial<NotificationTarget> = {}): NotificationTarget => ({ ...base, ...o });
 
@@ -22,7 +25,10 @@ describe("localHourAndDate", () => {
     expect(localHourAndDate(AT_21_JST, "Asia/Tokyo")).toEqual({ hour: 21, date: "2026-08-23" });
     expect(localHourAndDate(AT_21_JST, "UTC")).toEqual({ hour: 12, date: "2026-08-23" });
     // ニューヨークは同じ瞬間でもまだ前日の朝
-    expect(localHourAndDate(AT_21_JST, "America/New_York")).toEqual({ hour: 8, date: "2026-08-23" });
+    expect(localHourAndDate(AT_21_JST, "America/New_York")).toEqual({
+      hour: 8,
+      date: "2026-08-23",
+    });
   });
 
   it("日付をまたぐ地域を正しく扱う", () => {
@@ -44,7 +50,8 @@ describe("shouldNotify（タスク 2.2）", () => {
 
   it("時刻が違えば送らない", () => {
     expect(shouldNotify(t({ hour: 9 }), AT_21_JST)).toEqual({
-      send: false, reason: "different_hour",
+      send: false,
+      reason: "different_hour",
     });
   });
 
@@ -59,7 +66,8 @@ describe("shouldNotify（タスク 2.2）", () => {
 describe("二重送信の抑止（タスク 2.3）", () => {
   it("同じ日にすでに送っていれば送らない", () => {
     expect(shouldNotify(t({ lastSentOn: "2026-08-23" }), AT_21_JST)).toEqual({
-      send: false, reason: "already_sent_today",
+      send: false,
+      reason: "already_sent_today",
     });
   });
 
@@ -73,7 +81,8 @@ describe("二重送信の抑止（タスク 2.3）", () => {
     const target = t({ hour: 0, lastSentOn: "2026-08-23" });
     // UTC で見れば 8/23 だが、利用者の地域では 8/24 なので送ってよい
     expect(shouldNotify(target, afterMidnightJst)).toEqual({
-      send: true, localDate: "2026-08-24",
+      send: true,
+      localDate: "2026-08-24",
     });
   });
 
@@ -90,7 +99,8 @@ describe("二重送信の抑止（タスク 2.3）", () => {
 describe("通知が無効な利用者（タスク 2.5）", () => {
   it("無効なら時刻が一致しても送らない", () => {
     expect(shouldNotify(t({ enabled: false }), AT_21_JST)).toEqual({
-      send: false, reason: "disabled",
+      send: false,
+      reason: "disabled",
     });
   });
 });
@@ -98,7 +108,8 @@ describe("通知が無効な利用者（タスク 2.5）", () => {
 describe("壊れた設定の扱い（タスク 2.4）", () => {
   it("不正な地域名の利用者は送らない", () => {
     expect(shouldNotify(t({ timeZone: "Nowhere/Fake" }), AT_21_JST)).toEqual({
-      send: false, reason: "invalid_time_zone",
+      send: false,
+      reason: "invalid_time_zone",
     });
   });
 
@@ -119,11 +130,11 @@ describe("壊れた設定の扱い（タスク 2.4）", () => {
 describe("selectTargets", () => {
   it("時刻が一致する利用者だけを選ぶ（タスク 2.2）", () => {
     const targets = [
-      t({ userId: "tokyo21", timeZone: "Asia/Tokyo", hour: 21 }),   // 一致
-      t({ userId: "tokyo9", timeZone: "Asia/Tokyo", hour: 9 }),     // 不一致
-      t({ userId: "utc12", timeZone: "UTC", hour: 12 }),            // 一致
-      t({ userId: "ny8", timeZone: "America/New_York", hour: 8 }),  // 一致
-      t({ userId: "ny20", timeZone: "America/New_York", hour: 20 }),// 不一致
+      t({ userId: "tokyo21", timeZone: "Asia/Tokyo", hour: 21 }), // 一致
+      t({ userId: "tokyo9", timeZone: "Asia/Tokyo", hour: 9 }), // 不一致
+      t({ userId: "utc12", timeZone: "UTC", hour: 12 }), // 一致
+      t({ userId: "ny8", timeZone: "America/New_York", hour: 8 }), // 一致
+      t({ userId: "ny20", timeZone: "America/New_York", hour: 20 }), // 不一致
     ];
 
     const selected = selectTargets(targets, AT_21_JST);

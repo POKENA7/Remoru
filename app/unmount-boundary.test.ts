@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
 
 /**
  * `MemoTab` の unmount を越えなければならない状態を、検査で固定する。
@@ -86,7 +86,9 @@ describe("動きを止めた人（change 12）", () => {
     const rm = css.slice(css.lastIndexOf("@media (prefers-reduced-motion: reduce)"));
 
     // 消して何も残らない形にしない（change 10 の前例）
-    expect(rm).toMatch(/\.memo-item\.printing[\s\S]*box-shadow:\s*inset 3px 0 0 var\(--orange-text\)/);
+    expect(rm).toMatch(
+      /\.memo-item\.printing[\s\S]*box-shadow:\s*inset 3px 0 0 var\(--orange-text\)/,
+    );
     expect(rm).toMatch(/\.memo-item\.printed[\s\S]*box-shadow:\s*inset 3px 0 0 transparent/);
     expect(rm).toMatch(/animation:\s*none/);
   });
@@ -94,7 +96,7 @@ describe("動きを止めた人（change 12）", () => {
   it("インクの層はダークで screen に反転する", () => {
     const css = read("app/globals.css");
     expect(css).toMatch(
-      /@media \(prefers-color-scheme: dark\) \{\s*\.memo-item\.printing::after \{ mix-blend-mode: screen; \}/,
+      /@media \(prefers-color-scheme: dark\) \{\s*\.memo-item\.printing::after \{\s*mix-blend-mode: screen;\s*\}/,
     );
   });
 });
@@ -104,7 +106,9 @@ describe("刷りの尺と高さ（change 12）", () => {
 
   it("高さは実測した値を使う", () => {
     // 固定値を置くと、折り返す長い本文で途中が切れる（design.md D1）
-    expect(css).toMatch(/@keyframes print-open \{\s*from \{ height: 0; \}\s*to\s*\{ height: var\(--print-h\); \}/);
+    expect(css).toMatch(
+      /@keyframes print-open \{\s*from \{\s*height: 0;\s*\}\s*to \{\s*height: var\(--print-h\);\s*\}/,
+    );
     const src = codeOnly(read("app/memo-tab.tsx"));
     // 動かす**前**に測る。付けてから測ると 0 を測る
     const measure = src.indexOf("--print-h");
@@ -119,7 +123,10 @@ describe("刷りの尺と高さ（change 12）", () => {
     expect(css.match(/print-wipe (\d+)ms/)?.[1]).toBe("420");
     expect(css.match(/print-ink (\d+)ms/)?.[1]).toBe("420");
     // 尺に var() が混ざっていないこと（＝中身に依存しない）
-    const block = css.slice(css.indexOf(".memo-item.printing {"), css.indexOf("@keyframes print-open"));
+    const block = css.slice(
+      css.indexOf(".memo-item.printing {"),
+      css.indexOf("@keyframes print-open"),
+    );
     expect(block).not.toMatch(/animation:[^}]*var\(/);
   });
 

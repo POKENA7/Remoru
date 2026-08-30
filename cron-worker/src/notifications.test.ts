@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
-import { runNotifications, type Env } from "./index";
-import { createTestD1 } from "../../lib/test-d1";
+import { describe, expect, it, vi } from "vitest";
 import type { SendOne, SendOutcome, Subscription } from "../../lib/push";
+import { createTestD1 } from "../../lib/test-d1";
+import { type Env, runNotifications } from "./index";
 
 /** 2026-08-23 12:00 UTC = 同日 21:00 JST。設定の時刻と一致させる。 */
 const NOW = Date.UTC(2026, 7, 23, 12, 0, 0);
@@ -130,9 +130,7 @@ describe("出題対象が0件の利用者", () => {
     const { calls, send } = recorder();
     await runQuietly(envFor(db), NOW, send);
 
-    expect(calls.map((c) => c.subscription.endpoint)).toEqual([
-      "https://push.example.com/has-due",
-    ]);
+    expect(calls.map((c) => c.subscription.endpoint)).toEqual(["https://push.example.com/has-due"]);
   });
 });
 

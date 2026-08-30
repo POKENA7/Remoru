@@ -1,13 +1,13 @@
-import { describe, it, expect } from "vitest";
-import { createTestDb } from "./test-db";
+import { describe, expect, it } from "vitest";
 import {
   DEFAULT_HOUR,
   EARLIEST_HOUR,
-  SELECTABLE_HOURS,
   getSettings,
+  SELECTABLE_HOURS,
   saveSettings,
   validateSettings,
 } from "./notification-settings";
+import { createTestDb } from "./test-db";
 
 const VALID = { enabled: true, hour: 21, timeZone: "Asia/Tokyo" };
 

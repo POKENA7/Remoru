@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
 
 /**
  * シートの閉じ方を検査で固定する。
@@ -12,8 +12,7 @@ import { readFileSync } from "node:fs";
  */
 
 const read = (p: string) => readFileSync(p, "utf8");
-const codeOnly = (src: string) =>
-  src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 const sheet = codeOnly(read("app/sheet.tsx"));
 const css = read("app/globals.css");
@@ -79,7 +78,7 @@ describe("引く操作の作法", () => {
 describe("動きを止めた人", () => {
   it("追随も戻りも出さない", () => {
     const rm = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce) {\n  /* 追随も戻り"));
-    expect(rm).toMatch(/\.sheet, \.sheet\.dragging \{[^}]*transition: none/);
+    expect(rm).toMatch(/\.sheet,\s*\.sheet\.dragging \{[^}]*transition: none/);
     expect(rm).toMatch(/transform: none !important/);
   });
 });

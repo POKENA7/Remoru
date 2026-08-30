@@ -1,12 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { eq } from "drizzle-orm";
-import { createTestDb } from "./test-db";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { memos } from "../db/schema";
 import { createMemo } from "./memos";
-import { getReviewStates } from "./quiz-items";
 import { QUIZ_TOOL_NAME } from "./quiz-generation";
 import type { CallModel } from "./quiz-generation-client";
 import { finishGeneration, startGeneration } from "./quiz-generation-run";
+import { getReviewStates } from "./quiz-items";
+import { createTestDb } from "./test-db";
 
 const NOW = Date.UTC(2026, 7, 24, 3, 0, 0);
 const CONTENT = "近所のパン屋は火曜定休";
@@ -62,7 +62,11 @@ describe("保存は生成を待たない", () => {
 
     const deferred: Promise<unknown>[] = [];
     await startGeneration(db, {
-      memoId, userId: "u1", now: NOW, apiKey: "key", call,
+      memoId,
+      userId: "u1",
+      now: NOW,
+      apiKey: "key",
+      call,
       defer: (work) => deferred.push(work),
     });
 
@@ -86,7 +90,11 @@ describe("生成が成功したとき", () => {
     const memoId = await seedMemo(db);
 
     const result = await finishGeneration(db, {
-      memoId, userId: "u1", now: NOW, apiKey: "key", ...succeeds(),
+      memoId,
+      userId: "u1",
+      now: NOW,
+      apiKey: "key",
+      ...succeeds(),
     });
 
     expect(result).toEqual({ ok: true });
@@ -99,7 +107,11 @@ describe("生成が成功したとき", () => {
     const memoId = await seedMemo(db);
 
     await finishGeneration(db, {
-      memoId, userId: "u1", now: NOW, apiKey: "key", ...succeeds(),
+      memoId,
+      userId: "u1",
+      now: NOW,
+      apiKey: "key",
+      ...succeeds(),
     });
 
     expect(await pendingSince(db, memoId)).toBeNull();
@@ -112,7 +124,10 @@ describe("生成が失敗したとき", () => {
     const memoId = await seedMemo(db);
 
     const result = await finishGeneration(db, {
-      memoId, userId: "u1", now: NOW, apiKey: "key",
+      memoId,
+      userId: "u1",
+      now: NOW,
+      apiKey: "key",
       call: async () => {
         throw new Error("500");
       },
@@ -128,7 +143,10 @@ describe("生成が失敗したとき", () => {
     await db.update(memos).set({ quizPendingSince: NOW }).where(eq(memos.id, memoId));
 
     await finishGeneration(db, {
-      memoId, userId: "u1", now: NOW, apiKey: "key",
+      memoId,
+      userId: "u1",
+      now: NOW,
+      apiKey: "key",
       call: async () => ({ content: [{ type: "text", text: "だめ" }] }),
     });
 
@@ -142,7 +160,11 @@ describe("生成が失敗したとき", () => {
     const { calls, call } = succeeds();
 
     const result = await finishGeneration(db, {
-      memoId, userId: "u1", now: NOW, apiKey: undefined, call,
+      memoId,
+      userId: "u1",
+      now: NOW,
+      apiKey: undefined,
+      call,
     });
 
     expect(result).toEqual({ ok: false, reason: "no_key" });
@@ -158,7 +180,11 @@ describe("生成の持ち主", () => {
     const { calls, call } = succeeds();
 
     const result = await finishGeneration(db, {
-      memoId, userId: "u2", now: NOW, apiKey: "key", call,
+      memoId,
+      userId: "u2",
+      now: NOW,
+      apiKey: "key",
+      call,
     });
 
     expect(result).toEqual({ ok: false, reason: "memo_not_found" });
@@ -173,7 +199,11 @@ describe("生成の持ち主", () => {
 
     const deferred: Promise<unknown>[] = [];
     await startGeneration(db, {
-      memoId, userId: "u2", now: NOW, apiKey: "key", ...succeeds(),
+      memoId,
+      userId: "u2",
+      now: NOW,
+      apiKey: "key",
+      ...succeeds(),
       defer: (work) => deferred.push(work),
     });
 
@@ -187,13 +217,20 @@ describe("生成は最初の1回だけ", () => {
   async function advancedReview(db: ReturnType<typeof createTestDb>) {
     const memoId = await seedMemo(db);
     await finishGeneration(db, {
-      memoId, userId: "u1", now: NOW, apiKey: "key", ...succeeds("最初の問", "最初の答"),
+      memoId,
+      userId: "u1",
+      now: NOW,
+      apiKey: "key",
+      ...succeeds("最初の問", "最初の答"),
     });
 
     const { quizItems, reviewSchedules } = await import("../db/schema");
     const item = (await db.select().from(quizItems).where(eq(quizItems.memoId, memoId)))[0];
 
-    const advanced = { nextReviewAt: NOW + 14 * 24 * 60 * 60 * 1000, state: '{"stage":3,"recoverTo":null}' };
+    const advanced = {
+      nextReviewAt: NOW + 14 * 24 * 60 * 60 * 1000,
+      state: '{"stage":3,"recoverTo":null}',
+    };
     await db.update(reviewSchedules).set(advanced).where(eq(reviewSchedules.quizItemId, item.id));
 
     return { memoId, quizItemId: item.id, advanced };
@@ -206,7 +243,10 @@ describe("生成は最初の1回だけ", () => {
     // 保存直後に利用者が手で書いた場合、遅れて届いた生成結果が
     // それを上書きしてはいけない
     const result = await finishGeneration(db, {
-      memoId, userId: "u1", now: NOW, apiKey: "key",
+      memoId,
+      userId: "u1",
+      now: NOW,
+      apiKey: "key",
       ...succeeds("あとから来た問", "あとから来た答"),
     });
 
@@ -221,7 +261,10 @@ describe("生成は最初の1回だけ", () => {
     const { memoId, quizItemId, advanced } = await advancedReview(db);
 
     const result = await finishGeneration(db, {
-      memoId, userId: "u1", now: NOW, apiKey: "key",
+      memoId,
+      userId: "u1",
+      now: NOW,
+      apiKey: "key",
       call: async () => {
         throw new Error("500");
       },
@@ -246,7 +289,11 @@ describe("生成は最初の1回だけ", () => {
     const { calls, call } = succeeds("乗っ取り", "乗っ取り");
 
     const result = await finishGeneration(db, {
-      memoId, userId: "u2", now: NOW, apiKey: "key", call,
+      memoId,
+      userId: "u2",
+      now: NOW,
+      apiKey: "key",
+      call,
     });
 
     expect(result).toEqual({ ok: false, reason: "memo_not_found" });

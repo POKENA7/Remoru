@@ -1,9 +1,12 @@
-import { describe, it, expect, vi } from "vitest";
-import { classifyResponse, deliver, type Subscription, type SendOutcome } from "./push";
+import { describe, expect, it, vi } from "vitest";
 import { buildNotification } from "./notification-message";
+import { classifyResponse, deliver, type SendOutcome, type Subscription } from "./push";
 
 const sub = (id: string): Subscription => ({
-  id, endpoint: `https://push.example/${id}`, p256dh: "key", auth: "auth",
+  id,
+  endpoint: `https://push.example/${id}`,
+  p256dh: "key",
+  auth: "auth",
 });
 
 describe("応答の分類（タスク 3.1）", () => {
@@ -116,7 +119,7 @@ describe("通知の中身（タスク 3.5・design.md D5）", () => {
     const n = buildNotification(2, { question: "醤油はどこで保存する？" });
     const all = `${n.title} ${n.body}`;
 
-    expect(all).not.toContain("冷蔵庫");                       // 答え
+    expect(all).not.toContain("冷蔵庫"); // 答え
     expect(all).not.toContain("醤油は冷蔵庫で保存したほうが"); // メモ本文
   });
 

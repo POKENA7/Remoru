@@ -127,12 +127,7 @@ export function TagSuggestionBand({
           >
             {busy ? "つけています..." : "これでいい"}
           </button>
-          <button
-            type="button"
-            className="later"
-            disabled={busy}
-            onClick={() => onResult(null)}
-          >
+          <button type="button" className="later" disabled={busy} onClick={() => onResult(null)}>
             やめておく
           </button>
         </div>

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
 import { getCurrentUserId } from "@/lib/current-user";
+import { getDb } from "@/lib/db";
 import { finishGuide } from "@/lib/first-run";
 
 /**

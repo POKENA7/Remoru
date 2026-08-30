@@ -6,7 +6,7 @@
  * プロンプトの組み立てと応答の検証を、ネットワークに出ずに確かめるため。
  */
 
-import { validateQuizItem, type ValidatedQuizText } from "./quiz-text";
+import { type ValidatedQuizText, validateQuizItem } from "./quiz-text";
 
 /**
  * 「生成中」と見なす上限（ミリ秒）。
@@ -18,10 +18,7 @@ import { validateQuizItem, type ValidatedQuizText } from "./quiz-text";
 export const GENERATION_TIMEOUT_MS = 2 * 60 * 1000;
 
 /** その時刻において、まだ「生成中」と見なすか。 */
-export function isGenerating(
-  quizPendingSince: number | null,
-  now: number,
-): boolean {
+export function isGenerating(quizPendingSince: number | null, now: number): boolean {
   if (quizPendingSince === null) return false;
   return now - quizPendingSince < GENERATION_TIMEOUT_MS;
 }

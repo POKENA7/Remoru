@@ -24,9 +24,7 @@ export const MAX_TAGS_PER_MEMO = 1;
 
 export type TagNameError = "empty_name" | "too_long";
 
-export type ValidatedTagName =
-  | { ok: true; name: string }
-  | { ok: false; error: TagNameError };
+export type ValidatedTagName = { ok: true; name: string } | { ok: false; error: TagNameError };
 
 /**
  * タグ名を検証して正規化する。

@@ -1,12 +1,7 @@
 import { and, asc, eq, lte } from "drizzle-orm";
 import { memos, quizItems, reviewEvents, reviewSchedules } from "../db/schema";
 import type { AppDb } from "../db/types";
-import {
-  schedule,
-  parseState,
-  serializeState,
-  startOfReviewDay,
-} from "./review-scheduler";
+import { parseState, schedule, serializeState, startOfReviewDay } from "./review-scheduler";
 
 export type DueItem = {
   quizItemId: string;
@@ -24,11 +19,7 @@ export type DueItem = {
  * 問答を持たないメモは join で自然に外れる。まだ期日の来ていないものは
  * 復習日の境界で切る。
  */
-export async function getDueItems(
-  db: AppDb,
-  now: number,
-  userId: string,
-): Promise<DueItem[]> {
+export async function getDueItems(db: AppDb, now: number, userId: string): Promise<DueItem[]> {
   const today = startOfReviewDay(now);
 
   const rows = await db
@@ -84,12 +75,7 @@ export async function gradeReview(
     .from(reviewSchedules)
     .innerJoin(quizItems, eq(quizItems.id, reviewSchedules.quizItemId))
     .innerJoin(memos, eq(memos.id, quizItems.memoId))
-    .where(
-      and(
-        eq(reviewSchedules.quizItemId, params.quizItemId),
-        eq(memos.userId, userId),
-      ),
-    );
+    .where(and(eq(reviewSchedules.quizItemId, params.quizItemId), eq(memos.userId, userId)));
 
   const current = rows[0];
   if (!current) return { ok: false, error: "not_found" };
@@ -99,11 +85,7 @@ export async function gradeReview(
     return { ok: true, nextReviewAt: current.nextReviewAt, applied: false };
   }
 
-  const result = schedule(
-    parseState(current.state),
-    { recalled: params.recalled },
-    params.now,
-  );
+  const result = schedule(parseState(current.state), { recalled: params.recalled }, params.now);
 
   await db
     .update(reviewSchedules)

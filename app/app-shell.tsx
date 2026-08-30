@@ -1,17 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { MemoTab } from "./memo-tab";
-import { MemoDetail } from "./memo-detail";
-import { RecordTab } from "./record-tab";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { resolveDetail } from "./detail-selection";
-import { markFresh, type FreshMemo } from "./fresh-memo";
-import { announcement } from "./first-run-view";
 import { FirstRunNotice, type NoticeAnswer } from "./first-run-notice";
-import { TagSuggestionBand } from "./tag-suggestion-band";
+import { announcement } from "./first-run-view";
+import { type FreshMemo, markFresh } from "./fresh-memo";
+import { MemoDetail } from "./memo-detail";
+import { MemoTab } from "./memo-tab";
 import { NotificationSettings } from "./notification-settings";
+import { RecordTab } from "./record-tab";
 import { ReviewTab } from "./review-tab";
+import { TagSuggestionBand } from "./tag-suggestion-band";
 import type { DueItem, MemoRow } from "./types";
 
 type Tab = "memo" | "review" | "record";
@@ -35,9 +35,7 @@ const MAX_POLLS = 8;
 export function AppShell() {
   // 通知から来たときは復習タブを開く（lib/notification-message.ts の REVIEW_URL）
   const params = useSearchParams();
-  const [tab, setTab] = useState<Tab>(
-    params.get("tab") === "review" ? "review" : "memo",
-  );
+  const [tab, setTab] = useState<Tab>(params.get("tab") === "review" ? "review" : "memo");
   const [memos, setMemos] = useState<MemoRow[]>([]);
   const [due, setDue] = useState<DueItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,7 +134,6 @@ export function AppShell() {
     setDetailId(null);
     setDetailMemo(null);
   }, []);
-
 
   /**
    * 詳細から戻ったとき、元の場所へ返す。

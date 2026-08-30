@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { type NextRequest, NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/current-user";
+import { getDb } from "@/lib/db";
 import { removeTag, setTag } from "@/lib/tags";
 
 /**
@@ -9,10 +9,7 @@ import { removeTag, setTag } from "@/lib/tags";
  * すでにタグを持つメモに別のタグを付けると差し替わる（design.md D2）。
  * 上限は lib/tags.ts の定数で決まっており、ここからは渡さない。
  */
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: Promise<{ memoId: string }> },
-) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ memoId: string }> }) {
   const { memoId } = await params;
 
   const userId = await getCurrentUserId();

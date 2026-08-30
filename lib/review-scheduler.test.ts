@@ -1,11 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  schedule,
   initialSchedule,
-  startOfReviewDay,
   parseState,
-  serializeState,
   type SchedulerState,
+  schedule,
+  serializeState,
+  startOfReviewDay,
 } from "./review-scheduler";
 
 const DAY = 24 * 60 * 60 * 1000;

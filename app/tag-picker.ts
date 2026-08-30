@@ -30,9 +30,7 @@ export function pickerView(
   const validated = validateTagName(rawQuery);
   const query = validated.ok ? validated.name : "";
 
-  const matches = all.filter(
-    (t) => t.id !== currentId && (query === "" || t.name.includes(query)),
-  );
+  const matches = all.filter((t) => t.id !== currentId && (query === "" || t.name.includes(query)));
 
   const exists = all.some((t) => t.name === query);
   return { matches, createName: query !== "" && !exists ? query : null };

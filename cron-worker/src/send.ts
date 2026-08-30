@@ -1,6 +1,6 @@
 import { buildPushPayload } from "@block65/webcrypto-web-push";
+import type { SendOutcome, Subscription } from "../../lib/push";
 import { classifyResponse } from "../../lib/push";
-import type { Subscription, SendOutcome } from "../../lib/push";
 import type { Env } from "./index";
 
 /**

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
 import { getCurrentUserId } from "@/lib/current-user";
+import { getDb } from "@/lib/db";
 import { retentionLayers, totalRecalled } from "@/lib/learning-record";
 
 /** おぼえてきたこと。累計と、いま持っているものの層。 */

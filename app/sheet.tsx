@@ -26,9 +26,10 @@ export function Sheet({
   const sheetRef = useRef<HTMLDivElement>(null);
   /** 開く前に焦点があった場所。閉じたら戻す（design.md D6） */
   const opener = useRef<HTMLElement | null>(null);
-  const drag = useRef<{ start: { y: number; at: number }; previous: { y: number; at: number } } | null>(
-    null,
-  );
+  const drag = useRef<{
+    start: { y: number; at: number };
+    previous: { y: number; at: number };
+  } | null>(null);
   const [offset, setOffset] = useState(0);
 
   useEffect(() => {

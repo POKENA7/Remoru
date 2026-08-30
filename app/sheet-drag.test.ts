@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { dragOffset, shouldClose, canStartDrag, CLOSE_RATIO, CLOSE_VELOCITY } from "./sheet-drag";
+import { describe, expect, it } from "vitest";
+import { CLOSE_RATIO, CLOSE_VELOCITY, canStartDrag, dragOffset, shouldClose } from "./sheet-drag";
 
 const HEIGHT = 400;
 const p = (y: number, at: number) => ({ y, at });
@@ -73,7 +73,12 @@ describe("離したときに閉じるか", () => {
 
   it("動かずに離しても閉じない", () => {
     expect(
-      shouldClose({ start: p(100, 0), previous: p(100, 900), end: p(100, 1000), sheetHeight: HEIGHT }),
+      shouldClose({
+        start: p(100, 0),
+        previous: p(100, 900),
+        end: p(100, 1000),
+        sheetHeight: HEIGHT,
+      }),
     ).toBe(false);
   });
 });

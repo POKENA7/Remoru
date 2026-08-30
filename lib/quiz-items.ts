@@ -1,14 +1,14 @@
 import { and, eq, isNull } from "drizzle-orm";
-import { memos, quizItems, reviewSchedules, type QuizItem } from "../db/schema";
+import { memos, type QuizItem, quizItems, reviewSchedules } from "../db/schema";
 import type { AppDb } from "../db/types";
-import { initialSchedule, serializeState } from "./review-scheduler";
 import { isGenerating } from "./quiz-generation";
 import {
   MAX_ANSWER_LENGTH,
   MAX_QUESTION_LENGTH,
-  validateQuizItem,
   type QuizTextError,
+  validateQuizItem,
 } from "./quiz-text";
+import { initialSchedule, serializeState } from "./review-scheduler";
 
 // 既存の import 元を変えずに済むよう、文字列の規則はここから再輸出する
 export { MAX_ANSWER_LENGTH, MAX_QUESTION_LENGTH, validateQuizItem };
@@ -116,10 +116,7 @@ export async function replaceQuizText(
     .set({ question: validated.question, answer: validated.answer })
     .where(eq(quizItems.id, owned[0].quizItemId));
 
-  const rows = await db
-    .select()
-    .from(quizItems)
-    .where(eq(quizItems.id, owned[0].quizItemId));
+  const rows = await db.select().from(quizItems).where(eq(quizItems.id, owned[0].quizItemId));
   const schedule = await db
     .select({ nextReviewAt: reviewSchedules.nextReviewAt })
     .from(reviewSchedules)
@@ -227,11 +224,7 @@ export async function getReviewStates(
  * 生成中のものは含めない。まだ結果が出ていないものを「手で書くべきもの」
  * として数えると、待っているだけの利用者に催促が出る。
  */
-export async function countUnwritten(
-  db: AppDb,
-  userId: string,
-  now: number,
-): Promise<number> {
+export async function countUnwritten(db: AppDb, userId: string, now: number): Promise<number> {
   const rows = await db
     .select({ id: memos.id, quizPendingSince: memos.quizPendingSince })
     .from(memos)

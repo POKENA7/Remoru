@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { pushSubscriptions, type PushSubscription } from "../db/schema";
+import { type PushSubscription, pushSubscriptions } from "../db/schema";
 import type { AppDb } from "../db/types";
 
 /** ブラウザの PushSubscription から取り出す、送信に要る3つ組。 */
@@ -53,14 +53,8 @@ export async function saveSubscription(
 }
 
 /** その利用者の購読だけを返す。 */
-export async function listSubscriptions(
-  db: AppDb,
-  userId: string,
-): Promise<PushSubscription[]> {
-  return await db
-    .select()
-    .from(pushSubscriptions)
-    .where(eq(pushSubscriptions.userId, userId));
+export async function listSubscriptions(db: AppDb, userId: string): Promise<PushSubscription[]> {
+  return await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, userId));
 }
 
 /**

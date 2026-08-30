@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SUGGEST_TOOL_NAME } from "./tag-suggestion";
 import {
   ANTHROPIC_VERSION,
-  ENDPOINT,
-  callAnthropic,
-  suggestTags,
   type CallModel,
+  callAnthropic,
+  ENDPOINT,
+  suggestTags,
 } from "./tag-suggestion-client";
 
 const MEMOS = [
@@ -45,14 +45,20 @@ afterEach(() => {
 describe("提案の呼び出し", () => {
   it("成功すると提案を返す", async () => {
     const { calls, call } = recorder(
-      toolResponse([{ memoId: "m1", tag: "仕事" }, { memoId: "m2", tag: "読書" }]),
+      toolResponse([
+        { memoId: "m1", tag: "仕事" },
+        { memoId: "m2", tag: "読書" },
+      ]),
     );
 
     const result = await suggestTags(MEMOS, ["仕事"], { apiKey: "key", call });
 
     expect(result).toEqual({
       ok: true,
-      assignments: [{ memoId: "m1", tag: "仕事" }, { memoId: "m2", tag: "読書" }],
+      assignments: [
+        { memoId: "m1", tag: "仕事" },
+        { memoId: "m2", tag: "読書" },
+      ],
     });
     expect(fetchCalls).toBe(0);
   });
@@ -62,14 +68,16 @@ describe("提案の呼び出し", () => {
       throw new Error("500");
     });
     expect(await suggestTags(MEMOS, [], { apiKey: "key", call })).toEqual({
-      ok: false, reason: "request_failed",
+      ok: false,
+      reason: "request_failed",
     });
   });
 
   it("採用できる提案が1つも無ければ失敗にする", async () => {
     const { call } = recorder(toolResponse([{ memoId: "知らないメモ", tag: "仕事" }]));
     expect(await suggestTags(MEMOS, [], { apiKey: "key", call })).toEqual({
-      ok: false, reason: "invalid_output",
+      ok: false,
+      reason: "invalid_output",
     });
   });
 
@@ -77,7 +85,8 @@ describe("提案の呼び出し", () => {
     const { calls, call } = recorder(toolResponse([{ memoId: "m1", tag: "仕事" }]));
     for (const apiKey of [undefined, null, ""]) {
       expect(await suggestTags(MEMOS, [], { apiKey, call })).toEqual({
-        ok: false, reason: "no_key",
+        ok: false,
+        reason: "no_key",
       });
     }
     expect(calls).toEqual([]);
@@ -86,7 +95,8 @@ describe("提案の呼び出し", () => {
   it("未分類が無ければ呼び出さない", async () => {
     const { calls, call } = recorder(toolResponse([]));
     expect(await suggestTags([], [], { apiKey: "key", call })).toEqual({
-      ok: true, assignments: [],
+      ok: true,
+      assignments: [],
     });
     expect(calls).toEqual([]);
   });

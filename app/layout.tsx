@@ -7,11 +7,7 @@ export const metadata: Metadata = {
   description: "日常のちょっとしたことをメモして、あとから思い出す",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja">
       <head>
@@ -23,9 +19,7 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <ClerkProvider>
-          {children}
-        </ClerkProvider>
+        <ClerkProvider>{children}</ClerkProvider>
       </body>
     </html>
   );

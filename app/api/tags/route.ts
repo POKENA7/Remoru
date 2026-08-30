@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
 import { getCurrentUserId } from "@/lib/current-user";
+import { getDb } from "@/lib/db";
 import { listTagsWithCounts } from "@/lib/tags";
 
 /** 絞り込みに出すタグの一覧。名前と、そのタグを持つ自分のメモの件数。 */

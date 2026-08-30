@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { UserButton } from "@clerk/nextjs";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { stateLabel } from "./detail-selection";
-import { takeFresh, type FreshMemo } from "./fresh-memo";
+import { type FreshMemo, takeFresh } from "./fresh-memo";
 import { MAX_CONTENT_LENGTH, type MemoRow } from "./types";
 
 const ERRORS: Record<string, string> = {
@@ -64,7 +64,6 @@ export function MemoTab({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-
   const save = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
@@ -101,7 +100,6 @@ export function MemoTab({
     [content, saving, onChanged, onDraftChange, onSaved],
   );
 
-
   /**
    * 刷りの動きを付ける（design.md D1）。
    *
@@ -117,9 +115,7 @@ export function MemoTab({
     row.classList.add("printing");
     // 動きを止めた人には橙の版が残る。次のフレームで引きはじめる（D4）。
     // 動く人には効かない指定なので、分岐せずに常に付ける
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => row.classList.add("printed")),
-    );
+    requestAnimationFrame(() => requestAnimationFrame(() => row.classList.add("printed")));
     // 刷ったら憶えを外す。残すと次の unmount でまた刷る（design.md D2）
     onPrinted();
     // **memos も要る。** 保存は `fresh` を先に立て、一覧はそのあとの取得で
@@ -166,9 +162,9 @@ export function MemoTab({
         />
         <div className="composer-foot">
           {/*
-            * 何も書いていないときは何も出さない。以前は「ひとことでいい」を
-            * 置いていたが、プレースホルダが同じことを言っている。
-            */}
+           * 何も書いていないときは何も出さない。以前は「ひとことでいい」を
+           * 置いていたが、プレースホルダが同じことを言っている。
+           */}
           <span className={over ? "hint over" : "hint"}>
             {chars === 0 ? "" : `${chars} / ${MAX_CONTENT_LENGTH}`}
           </span>
@@ -279,7 +275,6 @@ export function MemoTab({
           ))}
         </ul>
       )}
-
     </>
   );
 }

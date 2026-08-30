@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { type NextRequest, NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/current-user";
+import { getDb } from "@/lib/db";
 import { createQuizItem, getQuizItem, replaceQuizText } from "@/lib/quiz-items";
 
 /**
@@ -9,10 +9,7 @@ import { createQuizItem, getQuizItem, replaceQuizText } from "@/lib/quiz-items";
  * **一覧の応答には載せない。** 答えを見せるのは詳細だけで、一覧の payload に
  * 入れるとメモの数だけ答えを運ぶことになる。詳細を開いたときに1件だけ引く。
  */
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ memoId: string }> },
-) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ memoId: string }> }) {
   const { memoId } = await params;
 
   const userId = await getCurrentUserId();
@@ -29,10 +26,7 @@ export async function GET(
 }
 
 /** メモに問と答を1つ作る。 */
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ memoId: string }> },
-) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ memoId: string }> }) {
   const { memoId } = await params;
 
   const userId = await getCurrentUserId();
@@ -85,10 +79,7 @@ export async function POST(
  * `replaceQuizText` は **review_schedules に触れない**。触らないことが、
  * 復習の進み具合を保つことの実装そのものになっている（spec の要件）。
  */
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: Promise<{ memoId: string }> },
-) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ memoId: string }> }) {
   const { memoId } = await params;
 
   const userId = await getCurrentUserId();

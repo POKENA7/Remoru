@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
 
 /**
  * 押せるものの的の大きさを検査で固定する。
@@ -102,7 +102,10 @@ describe("メモ全体を直す鉛筆（change 14）", () => {
   });
 
   it("鉛筆は上の帯にある", () => {
-    const bar = detail.slice(detail.indexOf('className="review-head"'), detail.indexOf("detail-memo"));
+    const bar = detail.slice(
+      detail.indexOf('className="review-head"'),
+      detail.indexOf("detail-memo"),
+    );
     expect(bar).toMatch(/className="pencil"/);
     expect(bar).toMatch(/className="head-del"/);
   });

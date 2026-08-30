@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 
 /**
  * design.md D2: スケジューラは HTTP・セッション・データベース・フレームワークの
@@ -10,10 +10,7 @@ import { join } from "node:path";
  * ここが落ちたら、境界が壊れたということ。
  */
 
-const SOURCE = readFileSync(
-  join(process.cwd(), "lib", "review-scheduler.ts"),
-  "utf8",
-);
+const SOURCE = readFileSync(join(process.cwd(), "lib", "review-scheduler.ts"), "utf8");
 
 /** import 文が参照しているモジュール名を全部拾う */
 function importedModules(source: string): string[] {
@@ -32,11 +29,27 @@ function importedModules(source: string): string[] {
 
 const FORBIDDEN = [
   { label: "Next.js", test: (m: string) => m === "next" || m.startsWith("next/") },
-  { label: "Cloudflare/OpenNext", test: (m: string) => m.startsWith("@opennextjs") || m.startsWith("cloudflare") },
-  { label: "Drizzle / データベース", test: (m: string) => m.startsWith("drizzle-orm") || m.startsWith("drizzle-kit") || m.includes("better-sqlite3") },
-  { label: "スキーマ / DB 層", test: (m: string) => /(^|\/)db(\/|$)/.test(m) || m.includes("schema") },
-  { label: "React", test: (m: string) => m === "react" || m.startsWith("react-") || m.startsWith("react/") },
-  { label: "Node の I/O", test: (m: string) => m.startsWith("node:") || ["fs", "http", "https", "net"].includes(m) },
+  {
+    label: "Cloudflare/OpenNext",
+    test: (m: string) => m.startsWith("@opennextjs") || m.startsWith("cloudflare"),
+  },
+  {
+    label: "Drizzle / データベース",
+    test: (m: string) =>
+      m.startsWith("drizzle-orm") || m.startsWith("drizzle-kit") || m.includes("better-sqlite3"),
+  },
+  {
+    label: "スキーマ / DB 層",
+    test: (m: string) => /(^|\/)db(\/|$)/.test(m) || m.includes("schema"),
+  },
+  {
+    label: "React",
+    test: (m: string) => m === "react" || m.startsWith("react-") || m.startsWith("react/"),
+  },
+  {
+    label: "Node の I/O",
+    test: (m: string) => m.startsWith("node:") || ["fs", "http", "https", "net"].includes(m),
+  },
 ];
 
 describe("スケジューラの依存の向き", () => {

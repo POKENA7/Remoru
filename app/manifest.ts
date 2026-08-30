@@ -12,8 +12,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Remoru",
     short_name: "Remoru",
-    description:
-      "日常のちょっとしたことを書きとめて、忘れたころにクイズで思い出すアプリ",
+    description: "日常のちょっとしたことを書きとめて、忘れたころにクイズで思い出すアプリ",
     lang: "ja",
     start_url: "/",
     display: "standalone",

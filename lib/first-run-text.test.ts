@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { announcementText } from "./first-run-text";
 
 /** 復習日の境界は 00:00 JST（= 15:00 UTC）。時刻はすべて UTC で書く。 */
@@ -63,4 +63,3 @@ describe("告知の文言", () => {
     );
   });
 });
-

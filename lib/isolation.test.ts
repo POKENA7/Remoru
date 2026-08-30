@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
-import { createTestDb } from "./test-db";
-import { createMemo, listMemos, deleteMemo } from "./memos";
-import { createQuizItem, getReviewStates, countUnwritten } from "./quiz-items";
-import { getDueItems, gradeReview } from "./review";
+import { describe, expect, it } from "vitest";
 import type { AppDb } from "../db/types";
+import { createMemo, deleteMemo, listMemos } from "./memos";
+import { countUnwritten, createQuizItem, getReviewStates } from "./quiz-items";
+import { getDueItems, gradeReview } from "./review";
+import { createTestDb } from "./test-db";
 
 /**
  * 利用者ごとの分離（design.md D5）。
@@ -28,7 +28,11 @@ async function seedBoth(db: AppDb) {
     if (!m.ok) throw new Error("失敗");
     ids[user] = m.memo.id;
     await createQuizItem(db, {
-      memoId: m.memo.id, question: q, answer: a, now: NOW, userId: user,
+      memoId: m.memo.id,
+      question: q,
+      answer: a,
+      now: NOW,
+      userId: user,
     });
   }
   return ids;
@@ -74,7 +78,11 @@ describe("問答の分離（タスク 4.2）", () => {
     if (!m.ok) throw new Error("失敗");
 
     const result = await createQuizItem(db, {
-      memoId: m.memo.id, question: "横取り", answer: "する", now: NOW, userId: A,
+      memoId: m.memo.id,
+      question: "横取り",
+      answer: "する",
+      now: NOW,
+      userId: A,
     });
 
     expect(result).toEqual({ ok: false, error: "memo_not_found" });
@@ -120,8 +128,11 @@ describe("復習の分離（タスク 4.3）", () => {
     const before = itemB.occurrenceAt;
 
     const result = await gradeReview(db, {
-      quizItemId: itemB.quizItemId, recalled: true,
-      occurrenceAt: before, now: NOW + DAY, userId: A,
+      quizItemId: itemB.quizItemId,
+      recalled: true,
+      occurrenceAt: before,
+      now: NOW + DAY,
+      userId: A,
     });
 
     expect(result).toEqual({ ok: false, error: "not_found" });
@@ -138,8 +149,11 @@ describe("復習の分離（タスク 4.3）", () => {
     const [itemB] = await getDueItems(db, NOW + DAY, B);
 
     await gradeReview(db, {
-      quizItemId: itemA.quizItemId, recalled: true,
-      occurrenceAt: itemA.occurrenceAt, now: NOW + DAY, userId: A,
+      quizItemId: itemA.quizItemId,
+      recalled: true,
+      occurrenceAt: itemA.occurrenceAt,
+      now: NOW + DAY,
+      userId: A,
     });
 
     await expect(getDueItems(db, NOW + DAY, A)).resolves.toEqual([]);

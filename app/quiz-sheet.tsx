@@ -166,34 +166,34 @@ export function QuizSheet({
         )}
 
         {withQuiz && (
-        <div className="field">
-          <label htmlFor="q">問</label>
-          <input
-            id="q"
-            value={question}
-            onChange={(e) => {
-              setQuestion(e.target.value);
-              if (error) setError(null);
-            }}
-            placeholder="なにを思い出したい？"
-            autoFocus={!rewriting}
-          />
-        </div>
+          <div className="field">
+            <label htmlFor="q">問</label>
+            <input
+              id="q"
+              value={question}
+              onChange={(e) => {
+                setQuestion(e.target.value);
+                if (error) setError(null);
+              }}
+              placeholder="なにを思い出したい？"
+              autoFocus={!rewriting}
+            />
+          </div>
         )}
 
         {withQuiz && (
-        <div className="field">
-          <label htmlFor="a">答</label>
-          <input
-            id="a"
-            value={answer}
-            onChange={(e) => {
-              setAnswer(e.target.value);
-              if (error) setError(null);
-            }}
-            placeholder="ひとことで"
-          />
-        </div>
+          <div className="field">
+            <label htmlFor="a">答</label>
+            <input
+              id="a"
+              value={answer}
+              onChange={(e) => {
+                setAnswer(e.target.value);
+                if (error) setError(null);
+              }}
+              placeholder="ひとことで"
+            />
+          </div>
         )}
 
         {error && (
@@ -203,11 +203,7 @@ export function QuizSheet({
         )}
 
         <div className="sheet-foot">
-          <button
-            type="submit"
-            className="btn btn-orange"
-            disabled={saving || !ready}
-          >
+          <button type="submit" className="btn btn-orange" disabled={saving || !ready}>
             {saving ? "保存中..." : rewriting ? "直す" : "これでいい"}
           </button>
           <button type="button" className="later" onClick={onLater}>

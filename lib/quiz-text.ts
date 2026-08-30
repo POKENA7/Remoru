@@ -23,10 +23,7 @@ export type ValidatedQuizText =
  * 片方だけの状態を保存させないことが要件であり、検証の失敗は想定された
  * 結果なので例外ではなく戻り値で表す。
  */
-export function validateQuizItem(
-  rawQuestion: string,
-  rawAnswer: string,
-): ValidatedQuizText {
+export function validateQuizItem(rawQuestion: string, rawAnswer: string): ValidatedQuizText {
   const question = rawQuestion.trim();
   const answer = rawAnswer.trim();
 
