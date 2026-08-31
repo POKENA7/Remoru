@@ -25,21 +25,38 @@ jobs:
           node-version: 22
           cache: npm
 
-      # `npm ci` ではなく `npm install` を使う。
+      - run: npm ci
+
+      # npm の既知の欠陥（npm/cli#4828）への対処。
       #
-      # npm には既知の欠陥があり（npm/cli#4828）、プラットフォーム別のネイティブ
-      # バイナリを optionalDependencies で持つパッケージについて、lockfile を
-      # **作った環境の分しか**エントリを記録しないものがある。このリポジトリでは
-      # typescript（tsc 本体）と rolldown（vitest の中身）が darwin-arm64 だけで、
-      # `npm ci` は lockfile にあるものしか入れないため、Linux の runner では
-      # tsc も vitest も起動しなかった。`--os=linux --cpu=x64` を付けて lockfile を
-      # 作り直しても、entry は増えなかった（npm 10.9.8 で実測）。
+      # プラットフォーム別のネイティブバイナリを optionalDependencies で持つ
+      # パッケージのうち、typescript（tsc 本体）と rolldown（vitest の中身）は
+      # lockfile に **darwin-arm64 の分しかエントリが無い**。`npm ci` は lockfile に
+      # あるものしか入れないので、Linux では tsc も vitest も起動しない。
+      # （esbuild と biome は全プラットフォームが記録されている。パッケージ次第）
       #
-      # 個別に `npm i --no-save` で足す形も試したが、1 つ直すと次が出る。
-      # **版は lockfile に従うが、その環境に要るバイナリは解決させる**方に倒す。
-      # 引き換えに `npm ci` の「lockfile と完全に一致する木」という保証は落ちる。
-      # これは L07（環境依存の値を自分の環境だけで固めない）の代償である。
-      - run: npm install --no-audit --no-fund
+      # 試して駄目だったもの:
+      #   - `npm install --package-lock-only --os=linux --cpu=x64`
+      #     → lockfile は 1 バイトも変わらない（npm 10.9.8 で実測）
+      #   - `npm install`（`npm ci` の代わり）
+      #     → lockfile の木をそのまま使うので、やはり入らない（実測）
+      #   - `package.json` の optionalDependencies に足す
+      #     → 直るが**本番スコープ**なので本番の依存グラフが変わる。
+      #       devDependencies には置けない（macOS で EBADPLATFORM）
+      #
+      # 版は `npm ci` が**実際に入れた**親から取る。package.json の semver 範囲から
+      # 作ると、lockfile が範囲内で上がったときに親とバイナリの版がズレる。
+      #
+      # **同じ形のパッケージが増えたら、ここも増える。** 見落としても静かには
+      # 進まない（CI が赤くなる）ので、気づける形にはなっている。
+      - name: Linux 用のネイティブバイナリを足す
+        run: |
+          set -eu
+          ts=$(node -p "require('typescript/package.json').version")
+          rd=$(node -p "require('rolldown/package.json').version")
+          npm i --no-save \
+            "@typescript/typescript-linux-x64@$ts" \
+            "@rolldown/binding-linux-x64-gnu@$rd"
 
       - run: npm run check
 
