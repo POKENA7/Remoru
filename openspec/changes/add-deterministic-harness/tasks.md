@@ -42,29 +42,34 @@
 
 ## 7. 失敗の記録と棚卸の強制（コミット 3）
 
-- [ ] 7.1 `scripts/harness/record-failure.sh` を書き、D8 のスキーマ 1 行を `.learnings/failures.jsonl` に追記する。`check:secrets` の失敗では `head` を記録しないことをテストで確認する
-- [ ] 7.2 4.3 と 5.1 の両方から 7.1 を呼ぶ。検査を落として実際に 1 行増えることを確認する
-- [ ] 7.3 `scripts/harness/promote-gate.mjs` を書く。`failures.jsonl` を check ごとに数え、同一 change で 3 回以上かつ `promotions.json` に決定が無いものを「未処理の候補」として返す（D9）
-- [ ] 7.4 `Stop` hook に 7.3 を組み込む。未処理の候補があれば exit 2 で「規則 / 検査 / 見送り」を選ばせる。**1 候補につきブロックは 1 回**であることを、同じ候補で 2 回連続ブロックされないテストで確認する
-- [ ] 7.5 `npm run harness:promote -- --check <id> --decision rule|check|skip --note "..."` を作り、`.harness/promotions.json` に書く。実行後に 7.4 のブロックが外れることを確認する
-- [ ] 7.6 `promote-gate.test.ts` を書き、同一 check の失敗 3 件を書いた `failures.jsonl` でブロックが立ち、`skip` の決定を書くと外れることを assert する
+- [x] 7.1 `scripts/harness/record-failure.sh` を書き、D8 のスキーマ 1 行を `.learnings/failures.jsonl` に追記する。`check:secrets` の失敗では `head` を記録しないことをテストで確認する
+- [x] 7.2 4.3 と 5.1 の両方から 7.1 を呼ぶ。検査を落として実際に 1 行増えることを確認する
+- [x] 7.3 `scripts/harness/promote-gate.mjs` を書く。`failures.jsonl` を check ごとに数え、同一 change で 3 回以上かつ `promotions.json` に決定が無いものを「未処理の候補」として返す（D9）
+- [x] 7.4 `Stop` hook に 7.3 を組み込む。未処理の候補があれば exit 2 で「規則 / 検査 / 見送り」を選ばせる。**1 候補につきブロックは 1 回**であることを、同じ候補で 2 回連続ブロックされないテストで確認する
+- [x] 7.5 `npm run harness:promote -- --check <id> --decision rule|check|skip --note "..."` を作り、`.harness/promotions.json` に書く。実行後に 7.4 のブロックが外れることを確認する
+- [x] 7.6 `promote-gate.test.ts` を書き、同一 check の失敗 3 件を書いた `failures.jsonl` でブロックが立ち、`skip` の決定を書くと外れることを assert する
 
 ## 8. 引用数の自動集計
 
-- [ ] 8.1 `npm run learnings:index` を作り、`git log --grep "Learning: L"` から引用数を数えて `.learnings/index.json` を書き直す（D11）
-- [ ] 8.2 実行し、L03=2 / L04=9 / L05=5 / L06=24 という実測値に一致することを確認する（現在の手書きの値は 0 と 1 で、15 change ぶんずれている）
-- [ ] 8.3 `harness:promote` と CI から 8.1 を呼ぶ。`Stop` hook からは呼ばない
+- [x] 8.1 `npm run learnings:index` を作り、`git log --grep "Learning: L"` から引用数を数えて `.learnings/index.json` を書き直す（D11）
+- [x] 8.2 実行し、L03=2 / L04=9 / L05=5 / L06=24 という実測値に一致することを確認する（現在の手書きの値は 0 と 1 で、15 change ぶんずれている）
+  - L03=2 / L04=9 / L05=5 は一致した。**L06 だけ 26 になり、24 と合わない。**
+    原因は proposal の `grep -o "Learning: L[0-9]*"` にある。`Learning: L04, L06` と
+    2 つ並べた trailer が 2 件あり、その形を **L04 としか数えていなかった**。
+    集計側を直して両方数えるようにしたので、L06 は 24 + 2 = 26 が正しい。
+    この change のコミット 2 件を含めた現在値は 28。
+- [x] 8.3 `harness:promote` と CI から 8.1 を呼ぶ。`Stop` hook からは呼ばない
 
 ## 9. CI
 
-- [ ] 9.1 `.github/workflows/ci.yml` を作る。`push` と `pull_request` で Node 22 + `npm ci` + `npm run check`。秘密情報は使わない（D12）
+- [x] 9.1 `.github/workflows/ci.yml` を作る。`push` と `pull_request` で Node 22 + `npm ci` + `npm run check`。秘密情報は使わない（D12）
 - [ ] 9.2 わざと型エラーを入れたブランチを push し、**CI が赤くなることを実際に確認する**。確認後に戻す
-- [ ] 9.3 CI が `npm run check` 以外の検査定義を持たないことを、ワークフロー本文の目視で確認する
+- [x] 9.3 CI が `npm run check` 以外の検査定義を持たないことを、ワークフロー本文の目視で確認する
 
 ## 10. 記録と仕上げ
 
-- [ ] 10.1 `.learnings/active.md` の L06 に「実行可能な検査へ昇格済み（この change）」を追記し、`.learnings/archive.md` の昇格の節に記録する。未実装のまま残っている「コントラストの回帰テスト」の扱い（今回は対象外）も明記する
-- [ ] 10.2 `CLAUDE.md` にハーネスの節を足す。どの契機で何が走るか、落ちたときにどうするか、`disableAllHooks` を使ったら `.learnings` に記録すること、の 3 点
+- [x] 10.1 `.learnings/active.md` の L06 に「実行可能な検査へ昇格済み（この change）」を追記し、`.learnings/archive.md` の昇格の節に記録する。未実装のまま残っている「コントラストの回帰テスト」の扱い（今回は対象外）も明記する
+- [x] 10.2 `CLAUDE.md` にハーネスの節を足す。どの契機で何が走るか、落ちたときにどうするか、`disableAllHooks` を使ったら `.learnings` に記録すること、の 3 点
 - [ ] 10.3 `npm run check` を最初から通し、全部緑であることを確認する
 - [ ] 10.4 `bash scripts/scan-secrets.sh` を**コミット 2・3 を作った後に**走らせる（履歴の blob が入力なので、コミット前では新しい行が入力に入らない — L09）
 - [ ] 10.5 このリポジトリで実際に 1 コミットを最後まで通し、3 段の hook が順に働くことを確認する（編集で整形 → ターン終了で test → コミットで検査とレビュー）

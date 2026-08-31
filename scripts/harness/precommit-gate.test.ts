@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -171,6 +171,31 @@ describe("コミット前の門（D5 / D6）", () => {
       mkdirSync(reviews, { recursive: true });
       writeFileSync(join(reviews, `${hash}.json`), JSON.stringify({ hash, ts: "", body: "" }));
       expect(runGate(dir, 'git commit -m "変更"')).toBe(2);
+    });
+  });
+
+  it("落ちた検査は failures.jsonl に 1 行残る（D8 / タスク 7.2）", () => {
+    withRepo((dir) => {
+      writeFileSync(
+        join(dir, "package.json"),
+        `${JSON.stringify(
+          {
+            name: "harness-precommit-fixture",
+            private: true,
+            scripts: { "check:types": "exit 1", "check:test": "exit 0" },
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      stage(dir, "export const a = 2;\n");
+      expect(runGate(dir, 'git commit -m "変更"')).toBe(2);
+      const rows = readFileSync(join(dir, ".learnings", "failures.jsonl"), "utf8")
+        .split("\n")
+        .filter((l) => l.trim() !== "")
+        .map((l) => JSON.parse(l));
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ check: "check:types", exit: 2, phase: "precommit" });
     });
   });
 

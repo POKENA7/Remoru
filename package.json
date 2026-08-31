@@ -21,6 +21,8 @@
     "check:test": "npm run test",
     "check:secrets": "bash scripts/scan-secrets.sh",
     "harness:review": "bash scripts/harness/review.sh",
+    "harness:promote": "node scripts/harness/promote-gate.mjs --record",
+    "learnings:index": "node scripts/harness/learnings-index.mjs",
     "predeploy": "npm run check"
   },
   "dependencies": {

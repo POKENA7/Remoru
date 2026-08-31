@@ -40,7 +40,8 @@ prompt=$(
 見るもの: 抜けた await、取り違えた条件、境界値、利用者ごとの分離の破れ、
 資源の解放漏れ、検査が緑のまま何も守っていない状態、タスクの主張と実装の不一致。
 
-出力は **JSON だけ**。前後に説明を付けない。
+**ファイルを直してはならない。指摘するだけである。** 出力は **JSON だけ**で、
+前後に説明を付けない。承認を求めたり、修正案を実行しようとしたりしない。
 
 {"findings":[{"file":"...","line":0,"summary":"..."}],"body":"全体の所見を数行で"}
 
@@ -51,7 +52,11 @@ PROMPT
   printf '%s\n' "$diff"
 )
 
-raw=$(printf '%s' "$prompt" | claude -p --model "$model" --output-format json 2>&1)
+# 書き込み系のツールを禁じる。レビューは**読んで指摘するだけ**で、直すのは実装側の
+# 仕事である。禁じないと「直す承認をくれ」と返してきて JSON にならない（実際に起きた）
+raw=$(printf '%s' "$prompt" |
+  claude -p --model "$model" --output-format json \
+    --disallowedTools "Edit,Write,NotebookEdit,Bash" 2>&1)
 if [ -z "$raw" ]; then
   echo "レビュー: claude -p から応答が無かった。受領書は作らない。" >&2
   exit 1

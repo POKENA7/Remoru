@@ -23,63 +23,76 @@ import { afterEach, describe, expect, it } from "vitest";
  */
 
 const ROOT = process.cwd();
-const TMP = join(ROOT, "harness-tmp");
+const TMP_PARENT = join(ROOT, "harness-tmp");
 
-/** 検査を 1 つ走らせて終了コードを返す。出力は捨てる（赤いのは想定内なので） */
-function runCheck(script: string): number {
+/** 検査を 1 つ走らせて終了コードと出力を返す。赤いのは想定内なので出力も見る */
+function runCheck(script: string): { status: number; out: string } {
   const r = spawnSync("npm", ["run", "--silent", script], {
     cwd: ROOT,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   });
-  return r.status ?? -1;
+  return { status: r.status ?? -1, out: `${r.stdout ?? ""}${r.stderr ?? ""}` };
 }
 
-/** 壊したファイルを置いた状態と、取り除いた状態の終了コードを返す */
+/**
+ * 壊したファイルを置いた状態と、取り除いた状態の結果を返す。
+ *
+ * 置き場は毎回別にする。`check:*` はリポジトリ全体を走査するので、同じ場所を
+ * 使うと**同時に走った別の検査**の注入ファイルを拾う。門（PreToolUse）は
+ * `check:test` を走らせるため、vitest の中から vitest が走る場面が実際にある。
+ */
 function withInjected(fileName: string, source: string, script: string) {
-  mkdirSync(TMP, { recursive: true });
-  writeFileSync(join(TMP, fileName), source);
+  mkdirSync(TMP_PARENT, { recursive: true });
+  const dir = mkdtempSync(join(TMP_PARENT, "inject-"));
+  writeFileSync(join(dir, fileName), source);
   const injected = runCheck(script);
-  rmSync(TMP, { recursive: true, force: true });
+  rmSync(dir, { recursive: true, force: true });
   const clean = runCheck(script);
-  return { injected, clean };
+  return { injected, clean, fileName };
+}
+
+/**
+ * 注入したファイルを名指しで報告し、取り除くと報告しなくなることを見る。
+ *
+ * 「取り除いたら終了コードが 0」ではなく「そのファイルを挙げなくなった」を
+ * 見るのは、リポジトリの他の場所が赤いときに巻き込まれないため。
+ */
+function expectDetects(r: ReturnType<typeof withInjected>) {
+  expect(r.injected.status).not.toBe(0);
+  expect(r.injected.out).toContain(r.fileName);
+  expect(r.clean.out).not.toContain(r.fileName);
 }
 
 afterEach(() => {
-  rmSync(TMP, { recursive: true, force: true });
+  rmSync(TMP_PARENT, { recursive: true, force: true });
 });
 
 describe("壊した入力を食わせると赤くなる（D10）", () => {
   it("check:format は整形されていないファイルで落ちる", () => {
-    const { injected, clean } = withInjected(
-      "unformatted.ts",
-      "export const a   =    1;\n    export const b=2\n",
-      "check:format",
+    expectDetects(
+      withInjected(
+        "unformatted.ts",
+        "export const a   =    1;\n    export const b=2\n",
+        "check:format",
+      ),
     );
-    expect(injected).not.toBe(0);
-    expect(clean).toBe(0);
   });
 
   it("check:lint は lint 違反を含むファイルで落ちる", () => {
     // noDebugger / noSelfCompare はどちらも recommended の error。
     // warn に落とした 8 ルール（biome.json）を使うと、緑のまま通ってしまう
-    const { injected, clean } = withInjected(
-      "linted.ts",
-      "export function probe(x: number) {\n  if (x === x) {\n    debugger;\n  }\n  return x;\n}\n",
-      "check:lint",
+    expectDetects(
+      withInjected(
+        "linted.ts",
+        "export function probe(x: number) {\n  if (x === x) {\n    debugger;\n  }\n  return x;\n}\n",
+        "check:lint",
+      ),
     );
-    expect(injected).not.toBe(0);
-    expect(clean).toBe(0);
   });
 
   it("check:types は型の合わないファイルで落ちる", () => {
-    const { injected, clean } = withInjected(
-      "typed.ts",
-      'export const n: number = "文字列";\n',
-      "check:types",
-    );
-    expect(injected).not.toBe(0);
-    expect(clean).toBe(0);
+    expectDetects(withInjected("typed.ts", 'export const n: number = "文字列";\n', "check:types"));
   });
 });
 

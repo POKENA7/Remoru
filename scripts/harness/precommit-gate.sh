@@ -64,6 +64,7 @@ fi
 
 for check in $checks; do
   if ! out=$(npm run --silent "$check" 2>&1); then
+    printf '%s\n' "$out" | bash "$(dirname "$0")/record-failure.sh" "$check" 2 precommit
     {
       echo "門: $check が落ちた。コミットできない。"
       printf '%s\n' "$out" | tail -30

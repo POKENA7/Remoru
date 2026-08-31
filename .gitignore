@@ -17,5 +17,7 @@ node_modules/
 # 注入テストが作る一時ファイル（scripts/harness/checks.test.ts）
 harness-tmp/
 
-# レビューの受領書。差分に紐づく使い捨てなので履歴に要らない
-.harness/
+# レビューの受領書と、棚卸を一度止めた印。差分に紐づく使い捨てなので履歴に要らない
+.harness/*
+# ただし棚卸の決定は記録として残す（D9。skip が並ぶかどうかで しきい値 を見直す）
+!.harness/promotions.json

@@ -1,13 +1,68 @@
 [
-  { "id": "L01", "type": "env", "capturedIn": "add-memo-capture", "cites": 0 },
-  { "id": "L02", "type": "env", "capturedIn": "add-memo-capture", "cites": 0 },
-  { "id": "L03", "type": "tool", "capturedIn": "add-memo-capture", "cites": 0 },
-  { "id": "L04", "type": "process", "capturedIn": "add-memo-capture", "cites": 1 },
-  { "id": "L05", "type": "process", "capturedIn": "add-memo-capture", "cites": 0 },
-  { "id": "L06", "type": "process", "capturedIn": "add-notifications", "cites": 0 },
-  { "id": "L07", "type": "process", "capturedIn": "add-notifications", "cites": 0 },
-  { "id": "L08", "type": "process", "capturedIn": "add-notifications", "cites": 0 },
-  { "id": "L09", "type": "process", "capturedIn": "add-quiz-generation", "cites": 0 },
-  { "id": "L10", "type": "process", "capturedIn": "add-tags", "cites": 0 },
-  { "id": "L11", "type": "process", "capturedIn": "guide-the-first-memo", "cites": 0 }
+  {
+    "id": "L01",
+    "type": "env",
+    "capturedIn": "add-memo-capture",
+    "cites": 0
+  },
+  {
+    "id": "L02",
+    "type": "env",
+    "capturedIn": "add-memo-capture",
+    "cites": 0
+  },
+  {
+    "id": "L03",
+    "type": "tool",
+    "capturedIn": "add-memo-capture",
+    "cites": 2
+  },
+  {
+    "id": "L04",
+    "type": "process",
+    "capturedIn": "add-memo-capture",
+    "cites": 9
+  },
+  {
+    "id": "L05",
+    "type": "process",
+    "capturedIn": "add-memo-capture",
+    "cites": 5
+  },
+  {
+    "id": "L06",
+    "type": "process",
+    "capturedIn": "add-notifications",
+    "cites": 28
+  },
+  {
+    "id": "L07",
+    "type": "process",
+    "capturedIn": "add-notifications",
+    "cites": 0
+  },
+  {
+    "id": "L08",
+    "type": "process",
+    "capturedIn": "add-notifications",
+    "cites": 0
+  },
+  {
+    "id": "L09",
+    "type": "process",
+    "capturedIn": "add-quiz-generation",
+    "cites": 0
+  },
+  {
+    "id": "L10",
+    "type": "process",
+    "capturedIn": "add-tags",
+    "cites": 0
+  },
+  {
+    "id": "L11",
+    "type": "process",
+    "capturedIn": "guide-the-first-memo",
+    "cites": 0
+  }
 ]

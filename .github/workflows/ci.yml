@@ -1,0 +1,39 @@
+# ローカルの hooks が消えた・無効化されたときの最終防衛線（design.md D12）。
+#
+# 検査の中身はここに書かない。`npm run check` を呼ぶだけにする。定義が 2 か所に
+# あると必ずズレ、CI だけが赤い状態が生まれる。
+#
+# 秘密情報は使わない。デプロイも載せない。
+name: check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # check:secrets は git の**全履歴の blob** を走査する。浅いクローンだと
+          # 入力がほとんど空になり、緑のまま何も守らない検査になる（L09）
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run check
+
+      # 引用数の集計（D11 / タスク 8.3）。**門にはしない。**
+      # trailer はコミットした瞬間に増えるので、同じコミットの中で index.json を
+      # 一致させることは原理的にできない。差分を出して見えるようにするだけ
+      - name: 学びの引用数を数え直して差分を見せる
+        if: always()
+        run: |
+          npm run --silent learnings:index
+          git --no-pager diff --stat .learnings/index.json || true

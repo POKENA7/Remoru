@@ -23,10 +23,16 @@ active=$(printf '%s' "$payload" | jq -r '.stop_hook_active // false' 2>/dev/null
 [ "$active" = "true" ] && exit 0
 
 cd "$root" || exit 0
+
+# 棚卸の強制（D9）は**差分の有無より先**に見る。後ろに置くと、検査を直して
+# コミットした直後（＝作業ツリーが綺麗な、最も典型的な場面）で素通りする
+node "$(dirname "$0")/promote-gate.mjs" --gate || exit 2
+
 [ -z "$(git status --porcelain 2>/dev/null)" ] && exit 0
 
 for check in check:types check:test; do
   if ! out=$(npm run --silent "$check" 2>&1); then
+    printf '%s\n' "$out" | bash "$(dirname "$0")/record-failure.sh" "$check" 2 stop
     {
       echo "ターンを終える前に $check が落ちている。直してから終えること。"
       printf '%s\n' "$out" | tail -30

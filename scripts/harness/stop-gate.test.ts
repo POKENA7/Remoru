@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -100,6 +100,45 @@ describe("Stop hook の分岐（D4）", () => {
     expect(withRepo({ dirty: true, typesExit: 0, testExit: 0 }, { stop_hook_active: false })).toBe(
       0,
     );
+  });
+
+  it("落ちた検査は failures.jsonl に 1 行残る（D8 / タスク 7.2）", () => {
+    const dir = makeRepo({ dirty: true, typesExit: 1, testExit: 0 });
+    try {
+      expect(runGate(dir, { stop_hook_active: false })).toBe(2);
+      const rows = readFileSync(join(dir, ".learnings", "failures.jsonl"), "utf8")
+        .split("\n")
+        .filter((l) => l.trim() !== "")
+        .map((l) => JSON.parse(l));
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ check: "check:types", exit: 2, phase: "stop" });
+      expect(existsSync(join(dir, ".learnings", "failures.jsonl"))).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("差分が無くても棚卸の候補があれば 2（コミット直後に素通りさせない）", () => {
+    const dir = makeRepo({ dirty: false, typesExit: 0, testExit: 0 });
+    try {
+      mkdirSync(join(dir, ".learnings"), { recursive: true });
+      writeFileSync(
+        join(dir, ".learnings", "failures.jsonl"),
+        `${Array.from({ length: 3 }, () =>
+          JSON.stringify({
+            ts: "",
+            check: "check:test",
+            exit: 2,
+            head: "",
+            change: "c",
+            phase: "stop",
+          }),
+        ).join("\n")}\n`,
+      );
+      expect(runGate(dir, { stop_hook_active: false })).toBe(2);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("読めない入力は再入とみなさず検査を走らせる（fail closed）", () => {
