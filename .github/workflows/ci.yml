@@ -25,21 +25,21 @@ jobs:
           node-version: 22
           cache: npm
 
-      - run: npm ci
-
-      # TypeScript 7 はプラットフォーム別のバイナリを optionalDependencies で持つ。
-      # lockfile には**それを作った macOS の分しか**記録されず、Linux の CI では
-      # `tsc` が起動しなかった（L07: 自分の環境の値だけで固めない）。
+      # `npm ci` ではなく `npm install` を使う。
       #
-      # package.json に足すと直るが、`optionalDependencies` は**本番スコープ**なので
-      # 本番の依存グラフが変わる。Linux だけの問題なので CI の中だけで足す。
-      # 版は `npm ci` が**実際に入れた** typescript から取る。package.json の
-      # semver 範囲（`^7.0.2`）から作ると、lockfile が範囲内で上がったときに
-      # 本体とバイナリの版がズレて tsc が起動しなくなる
-      - name: Linux 用の tsc バイナリを足す
-        run: |
-          v=$(node -p "require('typescript/package.json').version")
-          npm i --no-save "@typescript/typescript-linux-x64@$v"
+      # npm には既知の欠陥があり（npm/cli#4828）、プラットフォーム別のネイティブ
+      # バイナリを optionalDependencies で持つパッケージについて、lockfile を
+      # **作った環境の分しか**エントリを記録しないものがある。このリポジトリでは
+      # typescript（tsc 本体）と rolldown（vitest の中身）が darwin-arm64 だけで、
+      # `npm ci` は lockfile にあるものしか入れないため、Linux の runner では
+      # tsc も vitest も起動しなかった。`--os=linux --cpu=x64` を付けて lockfile を
+      # 作り直しても、entry は増えなかった（npm 10.9.8 で実測）。
+      #
+      # 個別に `npm i --no-save` で足す形も試したが、1 つ直すと次が出る。
+      # **版は lockfile に従うが、その環境に要るバイナリは解決させる**方に倒す。
+      # 引き換えに `npm ci` の「lockfile と完全に一致する木」という保証は落ちる。
+      # これは L07（環境依存の値を自分の環境だけで固めない）の代償である。
+      - run: npm install --no-audit --no-fund
 
       - run: npm run check
 
