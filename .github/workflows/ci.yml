@@ -58,6 +58,12 @@ jobs:
             "@typescript/typescript-linux-x64@$ts" \
             "@rolldown/binding-linux-x64-gnu@$rd"
 
+      # cron worker は独自の package.json を持ち、`vitest run` は
+      # `cron-worker/src/*.test.ts` も拾う。ここを入れないと
+      # `@block65/webcrypto-web-push` が見つからず 1 ファイルだけ落ちる。
+      # 手元には cron-worker/node_modules があるので、この欠陥は CI でしか出ない
+      - run: npm ci --prefix cron-worker
+
       - run: npm run check
 
       # 引用数の集計（D11 / タスク 8.3）。**門にはしない。**
