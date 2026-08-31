@@ -33,13 +33,13 @@
     "id": "L06",
     "type": "process",
     "capturedIn": "add-notifications",
-    "cites": 28
+    "cites": 30
   },
   {
     "id": "L07",
     "type": "process",
     "capturedIn": "add-notifications",
-    "cites": 0
+    "cites": 4
   },
   {
     "id": "L08",
@@ -63,6 +63,12 @@
     "id": "L11",
     "type": "process",
     "capturedIn": "guide-the-first-memo",
+    "cites": 0
+  },
+  {
+    "id": "L12",
+    "type": "unknown",
+    "capturedIn": null,
     "cites": 0
   }
 ]
