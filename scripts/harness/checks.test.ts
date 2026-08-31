@@ -17,6 +17,11 @@ import { afterEach, describe, expect, it } from "vitest";
  * 一時ファイルはリポジトリの中に置く。`check:*` はリポジトリ全体を走査する
  * ので、外に置くと入力に入らない（scan-secrets.sh で踏んだ L09 と同じ罠）。
  *
+ * `check:lint` / `check:format` に `--max-diagnostics=none` が付いているのは、
+ * これがあってこそ成り立つ検査だからである。既定の 20 件で打ち切られると、
+ * 恒常的に出ている警告 24 件の陰に注入したファイルが隠れ、報告されなくなる
+ * （CI で実際に落ちた）。**検査が指摘を隠すなら、それは検査ではない。**
+ *
  * 置き場が `harness-tmp`（先頭のドット無し）なのは、TypeScript の `**` が
  * **ドットで始まるディレクトリを辿らない**ため。`.harness-tmp` に置いたとき、
  * check:format と check:lint は赤くなったのに check:types だけ緑のままだった。
