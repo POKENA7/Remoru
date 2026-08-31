@@ -70,12 +70,19 @@ if [ -z "$text" ]; then
   exit 1
 fi
 
-# ```json ... ``` で包まれて返ることがあるので剥がす
-json=$(printf '%s' "$text" | sed -e 's/^```json//' -e 's/^```//' -e 's/```$//')
+# 「JSON だけ」と指示しても、前置き・```json のフェンス・後書きが付いて返ることが
+# ある（実際に "Confirmed. Output:" が前に付いた）。最初の `{` から最後の `}` までを
+# 取り出す。取り出せなければ受領書は作らない側に倒れるので、緩めても門は開かない
+json=$(printf '%s' "$text" | node -e '
+  let s = "";
+  process.stdin.on("data", (d) => { s += d; }).on("end", () => {
+    const a = s.indexOf("{");
+    const b = s.lastIndexOf("}");
+    if (a < 0 || b < a) process.exit(1);
+    process.stdout.write(s.slice(a, b + 1));
+  });
+')
 
-# `.findings` が配列であることまで確かめる。`jq -c '.findings'` は欠けていても
-# 文字列 "null" を返し、`jq 'length'` は null に 0 を返す。型を見ないと、
-# 壊れた応答が「指摘 0 件」になって受領書が書かれ、門が静かに開く（fail open）
 findings=$(printf '%s' "$json" | jq -c 'select((.findings | type) == "array") | .findings' 2>/dev/null)
 if [ -z "$findings" ]; then
   echo "レビュー: 応答に findings の配列が無い。受領書は作らない。" >&2

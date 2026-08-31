@@ -27,6 +27,20 @@ jobs:
 
       - run: npm ci
 
+      # TypeScript 7 はプラットフォーム別のバイナリを optionalDependencies で持つ。
+      # lockfile には**それを作った macOS の分しか**記録されず、Linux の CI では
+      # `tsc` が起動しなかった（L07: 自分の環境の値だけで固めない）。
+      #
+      # package.json に足すと直るが、`optionalDependencies` は**本番スコープ**なので
+      # 本番の依存グラフが変わる。Linux だけの問題なので CI の中だけで足す。
+      # 版は `npm ci` が**実際に入れた** typescript から取る。package.json の
+      # semver 範囲（`^7.0.2`）から作ると、lockfile が範囲内で上がったときに
+      # 本体とバイナリの版がズレて tsc が起動しなくなる
+      - name: Linux 用の tsc バイナリを足す
+        run: |
+          v=$(node -p "require('typescript/package.json').version")
+          npm i --no-save "@typescript/typescript-linux-x64@$v"
+
       - run: npm run check
 
       # 引用数の集計（D11 / タスク 8.3）。**門にはしない。**
