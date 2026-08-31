@@ -14,7 +14,14 @@
     "db:migrate:local": "wrangler d1 migrations apply remoru-db --local",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "predeploy": "npm run test && npm run typecheck"
+    "check": "npm run check:format && npm run check:lint && npm run check:types && npm run check:test && npm run check:secrets",
+    "check:format": "biome format .",
+    "check:lint": "biome lint .",
+    "check:types": "npm run typecheck",
+    "check:test": "npm run test",
+    "check:secrets": "bash scripts/scan-secrets.sh",
+    "harness:review": "bash scripts/harness/review.sh",
+    "predeploy": "npm run check"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.8.0",
