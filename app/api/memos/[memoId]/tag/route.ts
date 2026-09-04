@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/current-user";
+import { getCurrentUserId } from "@/lib/session";
 import { getDb } from "@/lib/db";
-import { removeTag, setTag } from "@/lib/tags";
+import { removeTag, setTag } from "@/features/tag/tags";
 
 /**
  * メモにタグを付ける。

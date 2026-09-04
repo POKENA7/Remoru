@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/current-user";
+import { getCurrentUserId } from "@/lib/session";
 import { getDb } from "@/lib/db";
-import { gradeReview } from "@/lib/review";
+import { gradeReview } from "@/features/review/review";
 
 /**
  * 自己採点を記録する。

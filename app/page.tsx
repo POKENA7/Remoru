@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUserId } from "@/lib/current-user";
+import { getCurrentUserId } from "@/lib/session";
 import { AppShell } from "./app-shell";
 
 /**

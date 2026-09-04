@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/current-user";
+import { getCurrentUserId } from "@/lib/session";
 import { getDb } from "@/lib/db";
-import { createQuizItem, getQuizItem, replaceQuizText } from "@/lib/quiz-items";
+import { createQuizItem, getQuizItem, replaceQuizText } from "@/features/quiz/quiz-items";
 
 /**
  * そのメモの問と答を返す。

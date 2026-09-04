@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { AppDb } from "../db/types";
-import { createMemo, deleteMemo, listMemos } from "./memos";
-import { countUnwritten, createQuizItem, getReviewStates } from "./quiz-items";
-import { getDueItems, gradeReview } from "./review";
+import { createMemo, deleteMemo, listMemos } from "@/features/memo/memos";
+import { countUnwritten, createQuizItem, getReviewStates } from "@/features/quiz/quiz-items";
+import { getDueItems, gradeReview } from "@/features/review/review";
 import { createTestDb } from "./test-db";
 
 /**

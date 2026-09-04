@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/current-user";
+import { getCurrentUserId } from "@/lib/session";
 import { getDb } from "@/lib/db";
-import { getDueItems } from "@/lib/review";
+import { getDueItems } from "@/features/review/review";
 
 /** その日の出題対象を、次回出題日の古い順に返す。 */
 export async function GET() {

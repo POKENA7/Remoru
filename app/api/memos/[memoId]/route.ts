@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/current-user";
+import { getCurrentUserId } from "@/lib/session";
 import { getDb } from "@/lib/db";
-import { deleteMemo, updateMemoContent } from "@/lib/memos";
+import { deleteMemo, updateMemoContent } from "@/features/memo/memos";
 
 /**
  * メモの本文を書き直す。

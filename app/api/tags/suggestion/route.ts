@@ -1,12 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/current-user";
+import { getCurrentUserId } from "@/lib/session";
 import { getDb } from "@/lib/db";
 import {
   applyAssignments,
   dismissSuggestion,
   proposeTags,
   suggestionStatus,
-} from "@/lib/tag-suggestion-run";
+} from "@/features/tag/tag-suggestion-run";
 
 /**
  * 提案の帯を出すかどうか。

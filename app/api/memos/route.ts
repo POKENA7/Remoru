@@ -1,11 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/current-user";
+import { getCurrentUserId } from "@/lib/session";
 import { getDb, getDeferrer } from "@/lib/db";
-import { hasFinishedGuide } from "@/lib/first-run";
-import { createMemo, listMemos } from "@/lib/memos";
-import { startGeneration } from "@/lib/quiz-generation-run";
-import { countUnwritten, getReviewStates } from "@/lib/quiz-items";
-import { getTagsForMemos } from "@/lib/tags";
+import { hasFinishedGuide } from "@/features/first-run/first-run";
+import { createMemo, listMemos } from "@/features/memo/memos";
+import { startGeneration } from "@/features/quiz/quiz-generation-run";
+import { countUnwritten, getReviewStates } from "@/features/quiz/quiz-items";
+import { getTagsForMemos } from "@/features/tag/tags";
 
 /**
  * 保存済みメモを新しい順に返す。

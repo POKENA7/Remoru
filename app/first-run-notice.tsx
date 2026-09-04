@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { announcementText } from "../lib/first-run-text";
+import { announcementText } from "@/features/first-run/first-run-text";
 import { pushSupported, subscribeToPush } from "./push-subscribe";
 
 /**

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/current-user";
+import { getCurrentUserId } from "@/lib/session";
 import { getDb } from "@/lib/db";
-import { finishGuide } from "@/lib/first-run";
+import { finishGuide } from "@/features/first-run/first-run";
 
 /**
  * 初回の導きを終えたものとして記録する。

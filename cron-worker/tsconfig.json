@@ -15,9 +15,9 @@
   "include": [
     "src/**/*.ts",
     "../lib/test-d1.ts",
-    "../lib/notification-timing.ts",
-    "../lib/notification-message.ts",
-    "../lib/push.ts",
-    "../lib/review-scheduler.ts"
+    "../features/notification/notification-timing.ts",
+    "../features/notification/notification-message.ts",
+    "../features/notification/push.ts",
+    "../features/review/review-scheduler.ts"
   ]
 }

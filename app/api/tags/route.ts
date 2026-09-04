@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/current-user";
+import { getCurrentUserId } from "@/lib/session";
 import { getDb } from "@/lib/db";
-import { listTagsWithCounts } from "@/lib/tags";
+import { listTagsWithCounts } from "@/features/tag/tags";
 
 /** 絞り込みに出すタグの一覧。名前と、そのタグを持つ自分のメモの件数。 */
 export async function GET() {

@@ -1,7 +1,10 @@
-import { buildNotification } from "../../lib/notification-message";
-import { type NotificationTarget, selectTargets } from "../../lib/notification-timing";
-import { deliver, type SendOne, type Subscription } from "../../lib/push";
-import { startOfReviewDay } from "../../lib/review-scheduler";
+import { buildNotification } from "../../features/notification/notification-message";
+import {
+  type NotificationTarget,
+  selectTargets,
+} from "../../features/notification/notification-timing";
+import { deliver, type SendOne, type Subscription } from "../../features/notification/push";
+import { startOfReviewDay } from "../../features/review/review-scheduler";
 import { sendOne } from "./send";
 
 /**

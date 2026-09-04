@@ -1,12 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/current-user";
+import { getCurrentUserId } from "@/lib/session";
 import { getDb } from "@/lib/db";
 import {
   getSettings,
   SELECTABLE_HOURS,
   saveSettings,
   validateSettings,
-} from "@/lib/notification-settings";
+} from "@/features/notification/notification-settings";
 
 /**
  * 通知の設定を返す。

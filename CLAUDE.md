@@ -59,6 +59,20 @@
 それが使われた時点で、この設計は失敗したということである。何が耐えられなかったのかを
 残さないと、次も同じものを作る。
 
+## 置き場: 機能は `features/`、横断は `lib/`
+
+機能を持つものは `features/<機能>/`（memo / review / quiz / tag / notification /
+record / first-run）。分類は `openspec/specs/` の capability 名に合わせてある。
+機能を持たず全機能から使われるものだけ `lib/` に置く（`db.ts` `session.ts` と
+テスト補助）。1 つの feature に属さない横断テストも `lib/` に残す。
+
+feature の中は相対 import（`./memos`）、**feature をまたぐときだけ**
+`@/features/review/review-scheduler` のように絶対パスにする。またいだことが
+import 文から見えるようにするため。実装でまたいでいるのは現在 3 本だけで、
+行き先はすべて `features/review/`。増えたら境界がずれた合図。
+
+`cron-worker/` には `@/` が無い（独自の tsconfig）。そちらからの参照は相対パス。
+
 ## 前提
 
 - **これは作り直し。** 先行実装が `remoru-implementation` ブランチにあるが、

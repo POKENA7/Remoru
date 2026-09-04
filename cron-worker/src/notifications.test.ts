@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { SendOne, SendOutcome, Subscription } from "../../lib/push";
+import type { SendOne, SendOutcome, Subscription } from "../../features/notification/push";
 import { createTestD1 } from "../../lib/test-d1";
 import { type Env, runNotifications } from "./index";
 

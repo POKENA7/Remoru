@@ -140,20 +140,51 @@ describe("middleware の役割", () => {
 });
 
 describe("ドメイン層の依存", () => {
-  for (const name of ["memos", "quiz-items", "review", "review-scheduler"]) {
-    it(`lib/${name}.ts は認証事業者を import していない`, () => {
-      const src = readFileSync(join(ROOT, "lib", `${name}.ts`), "utf8");
-      expect(src).not.toMatch(/@clerk/);
+  /**
+   * design.md D8: **置き場を直書きしない。** モジュールが `lib/` から
+   * `features/<機能>/` へ移ったとき、走査範囲を `lib/` に固定したままだと
+   * 検査は落ちも警告もせず、ただ何も見なくなる（L06）。
+   *
+   * 対象は「ドメインを持つ層」全部——`features/**` と、横断として残る `lib/`。
+   */
+  function domainFiles(): { name: string; src: string }[] {
+    const out: { name: string; src: string }[] = [];
+    const dirs = [join(ROOT, "lib")];
+    const featuresRoot = join(ROOT, "features");
+    if (existsSync(featuresRoot)) {
+      for (const d of readdirSync(featuresRoot)) {
+        const full = join(featuresRoot, d);
+        if (statSync(full).isDirectory()) dirs.push(full);
+      }
+    }
+    for (const dir of dirs) {
+      for (const f of readdirSync(dir)) {
+        if (!f.endsWith(".ts") || f.endsWith(".test.ts")) continue;
+        const full = join(dir, f);
+        out.push({ name: full.slice(ROOT.length + 1), src: readFileSync(full, "utf8") });
+      }
+    }
+    return out;
+  }
+
+  const DOMAIN = domainFiles();
+
+  it("走査対象が空でない", () => {
+    // 走査範囲を間違えて 0 件になっても、下の検査は緑になってしまう
+    expect(DOMAIN.length).toBeGreaterThan(10);
+  });
+
+  for (const stem of ["memos", "quiz-items", "review", "review-scheduler"]) {
+    it(`${stem}.ts は認証事業者を import していない`, () => {
+      const found = DOMAIN.filter((f) => f.name.endsWith(`/${stem}.ts`));
+      // 置き場が変わっても、消えたことには気づけるようにする
+      expect(found).toHaveLength(1);
+      expect(found[0].src).not.toMatch(/@clerk/);
     });
   }
 
-  it("Clerk を知るのは lib/current-user.ts だけ", () => {
-    const libFiles = readdirSync(join(ROOT, "lib")).filter(
-      (f) => f.endsWith(".ts") && !f.endsWith(".test.ts"),
-    );
-    const importers = libFiles.filter((f) =>
-      readFileSync(join(ROOT, "lib", f), "utf8").includes("@clerk"),
-    );
-    expect(importers).toEqual(["current-user.ts"]);
+  it("Clerk を知るのはセッションの 1 ファイルだけ", () => {
+    const importers = DOMAIN.filter((f) => f.src.includes("@clerk")).map((f) => f.name);
+    expect(importers).toEqual(["lib/session.ts"]);
   });
 });

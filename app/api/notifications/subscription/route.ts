@@ -1,11 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/current-user";
+import { getCurrentUserId } from "@/lib/session";
 import { getDb } from "@/lib/db";
 import {
   deleteSubscription,
   saveSubscription,
   validateSubscription,
-} from "@/lib/notification-subscriptions";
+} from "@/features/notification/notification-subscriptions";
 
 /**
  * 端末の購読を保存する。

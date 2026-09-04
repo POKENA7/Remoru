@@ -17,7 +17,7 @@
     "check": "npm run check:format && npm run check:lint && npm run check:types && npm run check:test && npm run check:secrets",
     "check:format": "biome format --max-diagnostics=none .",
     "check:lint": "biome lint --max-diagnostics=none .",
-    "check:types": "npm run typecheck",
+    "check:types": "npm run typecheck && npm --prefix cron-worker run typecheck",
     "check:test": "npm run test",
     "check:secrets": "bash scripts/scan-secrets.sh",
     "harness:review": "bash scripts/harness/review.sh",

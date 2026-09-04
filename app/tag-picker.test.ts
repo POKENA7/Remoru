@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_TAG_NAME_LENGTH } from "../lib/tag-text";
+import { MAX_TAG_NAME_LENGTH } from "@/features/tag/tag-text";
 import { enterTarget, pickerView, type TagOption } from "./tag-picker";
 
 const ALL: TagOption[] = [

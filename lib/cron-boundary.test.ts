@@ -30,13 +30,13 @@ function collect(dir: string, prefix = ""): { name: string; code: string }[] {
 
 /** cron worker が実際に読み込む共有モジュールも検査対象に含める。 */
 const SHARED = [
-  "notification-timing.ts",
-  "notification-message.ts",
-  "push.ts",
-  "review-scheduler.ts",
+  "features/notification/notification-timing.ts",
+  "features/notification/notification-message.ts",
+  "features/notification/push.ts",
+  "features/review/review-scheduler.ts",
 ].map((f) => ({
-  name: `lib/${f}`,
-  code: codeOnly(readFileSync(join(process.cwd(), "lib", f), "utf8")),
+  name: f,
+  code: codeOnly(readFileSync(join(process.cwd(), f), "utf8")),
 }));
 
 const FILES = [...collect(CRON_SRC), ...SHARED];
@@ -86,6 +86,6 @@ describe("cron worker の依存の向き", () => {
 
   it("時刻の判定は本体と同じ実装を使う（複製しない）", () => {
     const index = FILES.find((f) => f.name === "index.ts")!;
-    expect(index.code).toMatch(/from "\.\.\/\.\.\/lib\/notification-timing"/);
+    expect(index.code).toMatch(/from "\.\.\/\.\.\/features\/notification\/notification-timing"/);
   });
 });

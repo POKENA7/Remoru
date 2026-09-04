@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MAX_TAG_NAME_LENGTH } from "@/lib/tag-text";
+import { MAX_TAG_NAME_LENGTH } from "@/features/tag/tag-text";
 import { QuizSheet } from "./quiz-sheet";
 import { Sheet } from "./sheet";
 import { enterTarget, pickerView } from "./tag-picker";

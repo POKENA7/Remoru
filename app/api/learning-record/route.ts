@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/current-user";
+import { getCurrentUserId } from "@/lib/session";
 import { getDb } from "@/lib/db";
-import { retentionLayers, totalRecalled } from "@/lib/learning-record";
+import { retentionLayers, totalRecalled } from "@/features/record/learning-record";
 
 /** おぼえてきたこと。累計と、いま持っているものの層。 */
 export async function GET() {
