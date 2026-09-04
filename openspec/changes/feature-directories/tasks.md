@@ -90,8 +90,10 @@ feature をまたぐ import を `@/features/<機能>/…` に書き換える →
 
 ## 6. 締め
 
-- [ ] 6.1 `npm run harness:review` で受領書を作り、コミットの門を通す
-- [ ] 6.2 CI（`.github/workflows/ci.yml`）が緑になったことを見て完了とする。
+- [x] 6.1 `npm run harness:review` で受領書を作り、コミットの門を通す
+- [x] 6.2 CI（`.github/workflows/ci.yml`）が緑になったことを見て完了とする。
+      **結果**: run 33873598961 が 54s で success。Linux 上でも cron-worker の
+      型検査を含めて通った。
       手元で緑でも CI で落ちる欠陥は過去 4 件出ている（L07）。特に 1.2 で足した
       cron-worker の型検査は CI で初めて Linux 上を走る
 - [x] 6.3 `docs/design-decisions.md` か `CLAUDE.md` に、`features/` と `lib/` の
