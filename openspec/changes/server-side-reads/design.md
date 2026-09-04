@@ -154,17 +154,64 @@ notification-timing,notification-message}.ts` と
 それは `npm run check` では出ない（前の change で `check:types` に足したので
 型では出るが、`server-only` は実行時に throw するので型では出ない）。
 
-### D8: 取得関数は `cache()` でラップし、`verifySession()` をその中で呼ぶ
+### D8: feature ごとに `queries.ts` を挟む。ドメイン関数は純粋なまま
 
-Container を分けるとデータフェッチがコロケーションされ、同じ取得が複数回
-走りうる。React の `cache()` でリクエスト内メモ化する。
+**実装に入って直した。** 当初は「取得関数を `cache()` でラップし、その中で
+`verifySession()` を呼ぶ」と書いていたが、それは既存の境界を壊す。
 
-認可はデータフェッチ層に置く。`lib/session.ts` に `verifySession()` を足し、
-未認証なら `/sign-in` へ送る。各 `page.tsx` でも呼ぶが、**取得関数の中でも呼ぶ**——
-呼び忘れた `page.tsx` があっても、データが出ない側に倒れる。
+`features/*/` の関数は `(db, userId, …)` を受け取る純関数で、認証も D1 バインディングも
+知らない。`auth-boundary` の検査が「ドメイン層は認証事業者を知らない」を固定しており、
+過去の change の D2「利用者の識別子を要求から受け取らない。識別は常にセッションから
+導出する」もこの形で成立している。ここに `verifySession()` を入れると、
+テストが偽の db と任意の `userId` で回せなくなる。
 
-`getCurrentUserId()` は残す。`verifySession()` はその上に「無ければ止める」を
-足したもの。
+**層を 1 枚挟む。**
+
+```
+app/(app)/_containers/…        Container。queries を呼ぶだけ
+features/<機能>/queries.ts     ← 新設。server-only + cache()
+                                  verifySession() → getDb() → ドメイン関数
+features/<機能>/<機能>.ts       ドメイン。(db, userId, …) の純関数。いまのまま
+```
+
+`queries.ts` が Server Components 向けの入口になる。ここが認証と D1 の取り出しを
+引き受け、ドメイン関数には値として渡す。`cache()` と `server-only` は
+`queries.ts` に付ける。
+
+得られること:
+
+- ドメイン関数のテスト（既存 500 件超）が 1 つも壊れない
+- `server-only` を付ける場所が「`queries.ts` と `lib/db.ts`」と一言で決まる。
+  ドメイン関数に付けて回る必要がなく、`cron-worker` が読む 4 本とも自然に分かれる
+- 認可の置き場が「データフェッチ層」であるという第31章の要求は満たす。
+  Container が `verifySession()` を呼び忘れても、`queries.ts` が呼ぶので
+  データが出ない側に倒れる
+
+Route Handler（書き込み側、この change では残る）は、いまどおりドメイン関数を
+直接呼ぶ。`queries.ts` は読み取り専用の入口である。
+
+**`queries.ts` は単体テストできない。実測して分かった。**
+
+```
+server-only の import: This module cannot be imported from a Client Component module.
+react の cache(): React の外では 2 回呼べば 2 回実行される
+```
+
+`server-only` は `react-server` 条件で解決されるため、node で走る vitest からは
+**throw する側が選ばれる**。つまりテストは `queries.ts` を import できない。
+`cache()` も React のリクエスト文脈の外ではメモ化しない。
+
+そこで検証を 2 段に分ける。
+
+1. **構造の検査**: `queries.ts` を*ファイルとして読み*、公開する関数が全部
+   `cache()` で包まれていること・`server-only` があること・逆にドメイン関数には
+   `server-only` が無いことを見る。`auth-boundary` や `scheduler-boundary` と
+   同じ形で、このリポジトリに前例がある
+2. **実行での確認**: メモ化が実際に効いていることは、一覧を描いたときの
+   問い合わせ回数を一度見て確かめる（タスク 3.1）
+
+構造の検査だけでは「包まれているが効いていない」を見逃す。実行での確認だけでは
+次に足した関数を守れない。**両方要る。**
 
 ### D9: 書き込み後の再取得は `router.refresh()`
 

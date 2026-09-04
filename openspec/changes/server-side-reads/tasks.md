@@ -3,19 +3,51 @@
 画面を触る前に、Server Components から呼べる形にする。ここは画面が変わらないので、
 壊れても原因が分かりやすい。
 
-- [ ] 1.1 `lib/session.ts` に `verifySession()` を足す（design D8）。未認証なら
+- [x] 1.1 `lib/session.ts` に `verifySession()` を足す（design D8）。未認証なら
       `/sign-in` へ送る。`getCurrentUserId()` は残す。既存の `auth-boundary` の
       検査が緑のままであること
-- [ ] 1.2 `features/*/` の取得関数を React の `cache()` でラップする（design D8）。
-      同じ引数で 2 回呼んで 1 回しかデータベースに行かないことをテストで確かめる
-- [ ] 1.3 各取得関数の中で `verifySession()` を呼ぶ（design D8）。持ち主で絞れて
-      いることは `lib/isolation.test.ts` が既に見ているので、それが緑のままであること
-- [ ] 1.4 `server-only` を `lib/db.ts` と、データベースを触る feature のモジュールに
-      入れる（design D7）。**`cron-worker` が読む 4 本には付けない**
-- [ ] 1.5 1.4 を検査で固定する（L06）。(a) Client Component から `lib/db` を
-      import する違反を注入してビルドが赤くなること、(b) cron-worker が読む 4 本に
-      `server-only` が付いていないことを見る検査を書き、1 本に付けて赤くなること。
-      **両方とも赤くなるのを見てから採用する**
+- [x] 1.2 各 feature に `queries.ts` を新設する（design D8）。`verifySession()` →
+      `getDb()` → ドメイン関数、の順に呼ぶだけの薄い層。**ドメイン関数は触らない**。
+      既存のテストが 1 つも壊れないこと
+- [x] 1.3 `queries.ts` の各関数を React の `cache()` でラップし、**構造の検査**を
+      書く（design D8）。`queries.ts` をファイルとして読み、公開する関数が全部
+      `cache()` で包まれていること・`server-only` があることを見る。
+      包み忘れを 1 つ注入して赤くなることを確かめる（L06）。
+      **メモ化が実際に効いていることは 3.1 で実行して確かめる**——
+      `server-only` は vitest から import できず、`cache()` は React の文脈の外では
+      メモ化しないため、単体テストでは確かめられない
+- [x] 1.4 `server-only` を `lib/db.ts` と各 `queries.ts` に入れる（design D7・D8）。
+      **ドメイン関数には付けない**——`cron-worker` が読む 4 本が含まれるため
+- [x] 1.5 1.4 を検査で固定する（L06）。**恒常的に守るのは
+      `lib/query-boundary.test.ts`**（`server-only` の有無・`cache()` の包み・
+      `verifySession()` の呼び出し・cron が読む 4 本に `server-only` が無いこと）。
+      **「実際にビルドが落ちる」ことは注入して一度確かめる**——毎回の検査に
+      `next build` は載せられないため。
+
+      **実測の記録**:
+
+      (a) `app/record-tab.tsx`（`"use client"`）に `import { getDb } from "@/lib/db"`
+      を注入 → `next build` が失敗し、次の trace を出した:
+
+      ```
+      It should only be used from a Server Component.
+      Client Component Browser:
+        ./lib/db.ts [Client Component Browser]
+        ./app/record-tab.tsx [Client Component Browser]
+      ```
+
+      注入を戻したあと `next build` は EXIT=0。
+
+      (b) `lib/query-boundary.test.ts` に 4 種の違反を注入し、いずれも EXIT=1:
+      `cache()` の包み忘れ / `queries.ts` から `server-only` を外す /
+      cron が読む `review-scheduler.ts` に `server-only` を付ける /
+      `queries.ts` で `Date.now()` を直に読む。4 つとも戻したあと EXIT=0
+
+- [x] 1.6 「いま」をリクエストに 1 つにする（`lib/request-clock.ts`）。
+      **レビューの指摘で足した。** 取得関数がそれぞれ `Date.now()` を読むと、
+      同じ画面の中で違う時刻を見る。日境界をまたいだときだけ「復習の一覧」と
+      「未作成の件数」が別々の日で判定され、噛み合わない数が出る（L07 と同種）。
+      `queries.ts` が時計を直に読まないことを検査で固定した
 
 ## 2. 経路の骨格
 
@@ -37,7 +69,10 @@
 各タスクの完了条件は `npm run check` が緑になり、その画面が**ブラウザで
 一通り動く**こと（L05: spec のシナリオを画面上で辿る）。
 
-- [ ] 3.1 メモの一覧。`MemoListContainer` と `TagListContainer` を
+- [ ] 3.1 メモの一覧。**`cache()` のメモ化が効いていることを実行で一度確かめる**
+      （design D8 / 1.3 から持ち越し）。一覧を 1 回描いたときのデータベースへの
+      問い合わせ回数を数え、Container を分けても重複していないことを見る。
+      `MemoListContainer` と `TagListContainer` を
       `app/(app)/_containers/` に、Presentational を `features/memo/components/`
       `features/tag/components/` に置く（design D2）。`?tag=` を `searchParams` で
       受ける。`/api/memos` GET・`/api/tags`・`/api/tags/suggestion` GET を削除
