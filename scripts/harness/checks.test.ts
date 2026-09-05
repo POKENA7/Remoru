@@ -1,8 +1,8 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it } from "vitest";
 
 /**
  * 検査が壊れた入力で赤くなることの検査（design.md D10 / L06 の昇格）。
@@ -25,10 +25,18 @@ import { afterEach, describe, expect, it } from "vitest";
  * 置き場が `harness-tmp`（先頭のドット無し）なのは、TypeScript の `**` が
  * **ドットで始まるディレクトリを辿らない**ため。`.harness-tmp` に置いたとき、
  * check:format と check:lint は赤くなったのに check:types だけ緑のままだった。
+ *
+ * その下をさらにプロセスごとに分け、注入するファイル名にも pid を入れてある
+ * （stabilize-harness-tests E4）。門が `check:test` を走らせるので **vitest の
+ * 中から vitest が走る**場面が実際にあり、置き場を共有していると、相手の
+ * 注入ファイルを自分のものと取り違える・後始末で相手の分まで消す、の両方が
+ * 起きる。どちらも「検査が違反を見逃した」以外の理由で赤くする（制約 A 違反）。
  */
 
 const ROOT = process.cwd();
 const TMP_PARENT = join(ROOT, "harness-tmp");
+/** このプロセス専用の置き場。同時に走る別の vitest とはここで分かれる */
+const TMP_ROOT = join(TMP_PARENT, `p${process.pid}`);
 
 /** 検査を 1 つ走らせて終了コードと出力を返す。赤いのは想定内なので出力も見る */
 function runCheck(script: string): { status: number; out: string } {
@@ -46,10 +54,16 @@ function runCheck(script: string): { status: number; out: string } {
  * 置き場は毎回別にする。`check:*` はリポジトリ全体を走査するので、同じ場所を
  * 使うと**同時に走った別の検査**の注入ファイルを拾う。門（PreToolUse）は
  * `check:test` を走らせるため、vitest の中から vitest が走る場面が実際にある。
+ *
+ * **ファイル名にも pid を入れる。** 置き場を分けるだけでは足りない。判定は
+ * 出力にファイル名が現れるかで見ているので、名前が同じだと、別プロセスの
+ * 注入ファイルを自分のものとして数えてしまう（「取り除いたのに出力に残る」
+ * 側で偽の赤になる）。
  */
-function withInjected(fileName: string, source: string, script: string) {
-  mkdirSync(TMP_PARENT, { recursive: true });
-  const dir = mkdtempSync(join(TMP_PARENT, "inject-"));
+function withInjected(baseName: string, source: string, script: string) {
+  const fileName = baseName.replace(/\.ts$/, `-p${process.pid}.ts`);
+  mkdirSync(TMP_ROOT, { recursive: true });
+  const dir = mkdtempSync(join(TMP_ROOT, "inject-"));
   writeFileSync(join(dir, fileName), source);
   const injected = runCheck(script);
   rmSync(dir, { recursive: true, force: true });
@@ -70,7 +84,19 @@ function expectDetects(r: ReturnType<typeof withInjected>) {
 }
 
 afterEach(() => {
-  rmSync(TMP_PARENT, { recursive: true, force: true });
+  // 消すのは**自分の分だけ**。`harness-tmp` を丸ごと消すと、同時に走っている
+  // 別の vitest の注入ファイルを検査の途中で取り上げてしまう
+  rmSync(TMP_ROOT, { recursive: true, force: true });
+});
+
+afterAll(() => {
+  // 親は空のときだけ片付ける。残すと `check:*` の入力に入り続ける。
+  // 他のプロセスの置き場が残っていれば ENOTEMPTY で失敗するので、そのままにする
+  try {
+    rmdirSync(TMP_PARENT);
+  } catch {
+    // 空でない（＝別プロセスがまだ使っている）か、そもそも無い
+  }
 });
 
 describe("壊した入力を食わせると赤くなる（D10）", () => {
