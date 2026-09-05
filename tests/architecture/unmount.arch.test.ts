@@ -70,6 +70,17 @@ describe("一覧の下に置いてはいけない状態", () => {
     expect(ownsAnswer).toBe(false);
   });
 
+  it("差し出しを出すかはサーバーの記録だけで決まる", () => {
+    // 画面の中の状態で「もう出した」を覚えると、経路を移って戻ったときに
+    // 同じ問いがもう一度出る（first-run spec「同じ場面を二度作らない」）。
+    // 判定の入力は guided（サーバーの記録）と memos だけにする
+    const src = codeOnly(read("memo-screen.tsx"));
+    expect(src).toMatch(/announcement\(\{ guided, memos, now: Date\.now\(\) \}\)/);
+    // 端末側に覚えさせる形へ戻す変更を、ここで止める
+    expect(src).not.toMatch(/useSessionState[^;]*notice/);
+    expect(src).not.toMatch(/localStorage/);
+  });
+
   it("答えは一覧の画面が持つ", () => {
     // 以前は app-shell。読み取りを Server Components へ移したとき、
     // 一覧の状態は memo-screen.tsx に移った
