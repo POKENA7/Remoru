@@ -64,8 +64,10 @@
   超えるなら `.learnings/archive.md` 冒頭の棚卸手順に従う
 - [x] 6.2 `.github/workflows/ci.yml` を**変更しないまま**であることを確かめる（E5）。
   検証: 差分に `.github/` が含まれていないこと
-- [ ] 6.3 `npm run harness:review` を通し、受領書を作る。
+- [x] 6.3 `npm run harness:review` を通し、受領書を作る。
   検証: findings 0 件で受領書が `.harness/reviews/` に出来ること
-- [ ] 6.4 コミットして push し、CI を緑で通す。
-  検証: GitHub Actions の `check` ジョブが成功すること。落ちたら、
-  手元では出ない差（L07）として原因を記録してから直す
+
+- [x] 6.4 コミットして push し、CI を緑で通す。
+  検証: GitHub Actions の `check` ジョブが成功すること。
+  結果: run 33934946261 が success（`npm run check` のステップも緑）。
+  L07 が言う「手元では出ない欠陥」は 1 件も出なかった
