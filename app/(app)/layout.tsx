@@ -1,5 +1,6 @@
 import { getDue } from "@/features/review/queries";
 import { verifySession } from "@/lib/session";
+import { NotificationBridge } from "./notification-bridge";
 import { TabBar } from "./tab-bar";
 
 /**
@@ -23,6 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <main className="app">
       <div className="body">{children}</div>
       <TabBar dueCount={due.length} />
+      <NotificationBridge />
     </main>
   );
 }

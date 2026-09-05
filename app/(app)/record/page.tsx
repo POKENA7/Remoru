@@ -1,6 +1,6 @@
-import { AppShell } from "../../app-shell";
+import { LearningRecordContainer } from "../_containers/learning-record/container";
 
-/** 記録。中身はタスク 3.7 で Container に組み替える。 */
+/** 記録。未認証を止めるのは `(app)/layout.tsx`。 */
 export default function RecordPage() {
-  return <AppShell initialTab="record" />;
+  return <LearningRecordContainer />;
 }

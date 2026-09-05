@@ -125,8 +125,12 @@
       「戻る操作は直前に見ていた画面へ返す」の検査をここで書く。
       **3.2（下書きの保持）より後に行う**——先に詳細を経路にすると、
       詳細を開くたびに書きかけの本文が消える
-- [ ] 3.6 復習。`DueReviewContainer`。`/api/review/due` を削除
-- [ ] 3.7 記録。`LearningRecordContainer`。`/api/learning-record` を削除
+- [x] 3.6 復習。`DueReviewContainer` が `getDue()` で取り、
+      `features/review/components/review-screen.tsx` が表示する。
+      `/api/review/due` を削除
+- [x] 3.7 記録。`LearningRecordContainer` が取り、`RecordTab` は表示だけになった
+      （`"use client"` が外れ、Shared Components になった）。
+      `/api/learning-record` を削除
 - [ ] 3.8 通知設定をシートとして出す（design D6）。経路は与えない。
       `sheet` spec の「閉じたあと焦点を戻す」が緑であること
 
@@ -135,12 +139,31 @@
 - [ ] 4.1 書き込み後の再取得を `router.refresh()` に置き換える（design D9）。
       「次の change で `revalidatePath()` になる途中の形」であることをコメントに残す。
       `memo-capture` の「投入から一覧への即時反映」が緑であること
-- [ ] 4.2 `app/app-shell.tsx` を削除するか、残るものだけの薄い形にする。
-      `"use client"` が残っているファイルを数え、それぞれに残す理由が
-      （クライアント処理・サードパーティ・RSC Payload 削減のどれかに）
-      当てはまることを確かめる
-- [ ] 4.3 `app/api/` に残ったのが書き込みと通知購読だけであることを確かめる。
-      読み取り専用の 5 本が消えていること
+- [x] 4.2 `app/app-shell.tsx` を**削除した**。通知のタップを受ける部分だけ
+      `app/(app)/notification-bridge.tsx`（画面を持たないクライアント部品）に
+      切り出し、`(app)/layout.tsx` に置いた——どのタブを開いていても効く必要がある。
+
+      **`"use client"` が残るのは 13 ファイル**で、すべて『Next.jsの考え方』
+      第12章の「クライアントサイド処理」に当たる:
+      `notification-bridge`（Service Worker のメッセージ）
+      `tab-bar`（`usePathname`）`sheet`（ポインタと Escape）
+      `use-session-state`（`sessionStorage`）
+      `notification-settings`（通知の許可という Browser API）
+      残る 8 つは `useState` とイベントハンドラを持つ画面部品。
+      サードパーティ都合と RSC Payload 削減に当たるものは無い。
+      **`record-tab.tsx` は `"use client"` が外れた**（取得を Container に移した結果、
+      props を受けて描くだけになった）
+- [x] 4.3 読み取り専用の 5 本が消えていること: `/api/memos` GET・`/api/tags`・
+      `/api/review/due`・`/api/learning-record`・`/api/tags/suggestion` GET。
+      **5 本とも削除済み**。
+
+      **ただし「残ったのが書き込みと通知購読だけ」にはなっていない。**
+      GET が 2 本残っている:
+      `/api/memos/[memoId]/quiz-item` GET（詳細を開いたときに問答を読む）と
+      `/api/notifications/settings` GET（設定を開いたときに読む）。
+      どちらも**利用者の操作をきっかけにした読み取り**で、第9章が
+      Server Functions と `useActionState()` に寄せよと言っている類である。
+      次の change（書き込みの Server Actions 化）で一緒に扱う
 - [ ] 4.4 クライアントバンドルのサイズを移動の前後で比べ、design.md に記録する
 
 ## 5. 実機での確認（L10）

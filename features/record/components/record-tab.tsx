@@ -1,7 +1,3 @@
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-
 type LearningRecord = { recalled: number; layers: { label: string; count: number }[] };
 
 /**
@@ -12,36 +8,17 @@ type LearningRecord = { recalled: number; layers: { label: string; count: number
  *
  * **達成率・連続記録・順位は出さない**（spec の MUST NOT）。分母を持つものは
  * 届いていない部分を作り出し、利用者を責める。
+ *
+ * 取得はしない。`app/(app)/_containers/learning-record/` が Server Components で
+ * 取り、ここは表示だけを担う（server-side-reads D2）。
  */
-export function RecordTab() {
-  const [record, setRecord] = useState<LearningRecord | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
-
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch("/api/learning-record");
-      if (res.ok) setRecord((await res.json()) as LearningRecord);
-      else setFailed(true);
-    } catch {
-      setFailed(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  if (loading) return <p className="muted">読み込み中...</p>;
-
+export function RecordTab({ record }: { record: LearningRecord | null }) {
   // 真っ白にしない。見出しだけでも残すと「壊れた」に見えない
   if (!record) {
     return (
       <div>
         <h2 className="section-head">おぼえてきたこと</h2>
-        {failed && <p className="muted">読み込めませんでした</p>}
+        <p className="muted">読み込めませんでした</p>
       </div>
     );
   }

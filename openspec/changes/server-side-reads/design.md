@@ -222,6 +222,22 @@ react の cache(): React の外では 2 回呼べば 2 回実行される
 次の change で Server Actions にしたとき、これは `revalidatePath()` に置き換わる。
 **つまり `router.refresh()` は途中の形である**。そうと分かる場所にコメントを残す。
 
+### D11: Container は読み取りの失敗を捕まえる。**ただしこれは途中の形**
+
+**レビューの指摘で足した。** 取得を Server Components へ移したとき、
+`getLearningRecord()` を `try/catch` なしで `await` していた。移す前の `fetch` は
+失敗を捕まえて `record=null` を渡し、`RecordTab` が「読み込めませんでした」を
+出していた（design.md D2「真っ白にしない」）。捕まえないと例外がそのまま投げられ、
+`error.tsx` がまだ無いので Next.js の既定のエラー画面に落ちる——
+**その分岐が到達不能なデッドコードになっていた**。
+
+3 つの Container で捕まえ、移す前と同じ形（記録は「読み込めませんでした」、
+一覧と復習は空）で渡す。
+
+**`error.tsx` を置いたら、捕まえるのをやめてそちらに任せる**（次の change）。
+そうと分かるコメントを 3 か所に残した。第32章の「Server Components のエラーは
+`error.tsx` で受ける」が本来の形で、いまは置き場が無いだけである。
+
 ### D10: 位置と焦点の復元はブラウザに委ねる。ただし確かめる
 
 いまは `restore.current` に `scrollY` とメモの id を控え、戻ったときに

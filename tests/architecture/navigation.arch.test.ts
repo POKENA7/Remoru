@@ -56,6 +56,17 @@ describe("通知から復習の経路へ入る", () => {
     expect(sw).not.toMatch(/tab=review/);
   });
 
+  it("通知で復習へ移るとき、設定は閉じる", () => {
+    // すでに /review にいると同じ経路への遷移なので再 mount されない。
+    // 設定を開いたままだと「復習を始められる画面」が出ない
+    const screen = readFileSync(
+      join(ROOT, "features", "review", "components", "review-screen.tsx"),
+      "utf8",
+    );
+    expect(screen).toMatch(/remoru:open-review/);
+    expect(screen).toMatch(/setSettingsOpen\(false\)/);
+  });
+
   it("すでに開いているときは開き直さない", () => {
     // spec「すでにアプリが開いているとき」。開いている窓へ postMessage して
     // 経路を移す。openWindow は見つからなかったときだけ
