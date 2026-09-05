@@ -19,11 +19,13 @@ const MAX_QUESTION_LENGTH = 60;
 /**
  * 通知のタップ先。
  *
- * `/` だとメモタブが開く（タブはクライアント状態で、復習を指す URL が
- * 無かった）。通知から復習に入れることが spec の要件なので、タブを
- * 指定できる形にする。app/app-shell.tsx がこの値を読む。
+ * 復習は固有の経路を持つ（navigation spec）。以前はタブがクライアント状態で
+ * 復習を指す URL が無く、`/?tab=review` で伝えていた。
+ *
+ * public/sw.js が通知をタップしたときにこの値を開く。すでにアプリが開いて
+ * いるときは開き直さず、いま開いているものをこの経路へ移す。
  */
-export const REVIEW_URL = "/?tab=review";
+export const REVIEW_URL = "/review";
 
 export function buildNotification(count: number, first: FirstQuestion): NotificationBody {
   const chars = [...first.question];

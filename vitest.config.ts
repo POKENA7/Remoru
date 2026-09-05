@@ -11,6 +11,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["**/*.test.ts"],
-    exclude: ["**/node_modules/**", "**/.next/**", "**/.open-next/**"],
+    // `.claude/worktrees` は git が `.git/info/exclude` でこのリポジトリの外と
+    // 扱っている、別ブランチのチェックアウト。拾うと同じテストが二重に走り、
+    // ハーネスの自己テスト（リポジトリ全体に検査を掛ける）どうしが衝突する
+    exclude: ["**/node_modules/**", "**/.next/**", "**/.open-next/**", "**/.claude/worktrees/**"],
   },
 });

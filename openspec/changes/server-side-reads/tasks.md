@@ -51,16 +51,33 @@
 
 ## 2. 経路の骨格
 
-- [ ] 2.1 `app/(app)/layout.tsx` を作り、下部タブを `<Link>` で置く（design D1）。
+- [x] 2.1 `app/(app)/layout.tsx` を作り、下部タブを `<Link>` で置く（design D1）。
       `aria-selected` の判定は `usePathname()` を使う小さな Client Components に
       切り出す。この時点では中身は既存の `AppShell` のままでよい。
       `npm run check` が緑
 - [ ] 2.2 `/review` `/record` `/memos/[memoId]` の `page.tsx` を作る。中身は
-      仮のままでよい。4 つの経路が開けることをブラウザで確かめる
-- [ ] 2.3 `navigation` spec の「主要な画面は固有の経路を持つ」「戻る操作は直前に
-      見ていた画面へ返す」のシナリオを検査に書く。**この時点では落ちる**——
-      2.4 以降で緑にする
-- [ ] 2.4 通知からの復帰先を `?tab=review` から `/review` に変える。
+      仮のままでよい。4 つの経路が開けることを確かめる。
+      **確認できた範囲**: `next build` の出力に 4 経路が並ぶこと、未認証で
+      いずれも `/sign-in` へ送られること（`(app)/layout.tsx` の
+      `verifySession()` が全経路を覆っている）。
+      **確認できていない範囲**: サインイン済みで各画面が正しく描かれること。
+      この環境ではブラウザ枠の実クリックが効かず、Clerk のサインインを
+      通せない。タスク 5.1（実機）に委ねる。
+      **したがって未完のまま置く。** 実機で 4 経路が開けるのを見たときに印を付ける
+- [ ] 2.3 `navigation` spec のうち、**この段で満たせるものだけ**を検査に書く
+      （`lib/navigation-boundary.test.ts`）。4 つの経路が存在すること、
+      タブが `<Link>` で経路を移ること、通知の行き先が `/review` であること。
+      違反を 3 種注入して赤くなることを確かめた（L06）。
+
+      **「戻る操作は直前に見ていた画面へ返す」はまだ満たしていない。**
+      一覧から詳細を開く `openDetail()` はいまもクライアント状態を変えるだけで、
+      履歴に何も積まない。したがって端末の戻る操作は一覧へ戻らず、アプリの外へ
+      抜ける——`navigation` spec の MUST NOT に触れている状態である。
+      これを直すのはタスク 3.5。**したがってこのタスクは未完である**。
+      3.5 で「戻る」の検査まで書いたときに印を付ける（レビューで 2 度、
+      完了印の付けすぎを指摘されて外した — L08）
+
+- [x] 2.4 通知からの復帰先を `?tab=review` から `/review` に変える。
       `public/sw.js` と `features/notification/notification-message.ts` の
       `REVIEW_URL` を追従させる。`navigation` の通知のシナリオ 2 件が緑になること
 
@@ -69,23 +86,38 @@
 各タスクの完了条件は `npm run check` が緑になり、その画面が**ブラウザで
 一通り動く**こと（L05: spec のシナリオを画面上で辿る）。
 
-- [ ] 3.1 メモの一覧。**`cache()` のメモ化が効いていることを実行で一度確かめる**
+- [ ] 3.1 メモの一覧。**絞り込みの `?tag=` だけ先に入れた**（タスク 2 のレビューで
+      前倒し。クライアント状態のままだとタブを移って戻ると外れる）。
+      残りは Container への組み替え。**`cache()` のメモ化が効いていることを実行で一度確かめる**
       （design D8 / 1.3 から持ち越し）。一覧を 1 回描いたときのデータベースへの
       問い合わせ回数を数え、Container を分けても重複していないことを見る。
       `MemoListContainer` と `TagListContainer` を
       `app/(app)/_containers/` に、Presentational を `features/memo/components/`
       `features/tag/components/` に置く（design D2）。`?tag=` を `searchParams` で
       受ける。`/api/memos` GET・`/api/tags`・`/api/tags/suggestion` GET を削除
-- [ ] 3.2 下書きを `sessionStorage` に逃がす（design D3）。**検査で固定する**：
-      「本文を入力 → 別の経路へ移る → 戻る → 本文が残っている」。保持を消す変更を
-      入れて赤くなることを確かめてから採用する（L06）
-- [ ] 3.3 タグの提案結果を同じ仕組みに載せる（design D4）。提案を受け取った状態で
-      経路を移って戻り、提案が残っていることをブラウザで確かめる
+- [x] 3.2 下書きを `sessionStorage` に逃がす（design D3）。**タスク 2 のレビューで
+      前倒しした**——タブを `<Link>` にした時点で回帰が入るため、同じコミットで
+      直さないと一時的に壊れた状態が残る。
+      `app/session-state.ts` に `useSessionState` を置き、
+      `app/unmount-boundary.test.ts` を「経路をまたいでも残る場所にあること」を
+      見る形に強めた。違反を 3 種注入して赤くなることを確かめた（L06）:
+      下書きを `useState` に戻す / `localStorage` に変える /
+      絞り込みを画面の中に戻す
+- [ ] 3.3 タグの提案結果を同じ仕組みに載せる（design D4）。3.2 と同じ理由で前倒し。
+      実装は済んでいる（`useSessionState("remoru:tag-suggestion", null)`）。
+      **完了条件のブラウザ確認が未実施**——この環境ではサインインを通せない。
+      タスク 5.1（実機）で提案を受け取った状態のまま経路を移って戻り、
+      残っているのを見たときに印を付ける（2.2 と同じ扱い）
 - [ ] 3.4 初回の告知を、サーバーの記録だけで出し分ける（design D5）。
       `notice` `noticeAnswer` を `app-shell` から外す。`first-run` spec の
       「別の画面へ移って戻る」シナリオが緑であること
 - [ ] 3.5 メモの詳細。`/memos/[memoId]` に移す。他人のメモと、消えたメモの経路を
-      開いたときの振る舞いを `navigation` `memo-capture` のシナリオどおりにする
+      開いたときの振る舞いを `navigation` `memo-capture` のシナリオどおりにする。
+      **2.3 から持ち越し**: 一覧から詳細を開くのを経路の遷移にし
+      （`router.push`）、閉じるのを履歴の戻り（`router.back`）にする。
+      「戻る操作は直前に見ていた画面へ返す」の検査をここで書く。
+      **3.2（下書きの保持）より後に行う**——先に詳細を経路にすると、
+      詳細を開くたびに書きかけの本文が消える
 - [ ] 3.6 復習。`DueReviewContainer`。`/api/review/due` を削除
 - [ ] 3.7 記録。`LearningRecordContainer`。`/api/learning-record` を削除
 - [ ] 3.8 通知設定をシートとして出す（design D6）。経路は与えない。

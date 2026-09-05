@@ -43,11 +43,39 @@ describe("一覧の下に置いてはいけない状態", () => {
     expect(src).toMatch(/answer=\{noticeAnswer\}/);
   });
 
-  it("書きかけの本文と提案も同じ場所にある", () => {
-    // 同じ穴を過去に2度踏んでいる。並べて置くことで、次に足す人が気づく
+  it("書きかけの本文と提案は、経路をまたいでも残る場所にある", () => {
+    // 同じ穴を過去に2度踏んでいる。並べて置くことで、次に足す人が気づく。
+    //
+    // **`useState` では足りなくなった。** 下部タブが `<Link>` になり、タブを
+    // 移るたびに app-shell ごと unmount されるようになったため、画面の中に
+    // 持っている限り経路の移動で消える（server-side-reads D3 / D4）。
     const src = codeOnly(read("app/app-shell.tsx"));
-    expect(src).toMatch(/const \[draft, setDraft\] = useState/);
-    expect(src).toMatch(/const \[suggestionResult, setSuggestionResult\] = useState/);
+    expect(src).toMatch(/const \[draft, setDraft\] = useSessionState/);
+    expect(src).toMatch(/const \[suggestionResult, setSuggestionResult\] = useSessionState/);
+
+    // 素の useState に戻す変更を、ここで止める
+    expect(src).not.toMatch(/const \[draft, setDraft\] = useState/);
+    expect(src).not.toMatch(/const \[suggestionResult, setSuggestionResult\] = useState/);
+  });
+
+  it("保つ先は sessionStorage で、端末に残り続けない", () => {
+    const src = codeOnly(read("app/session-state.ts"));
+    expect(src).toMatch(/sessionStorage\.getItem/);
+    expect(src).toMatch(/sessionStorage\.setItem/);
+    // localStorage は寿命が長すぎる。下書きが次の日まで残る
+    expect(src).not.toMatch(/localStorage/);
+  });
+
+  it("絞り込みは経路が持つ（タブを移って戻っても外れない）", () => {
+    const src = codeOnly(read("app/app-shell.tsx"));
+    // 画面の中の状態にすると、タブを移った時点で外れる
+    expect(src).not.toMatch(/const \[activeTagId, setActiveTagId\] = useState/);
+    expect(src).toMatch(/const activeTagId = tagId/);
+
+    // 経路から渡ってくること
+    const page = codeOnly(read("app/(app)/page.tsx"));
+    expect(page).toMatch(/searchParams/);
+    expect(page).toMatch(/tagId=\{tag/);
   });
 });
 

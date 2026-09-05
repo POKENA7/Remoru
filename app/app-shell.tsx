@@ -1,8 +1,9 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { resolveDetail } from "./detail-selection";
+import { useSessionState } from "./session-state";
 import { FirstRunNotice, type NoticeAnswer } from "./first-run-notice";
 import { announcement } from "./first-run-view";
 import { type FreshMemo, markFresh } from "./fresh-memo";
@@ -32,10 +33,20 @@ export type SuggestionResult = {
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLLS = 8;
 
-export function AppShell() {
-  // 通知から来たときは復習タブを開く（lib/notification-message.ts の REVIEW_URL）
-  const params = useSearchParams();
-  const [tab, setTab] = useState<Tab>(params.get("tab") === "review" ? "review" : "memo");
+export function AppShell({
+  initialTab,
+  initialDetailId = null,
+  tagId = null,
+}: {
+  /** どの画面から入ったか。経路が決める（app/(app) 配下の page.tsx） */
+  initialTab: Tab;
+  /** メモの詳細の経路から入ったときの、そのメモの id */
+  initialDetailId?: string | null;
+  /** 絞り込むタグ。経路が持つ（`/?tag=`） */
+  tagId?: string | null;
+}) {
+  const router = useRouter();
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [memos, setMemos] = useState<MemoRow[]>([]);
   const [due, setDue] = useState<DueItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,9 +55,21 @@ export function AppShell() {
   const [guided, setGuided] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tags, setTags] = useState<{ id: string; name: string; count: number }[]>([]);
-  // 絞り込みは URL に持たない。タブと同じクライアント状態（design.md D5）
-  const [activeTagId, setActiveTagId] = useState<string | null>(null);
-  const [detailId, setDetailId] = useState<string | null>(null);
+  /**
+   * 絞り込みは**経路が持つ**（`/?tag=`）。
+   *
+   * `add-tags` の D5 は「タブと同じクライアント状態」を理由に URL へ持たせて
+   * いなかった。そのタブを経路に載せた時点でこの根拠は消えている。加えて
+   * クライアント状態のままだと、タブを移って戻ったときに絞り込みが外れる。
+   */
+  const activeTagId = tagId;
+  const onSelectTag = useCallback(
+    (next: string | null) => {
+      router.replace(next ? `/?tag=${encodeURIComponent(next)}` : "/");
+    },
+    [router],
+  );
+  const [detailId, setDetailId] = useState<string | null>(initialDetailId);
   const [detailMemo, setDetailMemo] = useState<MemoRow | null>(null);
   /**
    * 書きかけの本文と、受け取った提案。
@@ -55,8 +78,11 @@ export function AppShell() {
    * メモを1件開いただけで消える。下書きは黙って失われ、提案は取り直しに
    * モデルの呼び出し（＝課金）が要る。
    */
-  const [draft, setDraft] = useState("");
-  const [suggestionResult, setSuggestionResult] = useState<SuggestionResult>(null);
+  const [draft, setDraft] = useSessionState("remoru:draft", "");
+  const [suggestionResult, setSuggestionResult] = useSessionState<SuggestionResult>(
+    "remoru:tag-suggestion",
+    null,
+  );
   /**
    * いま書いた1件。刷りの合図（design.md D2）。
    *
@@ -92,6 +118,18 @@ export function AppShell() {
   // 刷りの合図。**同一性を保つ**（毎回作り直すと刷る効果が再実行される）
   const onSaved = useCallback((memoId: string) => setFresh(markFresh(memoId)), []);
   const onPrinted = useCallback(() => setFresh(null), []);
+
+  /**
+   * サーバー側が持っている表示を取り直す。
+   *
+   * 下部タブの復習バッジは `(app)/layout.tsx` が描いており、クライアントの
+   * `due` を更新しても変わらない。**採点したのに件数が減らない**ので、
+   * サーバーの描画ごと更新する。
+   *
+   * タスク 4.1 で書き込み全体をこの形に揃え、次の change で Server Actions に
+   * したときに `revalidatePath()` へ置き換わる。つまりこれは途中の形である。
+   */
+  const refreshServer = useCallback(() => router.refresh(), [router]);
 
   const load = useCallback(async () => {
     try {
@@ -210,132 +248,89 @@ export function AppShell() {
       // 詳細を開いたままだと、描画の分岐が詳細を先に見るので画面が
       // 切り替わらない（spec「すでにアプリが開いているとき」）
       closeDetail();
-      setTab("review");
+      // 経路ごと移る。タブは経路が決めるので、状態だけ変えても
+      // 下部タブの選択と食い違う
+      router.push("/review");
       void load();
     };
 
     navigator.serviceWorker.addEventListener("message", onMessage);
     return () => navigator.serviceWorker.removeEventListener("message", onMessage);
-  }, [load]);
+  }, [load, router, closeDetail]);
 
   const detail = resolveDetail(memos, detailId, detailMemo);
   const found = memos.find((m) => m.id === detailId) ?? null;
   if (found && found !== detailMemo) setDetailMemo(found);
 
   return (
-    <main className="app">
-      <div className="body">
-        {settingsOpen ? (
-          <NotificationSettings onClose={() => setSettingsOpen(false)} />
-        ) : detail ? (
-          <MemoDetail
-            // メモが変わったら作り直す。画面が自分で持つ状態（タグ）を
-            // 前のメモから引き継がせない
-            key={detail.id}
-            memo={detail}
-            knownTags={tags}
-            onChanged={load}
-            onClose={closeDetail}
-          />
-        ) : tab === "record" ? (
-          <RecordTab />
-        ) : tab === "memo" ? (
-          <MemoTab
-            memos={memos}
-            loading={loading}
-            onChanged={load}
-            onOpenDetail={openDetail}
-            draft={draft}
-            onDraftChange={setDraft}
-            fresh={fresh}
-            onSaved={onSaved}
-            onPrinted={onPrinted}
-            tags={tags}
-            activeTagId={activeTagId}
-            onSelectTag={setActiveTagId}
-            announcement={
-              notice
-                ? {
-                    memoId: notice.memoId,
-                    node: (
-                      <FirstRunNotice
-                        nextReviewAt={notice.nextReviewAt}
-                        now={notice.now}
-                        answer={noticeAnswer}
-                        onAnswer={setNoticeAnswer}
-                      />
-                    ),
-                  }
-                : null
-            }
-            suggestion={
-              suggestion.show ? (
-                <TagSuggestionBand
-                  untaggedCount={suggestion.untaggedCount}
-                  result={suggestionResult}
-                  onResult={setSuggestionResult}
-                  onApplied={load}
-                  onDismissed={load}
-                />
-              ) : null
-            }
-          />
-        ) : (
-          <ReviewTab
-            items={due}
-            loading={loading}
-            onFinished={load}
-            onGoToMemos={() => setTab("memo")}
-            onOpenSettings={() => setSettingsOpen(true)}
-          />
-        )}
-      </div>
-
-      <nav className="tabs" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          className="tab"
-          aria-selected={tab === "memo"}
-          onClick={() => {
-            setSettingsOpen(false);
-            closeDetail();
-            setTab("memo");
+    <>
+      {settingsOpen ? (
+        <NotificationSettings onClose={() => setSettingsOpen(false)} />
+      ) : detail ? (
+        <MemoDetail
+          // メモが変わったら作り直す。画面が自分で持つ状態（タグ）を
+          // 前のメモから引き継がせない
+          key={detail.id}
+          memo={detail}
+          knownTags={tags}
+          onChanged={load}
+          onClose={closeDetail}
+        />
+      ) : tab === "record" ? (
+        <RecordTab />
+      ) : tab === "memo" ? (
+        <MemoTab
+          memos={memos}
+          loading={loading}
+          onChanged={load}
+          onOpenDetail={openDetail}
+          draft={draft}
+          onDraftChange={setDraft}
+          fresh={fresh}
+          onSaved={onSaved}
+          onPrinted={onPrinted}
+          tags={tags}
+          activeTagId={activeTagId}
+          onSelectTag={onSelectTag}
+          announcement={
+            notice
+              ? {
+                  memoId: notice.memoId,
+                  node: (
+                    <FirstRunNotice
+                      nextReviewAt={notice.nextReviewAt}
+                      now={notice.now}
+                      answer={noticeAnswer}
+                      onAnswer={setNoticeAnswer}
+                    />
+                  ),
+                }
+              : null
+          }
+          suggestion={
+            suggestion.show ? (
+              <TagSuggestionBand
+                untaggedCount={suggestion.untaggedCount}
+                result={suggestionResult}
+                onResult={setSuggestionResult}
+                onApplied={load}
+                onDismissed={load}
+              />
+            ) : null
+          }
+        />
+      ) : (
+        <ReviewTab
+          items={due}
+          loading={loading}
+          onFinished={() => {
+            void load();
+            refreshServer();
           }}
-        >
-          <i />
-          メモ
-        </button>
-        <button
-          type="button"
-          role="tab"
-          className="tab"
-          aria-selected={tab === "review"}
-          onClick={() => {
-            setSettingsOpen(false);
-            closeDetail();
-            setTab("review");
-          }}
-        >
-          <i />
-          復習
-          {due.length > 0 && <span className="count">{due.length}</span>}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          className="tab"
-          aria-selected={tab === "record"}
-          onClick={() => {
-            setSettingsOpen(false);
-            closeDetail();
-            setTab("record");
-          }}
-        >
-          <i />
-          記録
-        </button>
-      </nav>
-    </main>
+          onGoToMemos={() => router.push("/")}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
+      )}
+    </>
   );
 }

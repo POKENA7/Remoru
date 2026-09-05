@@ -5,7 +5,7 @@
  * （{ title, body, url }）。ここでは中身を作らない。
  */
 
-const FALLBACK_URL = "/?tab=review";
+const FALLBACK_URL = "/review";
 
 self.addEventListener("install", () => {
   // 古い版を待たずに入れ替える。表示を担っていないので安全。

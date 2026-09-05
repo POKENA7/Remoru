@@ -135,6 +135,6 @@ describe("通知の中身（タスク 3.5・design.md D5）", () => {
     // レビュー指摘: "/" ではメモタブが開く。通知から復習へ入れることが
     // spec の要件なので、タブを指定する
     const url = buildNotification(1, { question: "問" }).url;
-    expect(url).toContain("tab=review");
+    expect(url).toBe("/review");
   });
 });

@@ -1,2 +1,6 @@
 {"ts":"2026-08-31T00:06:02Z","check":"check:test","exit":2,"head":"","change":"add-deterministic-harness","phase":"precommit"}
 {"ts":"2026-08-31T00:18:56Z","check":"check:test","exit":2,"head":" RUN  v4.1.11 /Users/pokena/Git/github.com/POKENA7/Remoru","change":"add-deterministic-harness","phase":"stop"}
+{"ts":"2026-09-04T13:40:42Z","check":"check:test","exit":2,"head":" RUN  v4.1.11 /Users/pokena/Git/github.com/POKENA7/Remoru","change":"server-side-reads","phase":"stop"}
+{"ts":"2026-09-04T13:44:45Z","check":"check:test","exit":2,"head":" RUN  v4.1.11 /Users/pokena/Git/github.com/POKENA7/Remoru","change":"server-side-reads","phase":"stop"}
+{"ts":"2026-09-04T13:51:09Z","check":"check:test","exit":2,"head":" RUN  v4.1.11 /Users/pokena/Git/github.com/POKENA7/Remoru","change":"server-side-reads","phase":"stop"}
+{"ts":"2026-09-05T01:28:39Z","check":"check:format","exit":2,"head":".harness/blocked.json format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━","change":"server-side-reads","phase":"precommit"}

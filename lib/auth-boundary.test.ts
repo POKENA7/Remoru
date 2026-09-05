@@ -108,18 +108,58 @@ describe("API ルートの認証", () => {
 });
 
 describe("画面の保護", () => {
-  const page = codeOnly(readFileSync(join(ROOT, "app", "page.tsx"), "utf8"));
+  /**
+   * 画面を出すルートを集める。**置き場を直書きしない**（design.md D8）。
+   *
+   * 保護は `app/(app)/layout.tsx` が担う。ルートグループを足したり
+   * 経路を増やしたりしても、この検査が対象を見失わないようにする。
+   */
+  function appFiles(): { name: string; code: string }[] {
+    const out: { name: string; code: string }[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir)) {
+        const full = join(dir, entry);
+        if (statSync(full).isDirectory()) {
+          // 認証画面そのものと API は対象外
+          if (entry === "api" || entry.startsWith("sign-")) continue;
+          walk(full);
+        } else if (entry === "page.tsx" || entry === "layout.tsx") {
+          out.push({
+            name: full.slice(ROOT.length + 1),
+            code: codeOnly(readFileSync(full, "utf8")),
+          });
+        }
+      }
+    };
+    walk(join(ROOT, "app"));
+    return out;
+  }
 
-  it("サーバー側で利用者を確認している", () => {
-    expect(page).toMatch(/getCurrentUserId\s*\(/);
+  const APP_FILES = appFiles();
+
+  it("走査対象が空でない", () => {
+    expect(APP_FILES.length).toBeGreaterThan(2);
+  });
+
+  it("画面の枠がサーバー側で利用者を確認している", () => {
+    // どこか 1 つの layout / page が認証を確かめていればよい、では足りない。
+    // 「タブを持つ画面すべてを覆う枠」が確かめていることを見る
+    const guard = APP_FILES.find((f) => f.name === "app/(app)/layout.tsx");
+    expect(guard).toBeDefined();
+    expect(guard?.code).toMatch(/verifySession\s*\(/);
   });
 
   it("未認証はサインインへ送る", () => {
-    expect(page).toMatch(/redirect\(\s*["']\/sign-in["']\s*\)/);
+    // 送る先は verifySession() が持つ
+    const session = codeOnly(readFileSync(join(ROOT, "lib", "session.ts"), "utf8"));
+    expect(session).toMatch(/redirect\(\s*["']\/sign-in["']\s*\)/);
   });
 
-  it('"use client" ではない（クライアントでは認証を判断しない）', () => {
-    expect(page).not.toMatch(/^\s*["']use client["']/m);
+  it('画面のルートは "use client" ではない（クライアントでは認証を判断しない）', () => {
+    const client = APP_FILES.filter((f) => /^\s*["']use client["']/m.test(f.code)).map(
+      (f) => f.name,
+    );
+    expect(client).toEqual([]);
   });
 });
 
