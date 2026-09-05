@@ -107,8 +107,8 @@ feature をまたぐ import を `@/features/<機能>/…` に → 外側の参�
 
 ## 8. 締め
 
-- [ ] 8.1 `npm run harness:review` で受領書を作り、コミットの門を通す
-- [ ] 8.2 CI が緑になったことを見る（L07: 手元で緑でも CI で落ちる欠陥は過去 4 件）
+- [x] 8.1 `npm run harness:review` で受領書を作り、コミットの門を通す
+- [x] 8.2 CI が緑になったことを見る（L07）。**結果**: run 33952324909 が success
 - [x] 8.3 `CLAUDE.md` の「置き場」の節を書き直す。(a) 部品は
       `features/<機能>/components/`、(b) `lib/` は外部ライブラリのラッパーだけ、
       (c) `hooks/` `tests/` の役割、(d) `tests/architecture/`（`*.arch.test.ts`）と
