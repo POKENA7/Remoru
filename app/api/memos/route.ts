@@ -1,46 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/session";
 import { getDb, getDeferrer } from "@/lib/db";
-import { hasFinishedGuide } from "@/features/first-run/first-run";
-import { createMemo, listMemos } from "@/features/memo/memos";
+import { createMemo } from "@/features/memo/memos";
 import { startGeneration } from "@/features/quiz/quiz-generation-run";
-import { countUnwritten, getReviewStates } from "@/features/quiz/quiz-items";
-import { getTagsForMemos } from "@/features/tag/tags";
-
-/**
- * 保存済みメモを新しい順に返す。
- *
- * 各メモには復習の状態を添える。返すのは次回出題日だけで、スケジューラの
- * 内部状態は含めない（design.md D2）。
- */
-export async function GET(req: NextRequest) {
-  const userId = await getCurrentUserId();
-  if (!userId) {
-    return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
-  }
-
-  // 絞り込むタグ。指定が無ければ全件（design.md D5）
-  const tagId = req.nextUrl.searchParams.get("tag") ?? undefined;
-
-  const db = await getDb();
-  const now = Date.now();
-  const [memos, states, unwritten, tagsByMemo, guided] = await Promise.all([
-    listMemos(db, userId, tagId),
-    getReviewStates(db, userId, now),
-    countUnwritten(db, userId, now),
-    getTagsForMemos(db, userId),
-    // 初回の導きを終えているか。誘いと告知の出し分けに要る（first-run）
-    hasFinishedGuide(db, userId),
-  ]);
-
-  const withState = memos.map((memo) => ({
-    ...memo,
-    review: states.get(memo.id) ?? { kind: "unwritten" as const },
-    tags: (tagsByMemo.get(memo.id) ?? []).map((t) => ({ id: t.id, name: t.name })),
-  }));
-
-  return NextResponse.json({ memos: withState, unwrittenCount: unwritten, guided });
-}
 
 /** メモを1件保存する。 */
 export async function POST(req: NextRequest) {

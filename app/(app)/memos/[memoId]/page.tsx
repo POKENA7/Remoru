@@ -1,13 +1,11 @@
-import { AppShell } from "../../../app-shell";
+import { redirect } from "next/navigation";
 
 /**
  * メモの詳細。
  *
- * いまは一覧（`AppShell`）を出したうえで、その中で該当のメモを開かせている。
- * **タスク 3.5 でここを詳細そのものにする。** それまでは経路が存在すること
- * だけを担保する。
+ * **まだ経路として実装していない**（タスク 3.5）。いまは一覧へ送る。
+ * 一覧の中で詳細を開く形は残っているので、利用者の導線は切れない。
  */
-export default async function MemoDetailPage({ params }: { params: Promise<{ memoId: string }> }) {
-  const { memoId } = await params;
-  return <AppShell initialTab="memo" initialDetailId={memoId} />;
+export default async function MemoDetailPage() {
+  redirect("/");
 }

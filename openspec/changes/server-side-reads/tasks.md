@@ -86,15 +86,22 @@
 各タスクの完了条件は `npm run check` が緑になり、その画面が**ブラウザで
 一通り動く**こと（L05: spec のシナリオを画面上で辿る）。
 
-- [ ] 3.1 メモの一覧。**絞り込みの `?tag=` だけ先に入れた**（タスク 2 のレビューで
-      前倒し。クライアント状態のままだとタブを移って戻ると外れる）。
-      残りは Container への組み替え。**`cache()` のメモ化が効いていることを実行で一度確かめる**
-      （design D8 / 1.3 から持ち越し）。一覧を 1 回描いたときのデータベースへの
-      問い合わせ回数を数え、Container を分けても重複していないことを見る。
-      `MemoListContainer` と `TagListContainer` を
-      `app/(app)/_containers/` に、Presentational を `features/memo/components/`
-      `features/tag/components/` に置く（design D2）。`?tag=` を `searchParams` で
-      受ける。`/api/memos` GET・`/api/tags`・`/api/tags/suggestion` GET を削除
+- [ ] 3.1 メモの一覧を Container に組み替える。
+      **実装は済んでいる**:
+      `app/(app)/_containers/memo-list/container.tsx` が 6 本を `Promise.all` で
+      並行に取り、`features/memo/components/memo-screen.tsx` が表示する。
+      絞り込みは `?tag=` を `searchParams` で受ける。
+      `/api/memos` GET・`/api/tags`・`/api/tags/suggestion` GET を削除した
+      （POST / PUT / DELETE は残る）。`app-shell.tsx` は復習と記録だけの
+      薄い形に縮んだ。
+
+      **完了条件のうち 1 つが未達**: 「`cache()` のメモ化が効いていることを
+      実行で一度確かめる」。`getDb` に計器を入れて一覧を 1 回描かせようとしたが、
+      **この環境ではサインインを通せず 307 で止まる**ため、ページが描画されない。
+      タスク 5.1（実機）で確かめる。
+      それまでの担保は `tests/architecture/query.arch.test.ts` の構造検査
+      （公開する関数が全部 `cache()` で包まれていること）である
+
 - [x] 3.2 下書きを `sessionStorage` に逃がす（design D3）。**タスク 2 のレビューで
       前倒しした**——タブを `<Link>` にした時点で回帰が入るため、同じコミットで
       直さないと一時的に壊れた状態が残る。

@@ -13,26 +13,6 @@ import {
  *
  * 鍵が無い環境では提案そのものを示さない（design.md D11）。
  */
-export async function GET() {
-  const userId = await getCurrentUserId();
-  if (!userId) {
-    return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
-  }
-
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json({ show: false, untaggedCount: 0 });
-  }
-
-  const db = await getDb();
-  return NextResponse.json(await suggestionStatus(db, userId));
-}
-
-/**
- * 提案を作る。**ここでは書き込まない。**
- *
- * 待たせる。利用者が押して結果を待っている操作なので、応答後の枠に
- * 預けると何も起きていないように見える（design.md D6）。
- */
 export async function POST() {
   const userId = await getCurrentUserId();
   if (!userId) {

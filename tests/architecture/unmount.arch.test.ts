@@ -70,8 +70,10 @@ describe("一覧の下に置いてはいけない状態", () => {
     expect(ownsAnswer).toBe(false);
   });
 
-  it("答えは app-shell が持つ", () => {
-    const src = codeOnly(read("app/app-shell.tsx"));
+  it("答えは一覧の画面が持つ", () => {
+    // 以前は app-shell。読み取りを Server Components へ移したとき、
+    // 一覧の状態は memo-screen.tsx に移った
+    const src = codeOnly(read("memo-screen.tsx"));
     expect(src).toMatch(/useState<NoticeAnswer>/);
     expect(src).toMatch(/answer=\{noticeAnswer\}/);
   });
@@ -82,7 +84,7 @@ describe("一覧の下に置いてはいけない状態", () => {
     // **`useState` では足りなくなった。** 下部タブが `<Link>` になり、タブを
     // 移るたびに app-shell ごと unmount されるようになったため、画面の中に
     // 持っている限り経路の移動で消える（server-side-reads D3 / D4）。
-    const src = codeOnly(read("app/app-shell.tsx"));
+    const src = codeOnly(read("memo-screen.tsx"));
     expect(src).toMatch(/const \[draft, setDraft\] = useSessionState/);
     expect(src).toMatch(/const \[suggestionResult, setSuggestionResult\] = useSessionState/);
 
@@ -100,15 +102,24 @@ describe("一覧の下に置いてはいけない状態", () => {
   });
 
   it("絞り込みは経路が持つ（タブを移って戻っても外れない）", () => {
-    const src = codeOnly(read("app/app-shell.tsx"));
+    const src = codeOnly(read("memo-screen.tsx"));
     // 画面の中の状態にすると、タブを移った時点で外れる
     expect(src).not.toMatch(/const \[activeTagId, setActiveTagId\] = useState/);
-    expect(src).toMatch(/const activeTagId = tagId/);
+    // 経路から props で受け取っている
+    expect(src).toMatch(/activeTagId: string \| null;/);
 
     // 経路から渡ってくること
     const page = codeOnly(read("app/(app)/page.tsx"));
     expect(page).toMatch(/searchParams/);
     expect(page).toMatch(/tagId=\{tag/);
+  });
+  it("詳細の解決は resolveDetail に任せる", () => {
+    // 一覧から探すだけにすると、**絞り込み中にタグを外した瞬間に画面が
+    // 無言で閉じる**。change 6 で一度直し、Container 化で再発した
+    const src = codeOnly(read("memo-screen.tsx"));
+    expect(src).toMatch(/resolveDetail\(/);
+    // 素の find に戻す変更を、ここで止める
+    expect(src).not.toMatch(/const detail = memos\.find/);
   });
 });
 
@@ -128,7 +139,7 @@ describe("刷りの合図（change 12）", () => {
   });
 
   it("合図は app-shell が持ち、刷ったら外す", () => {
-    const src = codeOnly(read("app/app-shell.tsx"));
+    const src = codeOnly(read("memo-screen.tsx"));
     expect(src).toMatch(/useState<FreshMemo>/);
     expect(src).toMatch(/onPrinted\s*=\s*useCallback\(\(\)\s*=>\s*setFresh\(null\)/);
   });
