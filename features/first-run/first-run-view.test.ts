@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { announcement } from "./first-run-view";
-import type { MemoRow } from "./types";
+import type { MemoRow } from "@/features/memo/types";
 
 const NOW = Date.UTC(2026, 7, 26, 3, 0, 0);
 const TOMORROW = Date.UTC(2026, 7, 26, 15, 0, 0);

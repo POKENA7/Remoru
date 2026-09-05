@@ -2,7 +2,7 @@
  * 復習スケジューラ。
  *
  * このモジュールは HTTP・セッション・データベース・フレームワークのいずれも
- * import しない（design.md D2 / lib/scheduler-boundary.test.ts で担保）。
+ * import しない（design.md D2 / tests/architecture/scheduler.arch.test.ts で担保）。
  * 現在時刻は引数で受け取り、内部で時計を読まない（D1）。
  *
  * 外へ出すのは次回出題日だけで、`SchedulerState` の中身は不透明として扱う。

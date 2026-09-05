@@ -4,7 +4,7 @@ import { memos } from "../../db/schema";
 import { createMemo } from "@/features/memo/memos";
 import { GENERATION_TIMEOUT_MS, isGenerating } from "./quiz-generation";
 import { countUnwritten, createQuizItem, getReviewStates } from "./quiz-items";
-import { createTestDb } from "@/lib/test-db";
+import { createTestDb } from "@/tests/helpers/test-db";
 
 const NOW = Date.UTC(2026, 7, 24, 3, 0, 0);
 

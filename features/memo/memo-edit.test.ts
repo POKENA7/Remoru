@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createMemo, listMemos, MAX_CONTENT_LENGTH, updateMemoContent } from "./memos";
 import { createQuizItem } from "@/features/quiz/quiz-items";
 import { gradeReview } from "@/features/review/review";
-import { createTestDb } from "@/lib/test-db";
+import { createTestDb } from "@/tests/helpers/test-db";
 
 /**
  * メモ本文の書き直し（change 14）。

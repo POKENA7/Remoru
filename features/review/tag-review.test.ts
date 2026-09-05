@@ -5,7 +5,7 @@ import { createMemo } from "@/features/memo/memos";
 import { createQuizItem } from "@/features/quiz/quiz-items";
 import { getDueItems } from "./review";
 import { setTag } from "@/features/tag/tags";
-import { createTestDb } from "@/lib/test-db";
+import { createTestDb } from "@/tests/helpers/test-db";
 
 /**
  * spec「タグは復習に影響しない」を検査で固定する。

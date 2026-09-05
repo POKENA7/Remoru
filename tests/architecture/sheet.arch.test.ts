@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -11,25 +12,62 @@ import { describe, expect, it } from "vitest";
  * ときに静かにずれた。外枠を1つにしたことを、ここで固定する。
  */
 
+const ROOT = process.cwd();
 const read = (p: string) => readFileSync(p, "utf8");
 const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
-const sheet = codeOnly(read("app/sheet.tsx"));
-const css = read("app/globals.css");
+/**
+ * **対象を名前で決めず、内容で選ぶ**（component-directories D5）。
+ *
+ * 以前は `app/memo-detail.tsx` `app/quiz-sheet.tsx` を名指ししていた。
+ * 置き場が変わると落ちるのは良いが、**利用者が増えたときに気づけない**——
+ * 3 つ目のシートを足しても、この一覧に書き忘れれば検査されない。
+ *
+ * `<Sheet` を使っている部品を走査して集める。増えたら自動的に対象になる。
+ */
+function componentFiles(): string[] {
+  const out: string[] = [];
+  const walk = (dir: string) => {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) {
+        if (entry === "node_modules" || entry === "api") continue;
+        walk(full);
+      } else if (entry.endsWith(".tsx") && !entry.includes(".test.")) {
+        out.push(full);
+      }
+    }
+  };
+  for (const r of [join(ROOT, "features"), join(ROOT, "app")]) walk(r);
+  return out;
+}
+
+// `endsWith("sheet.tsx")` だと quiz-sheet.tsx にも当たる。基準名で厳密に見る
+const SHEET_SRC = componentFiles().find((f) => f.split("/").pop() === "sheet.tsx");
+const sheet = codeOnly(read(SHEET_SRC ?? ""));
+const css = read(join(ROOT, "app", "globals.css"));
+
+/** `<Sheet` を使っている部品。名指しではなく内容で選ぶ */
+const USERS = componentFiles().filter((f) => f !== SHEET_SRC && /<Sheet\b/.test(read(f)));
 
 describe("外枠は1つだけ", () => {
+  it("走査で外枠そのものが見つかる", () => {
+    // 起点を間違えて見つからないと、下の検査は空文字を相手にして緑になる
+    expect(SHEET_SRC).toBeDefined();
+  });
+
+  it("走査対象が空でない", () => {
+    expect(USERS.length).toBeGreaterThan(1);
+  });
+
   it("シートの外枠を書いているのは sheet.tsx だけ", () => {
-    for (const f of ["app/memo-detail.tsx", "app/quiz-sheet.tsx"]) {
+    for (const f of USERS) {
       expect(codeOnly(read(f)), `${f} が外枠を自前で書いている`).not.toMatch(
         /className="sheet-backdrop"/,
       );
     }
     expect(sheet).toMatch(/className="sheet-backdrop"/);
-  });
-
-  it("2つのシートが同じ部品を使う", () => {
-    expect(read("app/memo-detail.tsx")).toMatch(/<Sheet\b/);
-    expect(read("app/quiz-sheet.tsx")).toMatch(/<Sheet\b/);
   });
 });
 
@@ -49,11 +87,11 @@ describe("出口は4つある", () => {
   });
 
   it("閉じるボタンを取り除かない", () => {
-    // 増やすのであって、置き換えるのではない（spec の要件）
-    const detail = read("app/memo-detail.tsx");
-    const quiz = read("app/quiz-sheet.tsx");
-    expect(detail).toMatch(/やめる/);
-    expect(quiz).toMatch(/rewriting \? "やめる" : "あとで"/);
+    // 増やすのであって、置き換えるのではない（spec の要件）。
+    // シートを使う部品はどれも、閉じる語を自分で持っている
+    for (const f of USERS) {
+      expect(read(f), `${f} に閉じる言葉が無い`).toMatch(/やめる|あとで|閉じる/);
+    }
   });
 });
 

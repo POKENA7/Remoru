@@ -4,7 +4,7 @@ import { createMemo } from "@/features/memo/memos";
 import { createQuizItem, getQuizItem, replaceQuizText } from "./quiz-items";
 import { MAX_ANSWER_LENGTH, MAX_QUESTION_LENGTH } from "./quiz-text";
 import { gradeReview } from "@/features/review/review";
-import { createTestDb } from "@/lib/test-db";
+import { createTestDb } from "@/tests/helpers/test-db";
 
 /**
  * 問と答の書き直し（change 13）。

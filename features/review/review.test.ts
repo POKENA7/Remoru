@@ -12,7 +12,7 @@ import {
 } from "@/features/quiz/quiz-items";
 import { getDueItems, gradeReview } from "./review";
 import { startOfReviewDay } from "./review-scheduler";
-import { createTestDb } from "@/lib/test-db";
+import { createTestDb } from "@/tests/helpers/test-db";
 
 /** テスト用の利用者。認証導入後は userId が必須になった。 */
 const USER = "user_a";

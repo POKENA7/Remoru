@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createMemo, listMemos, MAX_CONTENT_LENGTH, validateMemoContent } from "./memos";
-import { createTestDb } from "@/lib/test-db";
+import { createTestDb } from "@/tests/helpers/test-db";
 
 /** テスト用の利用者。認証導入後は userId が必須になった。 */
 const USER = "user_a";

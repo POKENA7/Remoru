@@ -3,7 +3,7 @@ import type { AppDb } from "../db/types";
 import { createMemo, deleteMemo, listMemos } from "@/features/memo/memos";
 import { countUnwritten, createQuizItem, getReviewStates } from "@/features/quiz/quiz-items";
 import { getDueItems, gradeReview } from "@/features/review/review";
-import { createTestDb } from "./test-db";
+import { createTestDb } from "@/tests/helpers/test-db";
 
 /**
  * 利用者ごとの分離（design.md D5）。

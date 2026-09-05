@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { memos } from "../db/schema";
+import { memos } from "@/db/schema";
 import { createTestDb } from "./test-db";
 
 describe("createTestDb", () => {

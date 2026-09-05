@@ -26,7 +26,7 @@ export const getTagsByMemo = cache(async () => {
  */
 export const getSuggestionStatus = cache(async () => {
   // **認証を先に確かめる。** 鍵の有無で早く返す形にすると、環境変数次第で
-  // 認証を通らない経路ができる。`query-boundary` の検査は verifySession() が
+  // 認証を通らない経路ができる。`query.arch.test.ts` の検査は verifySession() が
   // 書かれているかしか見ないので、順序を変えるだけで素通りしてしまう
   const userId = await verifySession();
   if (!process.env.ANTHROPIC_API_KEY) return { show: false, untaggedCount: 0 };

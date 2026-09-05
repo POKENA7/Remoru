@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Sheet } from "./sheet";
+import { Sheet } from "@/features/sheet/sheet";
 
 const ERRORS: Record<string, string> = {
   empty: "本文を入力してください",

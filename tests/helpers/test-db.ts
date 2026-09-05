@@ -2,8 +2,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import * as schema from "../db/schema";
-import type { AppDb } from "../db/types";
+import * as schema from "@/db/schema";
+import type { AppDb } from "@/db/types";
 
 const MIGRATIONS_DIR = join(process.cwd(), "drizzle", "migrations");
 

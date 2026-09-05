@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { finishGuide, hasFinishedGuide } from "./first-run";
-import { createTestDb } from "@/lib/test-db";
+import { createTestDb } from "@/tests/helpers/test-db";
 
 /**
  * 埋め戻しの SQL は**マイグレーションから読む**。ここに書き写すと、

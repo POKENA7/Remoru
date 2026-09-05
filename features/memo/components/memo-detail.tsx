@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { MAX_TAG_NAME_LENGTH } from "@/features/tag/tag-text";
-import { QuizSheet } from "./quiz-sheet";
-import { Sheet } from "./sheet";
-import { enterTarget, pickerView } from "./tag-picker";
-import { formatDay, type MemoRow, type TagRef } from "./types";
+import { QuizSheet } from "@/features/quiz/components/quiz-sheet";
+import { Sheet } from "@/features/sheet/sheet";
+import { enterTarget, pickerView } from "@/features/tag/tag-picker";
+import { formatDay, type MemoRow, type TagRef } from "../types";
 
 /**
  * メモの詳細。**全画面**（change 7 D1）。通知の設定と同じ形で、上に

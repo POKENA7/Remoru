@@ -7,7 +7,7 @@ import {
   saveSettings,
   validateSettings,
 } from "./notification-settings";
-import { createTestDb } from "@/lib/test-db";
+import { createTestDb } from "@/tests/helpers/test-db";
 
 const VALID = { enabled: true, hour: 21, timeZone: "Asia/Tokyo" };
 

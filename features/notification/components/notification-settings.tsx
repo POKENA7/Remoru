@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { pushSupported, subscribeToPush } from "./push-subscribe";
+import { pushSupported, subscribeToPush } from "../push-subscribe";
 
 type Settings = { enabled: boolean; hour: number; timeZone: string };
 

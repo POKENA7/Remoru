@@ -11,7 +11,7 @@ import {
   setTag,
   validateTagName,
 } from "./tags";
-import { createTestDb } from "@/lib/test-db";
+import { createTestDb } from "@/tests/helpers/test-db";
 
 const NOW = Date.UTC(2026, 7, 25, 3, 0, 0);
 

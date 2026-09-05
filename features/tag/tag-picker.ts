@@ -1,4 +1,4 @@
-import { validateTagName } from "@/features/tag/tag-text";
+import { validateTagName } from "./tag-text";
 
 export type TagOption = { id: string; name: string };
 

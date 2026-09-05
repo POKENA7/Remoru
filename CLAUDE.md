@@ -59,19 +59,40 @@
 それが使われた時点で、この設計は失敗したということである。何が耐えられなかったのかを
 残さないと、次も同じものを作る。
 
-## 置き場: 機能は `features/`、横断は `lib/`
+## 置き場
 
-機能を持つものは `features/<機能>/`（memo / review / quiz / tag / notification /
-record / first-run）。分類は `openspec/specs/` の capability 名に合わせてある。
-機能を持たず全機能から使われるものだけ `lib/` に置く（`db.ts` `session.ts` と
-テスト補助）。1 つの feature に属さない横断テストも `lib/` に残す。
+```
+features/<機能>/     機能を持つもの。memo / review / quiz / tag / notification /
+                     record / first-run / sheet。分類は openspec/specs/ の
+                     capability 名に合わせてある
+  <機能>.ts          ドメイン。(db, userId, …) を受け取る純関数
+  queries.ts         読み取りの入口。server-only + cache() + verifySession()
+  types.ts  …        その機能の型と純関数
+  components/        画面の部品
+  *.test.ts          対応するテストは隣に置く
+lib/                 **事前設定した外部ライブラリのラッパーだけ。**
+                     db.ts（Drizzle + D1）session.ts（Clerk）
+                     request-clock.ts（React の cache）。ここを何でも入る箱に
+                     しない——一度そうなって整理し直している
+hooks/               アプリ全体で使う React のフック
+tests/               どのモジュールにも属さないテスト
+  architecture/      *.arch.test.ts。設計で決めた規則を実行可能にしたもの
+  helpers/           テスト補助（test-db.ts / test-d1.ts）
+db/                  schema.ts / types.ts と、スキーマの振る舞いのテスト
+app/                 Next.js の規約が置き場を決めるものだけ。
+                     layout.tsx / globals.css / manifest.ts / (app)/ / api/ /
+                     sign-in / sign-up
+```
 
-feature の中は相対 import（`./memos`）、**feature をまたぐときだけ**
+feature の中は相対 import（`./memos` `../memos`）、**feature をまたぐときだけ**
 `@/features/review/review-scheduler` のように絶対パスにする。またいだことが
-import 文から見えるようにするため。実装でまたいでいるのは現在 3 本だけで、
-行き先はすべて `features/review/`。増えたら境界がずれた合図。
+import 文から見えるようにするため。増えたら境界がずれた合図。
 
 `cron-worker/` には `@/` が無い（独自の tsconfig）。そちらからの参照は相対パス。
+
+**`tests/architecture/` と `scripts/harness/` は別物。** 前者はアプリの設計規則を
+検査する（レビュアーがいないので規約ではなく検査で守る）。後者は**検査そのものを
+検査する**（門・hook・`check:*` が壊れた入力で赤くなるか）。
 
 ## 前提
 

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { announcementText } from "@/features/first-run/first-run-text";
-import { pushSupported, subscribeToPush } from "./push-subscribe";
+import { announcementText } from "../first-run-text";
+import { pushSupported, subscribeToPush } from "@/features/notification/push-subscribe";
 
 /**
  * 最初の問答ができたことの告知（design.md D3）。

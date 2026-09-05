@@ -14,7 +14,7 @@
   },
   "include": [
     "src/**/*.ts",
-    "../lib/test-d1.ts",
+    "../tests/helpers/test-d1.ts",
     "../features/notification/notification-timing.ts",
     "../features/notification/notification-message.ts",
     "../features/notification/push.ts",

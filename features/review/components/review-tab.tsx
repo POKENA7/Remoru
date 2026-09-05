@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { cellFills } from "./cells";
-import type { DueItem } from "./types";
+import { cellFills } from "../cells";
+import type { DueItem } from "../types";
 
 /** 進捗マス。規則は app/cells.ts。 */
 function Cells({ total, done }: { total: number; done: number }) {

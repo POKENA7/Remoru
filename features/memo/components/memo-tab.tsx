@@ -2,9 +2,10 @@
 
 import { UserButton } from "@clerk/nextjs";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
-import { stateLabel } from "./detail-selection";
-import { type FreshMemo, takeFresh } from "./fresh-memo";
-import { MAX_CONTENT_LENGTH, type MemoRow } from "./types";
+import { stateLabel } from "../detail-selection";
+import { type FreshMemo, takeFresh } from "../fresh-memo";
+import { MAX_CONTENT_LENGTH } from "../memos";
+import type { MemoRow } from "../types";
 
 const ERRORS: Record<string, string> = {
   empty: "本文を入力してください",

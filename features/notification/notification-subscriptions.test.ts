@@ -5,7 +5,7 @@ import {
   saveSubscription,
   validateSubscription,
 } from "./notification-subscriptions";
-import { createTestDb } from "@/lib/test-db";
+import { createTestDb } from "@/tests/helpers/test-db";
 
 const ENDPOINT_A = "https://push.example.com/a";
 const ENDPOINT_B = "https://push.example.com/b";

@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -15,7 +16,39 @@ import { describe, expect, it } from "vitest";
  * どれも「画面の中に持ってしまった」ことが原因で、症状だけ見ると別々に見える。
  */
 
-const read = (p: string) => readFileSync(p, "utf8");
+const ROOT = process.cwd();
+
+/**
+ * ファイル名で探して読む。**置き場を直書きしない**
+ * （component-directories D4）。部品が `app/` から `features/` へ移っても、
+ * この検査が対象を見失わないようにする。見つからなければ落とす——
+ * 静かに空文字を相手にすると、下の検査が全部緑になる。
+ */
+function find(name: string): string {
+  const hits: string[] = [];
+  const walk = (dir: string) => {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) {
+        if (entry === "node_modules") continue;
+        walk(full);
+      } else if (entry === name) {
+        hits.push(full);
+      }
+    }
+  };
+  for (const r of ["app", "features", "hooks"]) walk(join(ROOT, r));
+  if (hits.length !== 1) throw new Error(`${name} が ${hits.length} 件（1 件であるべき）`);
+  return hits[0];
+}
+
+/** 書いた場所にあればそれを読み、無ければ名前で探す。 */
+const read = (p: string) =>
+  readFileSync(
+    existsSync(join(ROOT, p)) ? join(ROOT, p) : find(p.split("/").pop() as string),
+    "utf8",
+  );
 
 /** コメントを除いた本体だけを返す。言及と使用を区別するため。 */
 function codeOnly(src: string): string {
@@ -59,7 +92,7 @@ describe("一覧の下に置いてはいけない状態", () => {
   });
 
   it("保つ先は sessionStorage で、端末に残り続けない", () => {
-    const src = codeOnly(read("app/session-state.ts"));
+    const src = codeOnly(read("hooks/use-session-state.ts"));
     expect(src).toMatch(/sessionStorage\.getItem/);
     expect(src).toMatch(/sessionStorage\.setItem/);
     // localStorage は寿命が長すぎる。下書きが次の日まで残る

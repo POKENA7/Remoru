@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import type { SuggestionResult } from "./app-shell";
+import type { SuggestionResult } from "../types";
 
 type Summary = { tag: string; count: number };
 type Assignment = { memoId: string; tag: string };

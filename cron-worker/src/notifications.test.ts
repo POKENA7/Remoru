@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SendOne, SendOutcome, Subscription } from "../../features/notification/push";
-import { createTestD1 } from "../../lib/test-d1";
+import { createTestD1 } from "../../tests/helpers/test-d1";
 import { type Env, runNotifications } from "./index";
 
 /** 2026-08-23 12:00 UTC = 同日 21:00 JST。設定の時刻と一致させる。 */

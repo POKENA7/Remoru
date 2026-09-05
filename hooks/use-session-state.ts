@@ -8,7 +8,7 @@ import { useCallback, useEffect, useState } from "react";
  * design.md D3 / D4: 下部タブが `<Link>` になった時点で、タブを移るたびに
  * 画面が unmount される。**書きかけの本文と、受け取ったタグの提案は
  * ここで黙って失われる。** どちらも「まだ確定していない、失うと痛いもの」で、
- * 過去に実際に踏んでいる（app/unmount-boundary.test.ts の冒頭を参照）。
+ * 過去に実際に踏んでいる（tests/architecture/unmount.arch.test.ts の冒頭を参照）。
  *
  * `localStorage` は使わない。端末に残り続ける寿命は、下書きには長すぎる。
  *

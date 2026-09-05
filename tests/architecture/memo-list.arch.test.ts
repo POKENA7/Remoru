@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -11,7 +11,30 @@ import { describe, expect, it } from "vitest";
  * 変えてほしい。ここが落ちたら、その合図。
  */
 
-const SOURCE = readFileSync(join(process.cwd(), "app", "memo-tab.tsx"), "utf8");
+/**
+ * 置き場を直書きしない（component-directories D4）。部品が `app/` から
+ * `features/` へ移っても対象を見失わない。見つからなければ落とす。
+ */
+function find(basename: string): string {
+  const hits: string[] = [];
+  const walk = (dir: string) => {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) {
+        if (entry === "node_modules") continue;
+        walk(full);
+      } else if (entry === basename) {
+        hits.push(full);
+      }
+    }
+  };
+  for (const r of ["features", "app"]) walk(join(process.cwd(), r));
+  if (hits.length !== 1) throw new Error(`${basename} が ${hits.length} 件（1 件であるべき）`);
+  return hits[0];
+}
+
+const SOURCE = readFileSync(find("memo-tab.tsx"), "utf8");
 
 /** コメントを除いた本体だけを返す。言及と使用を区別するため。 */
 function codeOnly(src: string): string {

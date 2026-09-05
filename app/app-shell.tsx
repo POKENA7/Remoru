@@ -2,26 +2,25 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { resolveDetail } from "./detail-selection";
-import { useSessionState } from "./session-state";
-import { FirstRunNotice, type NoticeAnswer } from "./first-run-notice";
-import { announcement } from "./first-run-view";
-import { type FreshMemo, markFresh } from "./fresh-memo";
-import { MemoDetail } from "./memo-detail";
-import { MemoTab } from "./memo-tab";
-import { NotificationSettings } from "./notification-settings";
-import { RecordTab } from "./record-tab";
-import { ReviewTab } from "./review-tab";
-import { TagSuggestionBand } from "./tag-suggestion-band";
-import type { DueItem, MemoRow } from "./types";
+import { resolveDetail } from "@/features/memo/detail-selection";
+import { useSessionState } from "@/hooks/use-session-state";
+import {
+  FirstRunNotice,
+  type NoticeAnswer,
+} from "@/features/first-run/components/first-run-notice";
+import { announcement } from "@/features/first-run/first-run-view";
+import { type FreshMemo, markFresh } from "@/features/memo/fresh-memo";
+import { MemoDetail } from "@/features/memo/components/memo-detail";
+import { MemoTab } from "@/features/memo/components/memo-tab";
+import { NotificationSettings } from "@/features/notification/components/notification-settings";
+import { RecordTab } from "@/features/record/components/record-tab";
+import { ReviewTab } from "@/features/review/components/review-tab";
+import { TagSuggestionBand } from "@/features/tag/components/tag-suggestion-band";
+import type { MemoRow } from "@/features/memo/types";
+import type { DueItem } from "@/features/review/types";
+import type { SuggestionResult } from "@/features/tag/types";
 
 type Tab = "memo" | "review" | "record";
-
-/** 受け取ったタグの提案。承認されるまで保持する。 */
-export type SuggestionResult = {
-  summary: { tag: string; count: number }[];
-  assignments: { memoId: string; tag: string }[];
-} | null;
 
 /**
  * 「作成中」が残る間だけ、上限を決めて一覧を取り直す（design.md D9）。

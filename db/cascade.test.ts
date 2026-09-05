@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { memos, quizItems, reviewSchedules } from "../db/schema";
-import { createTestDb } from "./test-db";
+import { createTestDb } from "@/tests/helpers/test-db";
 
 /**
  * design.md D5: 削除はデータベース側で連鎖させる。

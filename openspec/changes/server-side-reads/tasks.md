@@ -19,7 +19,7 @@
 - [x] 1.4 `server-only` を `lib/db.ts` と各 `queries.ts` に入れる（design D7・D8）。
       **ドメイン関数には付けない**——`cron-worker` が読む 4 本が含まれるため
 - [x] 1.5 1.4 を検査で固定する（L06）。**恒常的に守るのは
-      `lib/query-boundary.test.ts`**（`server-only` の有無・`cache()` の包み・
+      `tests/architecture/query.arch.test.ts`**（`server-only` の有無・`cache()` の包み・
       `verifySession()` の呼び出し・cron が読む 4 本に `server-only` が無いこと）。
       **「実際にビルドが落ちる」ことは注入して一度確かめる**——毎回の検査に
       `next build` は載せられないため。
@@ -38,7 +38,7 @@
 
       注入を戻したあと `next build` は EXIT=0。
 
-      (b) `lib/query-boundary.test.ts` に 4 種の違反を注入し、いずれも EXIT=1:
+      (b) `tests/architecture/query.arch.test.ts` に 4 種の違反を注入し、いずれも EXIT=1:
       `cache()` の包み忘れ / `queries.ts` から `server-only` を外す /
       cron が読む `review-scheduler.ts` に `server-only` を付ける /
       `queries.ts` で `Date.now()` を直に読む。4 つとも戻したあと EXIT=0
@@ -65,7 +65,7 @@
       通せない。タスク 5.1（実機）に委ねる。
       **したがって未完のまま置く。** 実機で 4 経路が開けるのを見たときに印を付ける
 - [ ] 2.3 `navigation` spec のうち、**この段で満たせるものだけ**を検査に書く
-      （`lib/navigation-boundary.test.ts`）。4 つの経路が存在すること、
+      （`tests/architecture/navigation.arch.test.ts`）。4 つの経路が存在すること、
       タブが `<Link>` で経路を移ること、通知の行き先が `/review` であること。
       違反を 3 種注入して赤くなることを確かめた（L06）。
 
@@ -98,8 +98,8 @@
 - [x] 3.2 下書きを `sessionStorage` に逃がす（design D3）。**タスク 2 のレビューで
       前倒しした**——タブを `<Link>` にした時点で回帰が入るため、同じコミットで
       直さないと一時的に壊れた状態が残る。
-      `app/session-state.ts` に `useSessionState` を置き、
-      `app/unmount-boundary.test.ts` を「経路をまたいでも残る場所にあること」を
+      `hooks/use-session-state.ts` に `useSessionState` を置き、
+      `tests/architecture/unmount.arch.test.ts` を「経路をまたいでも残る場所にあること」を
       見る形に強めた。違反を 3 種注入して赤くなることを確かめた（L06）:
       下書きを `useState` に戻す / `localStorage` に変える /
       絞り込みを画面の中に戻す

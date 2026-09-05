@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -9,7 +10,42 @@ import { describe, expect, it } from "vitest";
  * **この2つだけが確保していなかった**。見落としは繰り返すので検査にする。
  */
 
-const css = readFileSync("app/globals.css", "utf8");
+const ROOT = process.cwd();
+
+/**
+ * **対象を名前で決めず、内容で選ぶ**（component-directories D5）。
+ *
+ * 以前は `app/memo-detail.tsx` `app/quiz-sheet.tsx` を名指ししていた。
+ * 置き場が変わると落ちるのは良いが、**押せるものを持つ部品が増えたときに
+ * 気づけない**。基準名で引き当て、見つからなければ落とす。
+ */
+function componentFiles(): string[] {
+  const out: string[] = [];
+  const walk = (dir: string) => {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) {
+        if (entry === "node_modules" || entry === "api") continue;
+        walk(full);
+      } else if (entry.endsWith(".tsx") && !entry.includes(".test.")) {
+        out.push(full);
+      }
+    }
+  };
+  for (const r of [join(ROOT, "features"), join(ROOT, "app")]) walk(r);
+  return out;
+}
+
+const COMPONENTS = componentFiles();
+
+function component(basename: string): string {
+  const hit = COMPONENTS.find((f) => f.split("/").pop() === basename);
+  if (!hit) throw new Error(`${basename} が見つからない（走査 ${COMPONENTS.length} 件）`);
+  return readFileSync(hit, "utf8");
+}
+
+const css = readFileSync(join(ROOT, "app", "globals.css"), "utf8");
 
 /**
  * そのクラスに効く宣言をまとめて返す。
@@ -55,7 +91,7 @@ describe("メモ詳細の押せるものは 44px を確保する", () => {
 
   it("下線だけの文字ボタンを詳細に置かない", () => {
     // 「つくり直す」「消す」がこの形で、的が小さく、色も戻ると同じだった
-    const detail = readFileSync("app/memo-detail.tsx", "utf8");
+    const detail = component("memo-detail.tsx");
     expect(detail).not.toMatch(/className="redo"/);
     expect(detail).not.toMatch(/className="detail-foot"/);
   });
@@ -82,7 +118,7 @@ describe("2版は地に載せる色を使う", () => {
 
   it("日付には版を当てない", () => {
     // 書き直しが触らないものを、形の上で分ける（design.md D2）
-    const detail = readFileSync("app/memo-detail.tsx", "utf8");
+    const detail = component("memo-detail.tsx");
     const dateLine = detail.match(/^.*次は \{formatDay.*$/m)?.[0] ?? "";
     expect(dateLine).toMatch(/className="muted"/);
     expect(dateLine).not.toMatch(/qa-line/);
@@ -90,8 +126,8 @@ describe("2版は地に載せる色を使う", () => {
 });
 
 describe("メモ全体を直す鉛筆（change 14）", () => {
-  const detail = readFileSync("app/memo-detail.tsx", "utf8");
-  const sheet = readFileSync("app/quiz-sheet.tsx", "utf8");
+  const detail = component("memo-detail.tsx");
+  const sheet = component("quiz-sheet.tsx");
 
   it("画面の鉛筆は1つだけ", () => {
     // 本文まで直せるようになり、鉛筆が指すのはこのメモ全体になった。

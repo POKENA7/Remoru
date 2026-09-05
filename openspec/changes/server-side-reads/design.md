@@ -27,7 +27,7 @@ Route を分けるとその持ち上げが効かなくなる。**この change �
 - `features/<機能>/` にデータアクセスが分離済み。Route Handler は
   「認証 → 関数呼び出し → JSON」の薄い殻
 - `lib/session.ts` に `getCurrentUserId()`
-- `auth-boundary` の検査が `lib/` と `features/**` の両方を走査する
+- `auth.arch.test.ts` の検査が `lib/` と `features/**` の両方を走査する
 
 **制約**
 
@@ -160,7 +160,7 @@ notification-timing,notification-message}.ts` と
 `verifySession()` を呼ぶ」と書いていたが、それは既存の境界を壊す。
 
 `features/*/` の関数は `(db, userId, …)` を受け取る純関数で、認証も D1 バインディングも
-知らない。`auth-boundary` の検査が「ドメイン層は認証事業者を知らない」を固定しており、
+知らない。`auth.arch.test.ts` の検査が「ドメイン層は認証事業者を知らない」を固定しており、
 過去の change の D2「利用者の識別子を要求から受け取らない。識別は常にセッションから
 導出する」もこの形で成立している。ここに `verifySession()` を入れると、
 テストが偽の db と任意の `userId` で回せなくなる。
@@ -205,7 +205,7 @@ react の cache(): React の外では 2 回呼べば 2 回実行される
 
 1. **構造の検査**: `queries.ts` を*ファイルとして読み*、公開する関数が全部
    `cache()` で包まれていること・`server-only` があること・逆にドメイン関数には
-   `server-only` が無いことを見る。`auth-boundary` や `scheduler-boundary` と
+   `server-only` が無いことを見る。`auth.arch.test.ts` や `scheduler.arch.test.ts` と
    同じ形で、このリポジトリに前例がある
 2. **実行での確認**: メモ化が実際に効いていることは、一覧を描いたときの
    問い合わせ回数を一度見て確かめる（タスク 3.1）

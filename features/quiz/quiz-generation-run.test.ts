@@ -6,7 +6,7 @@ import { QUIZ_TOOL_NAME } from "./quiz-generation";
 import type { CallModel } from "./quiz-generation-client";
 import { finishGeneration, startGeneration } from "./quiz-generation-run";
 import { getReviewStates } from "./quiz-items";
-import { createTestDb } from "@/lib/test-db";
+import { createTestDb } from "@/tests/helpers/test-db";
 
 const NOW = Date.UTC(2026, 7, 24, 3, 0, 0);
 const CONTENT = "近所のパン屋は火曜定休";

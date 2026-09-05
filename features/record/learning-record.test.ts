@@ -4,7 +4,7 @@ import { memos, quizItems, reviewEvents, reviewSchedules } from "../../db/schema
 import { createMemo } from "@/features/memo/memos";
 import { createQuizItem } from "@/features/quiz/quiz-items";
 import { gradeReview } from "@/features/review/review";
-import { createTestDb } from "@/lib/test-db";
+import { createTestDb } from "@/tests/helpers/test-db";
 
 const NOW = Date.UTC(2026, 7, 26, 3, 0, 0);
 

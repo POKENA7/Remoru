@@ -1,4 +1,4 @@
-import type { MemoRow } from "./types";
+import type { MemoRow } from "@/features/memo/types";
 
 /**
  * 初回の導きを、いま画面に出すかどうか。
