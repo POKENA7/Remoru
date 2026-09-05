@@ -142,9 +142,21 @@ export function MemoScreen({
       memos={memos}
       loading={false}
       onChanged={refresh}
-      // 詳細は固有の経路を持つ（navigation spec）。押すと履歴が積まれるので、
-      // 端末の戻る操作でこの一覧へ返る
-      onOpenDetail={(memo) => router.push(`/memos/${memo.id}`)}
+      /*
+       * 詳細は固有の経路を持つ（navigation spec）。押すと履歴が積まれるので、
+       * 端末の戻る操作でこの一覧へ返る。
+       *
+       * **絞り込みを経路に持って行く。** PWA にはブラウザの戻るが無く、
+       * 下部タブが最も自然な戻り道になる。タブのリンクが `?tag=` を
+       * 引き継げるよう、詳細にいる間も経路が絞り込みを憶えている。
+       */
+      onOpenDetail={(memo) =>
+        router.push(
+          activeTagId
+            ? `/memos/${memo.id}?tag=${encodeURIComponent(activeTagId)}`
+            : `/memos/${memo.id}`,
+        )
+      }
       draft={draft}
       onDraftChange={setDraft}
       fresh={fresh}

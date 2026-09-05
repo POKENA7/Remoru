@@ -35,11 +35,18 @@ describe("主要な画面は固有の経路を持つ", () => {
   it("下部タブは <Link> で、経路を移る", () => {
     const bar = readFileSync(join(ROOT, "app/(app)/tab-bar.tsx"), "utf8");
     expect(bar).toMatch(/from "next\/link"/);
-    // クライアント状態でタブを切り替える形に戻っていないこと
-    expect(bar).not.toMatch(/useState/);
-    for (const href of ["/", "/review", "/record"]) {
-      expect(bar).toContain(`href: "${href}"`);
+    expect(bar).toMatch(/<Link\b/);
+    // クライアント状態でタブを切り替える形に戻っていないこと。
+    // `useState` そのものは禁じない——絞り込みの引き継ぎに使っている
+    expect(bar).not.toMatch(/router\.push/);
+    expect(bar).not.toMatch(/onClick=/);
+    for (const label of ["メモ", "復習", "記録"]) {
+      expect(bar).toContain(`label: "${label}"`);
     }
+    expect(bar).toContain('href: "/review"');
+    expect(bar).toContain('href: "/record"');
+    // メモは絞り込みを引き継ぐので素の "/" ではない
+    expect(bar).toMatch(/memosHref/);
   });
 });
 
@@ -50,7 +57,30 @@ describe("戻る操作は直前に見ていた画面へ返す", () => {
     // クライアント状態で開くと履歴に何も積まれず、端末の戻る操作は
     // 一覧へ戻らずアプリの外へ抜ける（navigation spec の MUST NOT）
     const screen = read("features", "memo", "components", "memo-screen.tsx");
-    expect(screen).toMatch(/router\.push\(`\/memos\/\$\{memo\.id\}`\)/);
+    expect(screen).toMatch(/router\.push\(/);
+    expect(screen).toMatch(/`\/memos\/\$\{memo\.id\}`/);
+  });
+
+  it("絞り込みは復習・記録を経由しても引き継がれる", () => {
+    // `/review` と `/record` は絞り込みを持たないので、経路だけを見ていると
+    // 復習へ移って戻った瞬間に外れる（レビューの指摘、ブラウザで再現した）。
+    // メモ側の経路にいる間に憶えておき、持たない画面ではそれを使う
+    const bar = read("app", "(app)", "tab-bar.tsx");
+    expect(bar).toMatch(/sessionStorage\.setItem\("remoru:tag"/);
+    expect(bar).toMatch(/sessionStorage\.removeItem\("remoru:tag"/);
+    // 憶えるのはメモ側にいるときだけ。復習で null を憶えると戻り先が素の一覧になる
+    expect(bar).toMatch(/if \(!onMemoRoute\) return;/);
+  });
+
+  it("詳細の経路が絞り込みを憶えている", () => {
+    // PWA にはブラウザの戻るが無く、下部タブが戻り道になる。詳細にいる間も
+    // 経路が絞り込みを持っていないと、タブで戻った瞬間に外れる
+    // （memo-capture「戻ったときに絞り込みの状態を保つ」／実機で発覚）
+    const screen = read("features", "memo", "components", "memo-screen.tsx");
+    expect(screen).toMatch(/\/memos\/\$\{memo\.id\}\?tag=/);
+
+    const bar = read("app", "(app)", "tab-bar.tsx");
+    expect(bar).toMatch(/useSearchParams\(\)\.get\("tag"\)/);
   });
 
   it("詳細を閉じるのは履歴を戻る", () => {

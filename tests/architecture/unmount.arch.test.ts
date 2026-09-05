@@ -130,7 +130,7 @@ describe("一覧の下に置いてはいけない状態", () => {
     // id で直接引くようになったのでこの問題自体が消えた。
     // 一覧の中に詳細を持つ形へ戻す変更を、ここで止める
     const src = codeOnly(read("memo-screen.tsx"));
-    expect(src).toMatch(/router\.push\(`\/memos\//);
+    expect(src).toMatch(/`\/memos\/\$\{memo\.id\}/);
     expect(src).not.toMatch(/<MemoDetail\b/);
     expect(src).not.toMatch(/const detail = memos\.find/);
   });
