@@ -22,11 +22,17 @@ export function MemoDetail({
   knownTags,
   onChanged,
   onClose,
+  onDeleted,
 }: {
   memo: MemoRow;
   knownTags: { id: string; name: string }[];
   onChanged: () => void;
   onClose: () => void;
+  /**
+   * 消したあとの行き先。**閉じるのとは分ける。**
+   * 履歴を戻ると、消したメモの経路に当たって「見つかりません」が出る。
+   */
+  onDeleted: () => void;
 }) {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -153,8 +159,7 @@ export function MemoDetail({
         setError("消せませんでした。もう一度お試しください");
         return;
       }
-      onChanged();
-      onClose();
+      onDeleted();
     } catch {
       setError("消せませんでした。もう一度お試しください");
     } finally {

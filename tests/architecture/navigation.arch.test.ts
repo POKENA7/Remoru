@@ -43,6 +43,46 @@ describe("主要な画面は固有の経路を持つ", () => {
   });
 });
 
+describe("戻る操作は直前に見ていた画面へ返す", () => {
+  const read = (...seg: string[]) => readFileSync(join(ROOT, ...seg), "utf8");
+
+  it("詳細は履歴を積んで開く", () => {
+    // クライアント状態で開くと履歴に何も積まれず、端末の戻る操作は
+    // 一覧へ戻らずアプリの外へ抜ける（navigation spec の MUST NOT）
+    const screen = read("features", "memo", "components", "memo-screen.tsx");
+    expect(screen).toMatch(/router\.push\(`\/memos\/\$\{memo\.id\}`\)/);
+  });
+
+  it("詳細を閉じるのは履歴を戻る", () => {
+    // `router.push("/")` にすると履歴が伸び続け、押した回数だけ戻ることになる。
+    // また絞り込み（?tag=）も失われる
+    const screen = read("features", "memo", "components", "memo-detail-screen.tsx");
+    expect(screen).toMatch(/router\.back\(\)/);
+    expect(screen).not.toMatch(/router\.push\("\/"\)/);
+  });
+
+  it("消したあとは戻らず一覧へ送る", () => {
+    // 戻ると、消したメモの経路が履歴に残っているので「見つかりません」に当たる
+    const screen = read("features", "memo", "components", "memo-detail-screen.tsx");
+    expect(screen).toMatch(/onDeleted=\{\(\) => router\.replace\("\/"\)\}/);
+  });
+
+  it("無いメモには「見つかりません」を出す", () => {
+    // 真っ白にせず、一覧へ戻る手段を残す（memo-capture spec）
+    expect(existsSync(join(ROOT, "app", "(app)", "memos", "[memoId]", "not-found.tsx"))).toBe(true);
+    const nf = read("app", "(app)", "memos", "[memoId]", "not-found.tsx");
+    expect(nf).toMatch(/href="\/"/);
+  });
+
+  it("他人のメモと消えたメモを区別しない", () => {
+    // 区別すると、id の総当たりで「そのメモが存在するか」だけ分かってしまう
+    const container = read("app", "(app)", "_containers", "memo-detail", "container.tsx");
+    expect(container).toMatch(/if \(!memo\) notFound\(\)/);
+    const memos = read("features", "memo", "memos.ts");
+    expect(memos).toMatch(/eq\(memos\.userId, userId\)/);
+  });
+});
+
 describe("通知から復習の経路へ入る", () => {
   it("通知のタップ先が復習の経路である", () => {
     expect(REVIEW_URL).toBe("/review");

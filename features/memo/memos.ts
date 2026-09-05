@@ -93,6 +93,22 @@ export async function listMemos(
   return rows.map((r) => r.memo);
 }
 
+/**
+ * メモを1件返す。**持ち主で絞る。**
+ *
+ * 他人のメモの id を経路に入れても `null` を返す（navigation spec
+ * 「他人のメモの詳細は開けない」）。存在しないことと、他人のものである
+ * ことを呼び出し側から区別させない——区別できると、id の総当たりで
+ * 「そのメモが存在するか」だけは分かってしまう。
+ */
+export async function getMemo(db: AppDb, userId: string, memoId: string): Promise<Memo | null> {
+  const rows = await db
+    .select()
+    .from(memos)
+    .where(and(eq(memos.userId, userId), eq(memos.id, memoId)));
+  return rows[0] ?? null;
+}
+
 export type DeleteMemoResult = { ok: true } | { ok: false; error: "not_found" };
 
 /**

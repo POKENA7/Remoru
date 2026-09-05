@@ -10,10 +10,8 @@ import { announcement } from "@/features/first-run/first-run-view";
 import { TagSuggestionBand } from "@/features/tag/components/tag-suggestion-band";
 import type { SuggestionResult } from "@/features/tag/types";
 import { useSessionState } from "@/hooks/use-session-state";
-import { resolveDetail } from "../detail-selection";
 import { type FreshMemo, markFresh } from "../fresh-memo";
 import type { MemoRow } from "../types";
-import { MemoDetail } from "./memo-detail";
 import { MemoTab } from "./memo-tab";
 
 /**
@@ -89,16 +87,6 @@ export function MemoScreen({
   } | null>(null);
   const [noticeAnswer, setNoticeAnswer] = useState<NoticeAnswer>(null);
 
-  /**
-   * 詳細。**タスク 3.5 で経路に移す**（いまはクライアント状態）。
-   *
-   * 最後に見えていたメモを控える。絞り込み中に詳細でタグを外すと、
-   * 取り直した一覧からそのメモが消え、**画面が無言で一覧へ戻る**
-   * （change 6 のレビューで一度直した症状）。`resolveDetail` がこれを防ぐ。
-   */
-  const [detailId, setDetailId] = useState<string | null>(null);
-  const [lastSeenDetail, setLastSeenDetail] = useState<MemoRow | null>(null);
-
   const refresh = useCallback(() => router.refresh(), [router]);
 
   const onSelectTag = useCallback(
@@ -149,37 +137,14 @@ export function MemoScreen({
     return () => clearTimeout(timer);
   }, [generatingKey, polls, router]);
 
-  const detail = resolveDetail(memos, detailId, lastSeenDetail);
-  // 一覧に居る間は最新のものを控え続ける。消えたときの拠り所になる
-  const found = memos.find((m) => m.id === detailId) ?? null;
-  if (found && found !== lastSeenDetail) setLastSeenDetail(found);
-
-  if (detail) {
-    return (
-      <MemoDetail
-        // メモが変わったら作り直す。画面が自分で持つ状態（タグ）を
-        // 前のメモから引き継がせない
-        key={detail.id}
-        memo={detail}
-        knownTags={tags}
-        onChanged={refresh}
-        onClose={() => {
-          setDetailId(null);
-          setLastSeenDetail(null);
-        }}
-      />
-    );
-  }
-
   return (
     <MemoTab
       memos={memos}
       loading={false}
       onChanged={refresh}
-      onOpenDetail={(memo) => {
-        setDetailId(memo.id);
-        setLastSeenDetail(memo);
-      }}
+      // 詳細は固有の経路を持つ（navigation spec）。押すと履歴が積まれるので、
+      // 端末の戻る操作でこの一覧へ返る
+      onOpenDetail={(memo) => router.push(`/memos/${memo.id}`)}
       draft={draft}
       onDraftChange={setDraft}
       fresh={fresh}

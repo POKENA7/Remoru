@@ -113,12 +113,14 @@ describe("一覧の下に置いてはいけない状態", () => {
     expect(page).toMatch(/searchParams/);
     expect(page).toMatch(/tagId=\{tag/);
   });
-  it("詳細の解決は resolveDetail に任せる", () => {
-    // 一覧から探すだけにすると、**絞り込み中にタグを外した瞬間に画面が
-    // 無言で閉じる**。change 6 で一度直し、Container 化で再発した
+  it("詳細は一覧から探さず、経路で開く", () => {
+    // 一覧から探す形にすると、**絞り込み中にタグを外した瞬間に画面が
+    // 無言で閉じる**（change 6 で一度直した）。詳細が固有の経路を持ち、
+    // id で直接引くようになったのでこの問題自体が消えた。
+    // 一覧の中に詳細を持つ形へ戻す変更を、ここで止める
     const src = codeOnly(read("memo-screen.tsx"));
-    expect(src).toMatch(/resolveDetail\(/);
-    // 素の find に戻す変更を、ここで止める
+    expect(src).toMatch(/router\.push\(`\/memos\//);
+    expect(src).not.toMatch(/<MemoDetail\b/);
     expect(src).not.toMatch(/const detail = memos\.find/);
   });
 });

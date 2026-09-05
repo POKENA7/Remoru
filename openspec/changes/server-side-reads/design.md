@@ -222,6 +222,19 @@ react の cache(): React の外では 2 回呼べば 2 回実行される
 次の change で Server Actions にしたとき、これは `revalidatePath()` に置き換わる。
 **つまり `router.refresh()` は途中の形である**。そうと分かる場所にコメントを残す。
 
+### D12: 詳細を経路にすると `resolveDetail` が要らなくなる
+
+`detail-selection.ts` の `resolveDetail` は、**絞り込み中に詳細でタグを外すと
+一覧からそのメモが消え、画面が無言で閉じる**のを防ぐためのものだった
+（change 6 のレビュー）。一覧の配列から探す形だから必要だった。
+
+詳細が固有の経路を持ち、`MemoDetailContainer` が id で直接引くようになると、
+一覧に載っているかどうかと無関係になる。**問題そのものが消える**ので、
+`resolveDetail` とそのテストを削除した。`stateLabel` は残る。
+
+一覧の中に詳細を持つ形へ戻す変更は
+`tests/architecture/unmount.arch.test.ts` で止める。
+
 ### D11: Container は読み取りの失敗を捕まえる。**ただしこれは途中の形**
 
 **レビューの指摘で足した。** 取得を Server Components へ移したとき、

@@ -1,11 +1,7 @@
-import { redirect } from "next/navigation";
+import { MemoDetailContainer } from "../../_containers/memo-detail/container";
 
-/**
- * メモの詳細。
- *
- * **まだ経路として実装していない**（タスク 3.5）。いまは一覧へ送る。
- * 一覧の中で詳細を開く形は残っているので、利用者の導線は切れない。
- */
-export default async function MemoDetailPage() {
-  redirect("/");
+/** メモの詳細。未認証を止めるのは `(app)/layout.tsx`。 */
+export default async function MemoDetailPage({ params }: { params: Promise<{ memoId: string }> }) {
+  const { memoId } = await params;
+  return <MemoDetailContainer memoId={memoId} />;
 }

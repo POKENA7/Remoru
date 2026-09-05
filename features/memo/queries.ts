@@ -3,7 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { getDb } from "@/lib/db";
 import { verifySession } from "@/lib/session";
-import { listMemos } from "./memos";
+import { getMemo, listMemos } from "./memos";
 
 /**
  * Server Components 向けの入口。
@@ -20,4 +20,11 @@ export const getMemos = cache(async (tagId?: string) => {
   const userId = await verifySession();
   const db = await getDb();
   return await listMemos(db, userId, tagId);
+});
+
+/** メモ1件。他人のものと存在しないものは、どちらも `null`。 */
+export const getMemoById = cache(async (memoId: string) => {
+  const userId = await verifySession();
+  const db = await getDb();
+  return await getMemo(db, userId, memoId);
 });
