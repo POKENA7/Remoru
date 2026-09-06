@@ -6,6 +6,8 @@
  * 静かにずれる。
  */
 
+import { registerSubscription } from "./actions";
+
 export type SubscribeOutcome =
   | { ok: true }
   | { ok: false; reason: "blocked" | "declined" | "failed" };
@@ -51,14 +53,15 @@ export async function subscribeToPush(vapidPublicKey: string): Promise<Subscribe
     }));
 
   const json = subscription.toJSON();
-  const res = await fetch("/api/notifications/subscription", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  try {
+    const result = await registerSubscription({
       endpoint: subscription.endpoint,
       p256dh: json.keys?.p256dh,
       auth: json.keys?.auth,
-    }),
-  });
-  return res.ok ? { ok: true } : { ok: false, reason: "failed" };
+    });
+    return result.ok ? { ok: true } : { ok: false, reason: "failed" };
+  } catch {
+    // action に辿り着けない失敗（圏外・配備後の古い識別子。design.md R2b）
+    return { ok: false, reason: "failed" };
+  }
 }

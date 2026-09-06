@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { removeMemo } from "../actions";
+import { assignTag, unassignTag } from "@/features/tag/actions";
 import { MAX_TAG_NAME_LENGTH } from "@/features/tag/tag-text";
 import { QuizSheet } from "@/features/quiz/components/quiz-sheet";
 import { Sheet } from "@/features/sheet/sheet";
@@ -20,13 +22,14 @@ import { formatDay, type MemoRow, type TagRef } from "../types";
 export function MemoDetail({
   memo,
   knownTags,
-  onChanged,
+  answer: initialAnswer,
   onClose,
   onDeleted,
 }: {
   memo: MemoRow;
   knownTags: { id: string; name: string }[];
-  onChanged: () => void;
+  /** そのメモの答え。問答を持たないメモでは null（design.md D7） */
+  answer: string | null;
   onClose: () => void;
   /**
    * 消したあとの行き先。**閉じるのとは分ける。**
@@ -42,10 +45,16 @@ export function MemoDetail({
   /** 作るのか直すのか。鉛筆は直す、「問と答をつくる →」は作る */
   const [writingMode, setWritingMode] = useState<"create" | "rewrite">("rewrite");
   /**
-   * 答え。**一覧の応答には載っていない**ので、詳細を開いたときに引く
-   * （design.md D1）。載せるとメモの数だけ答えを運ぶことになる。
+   * 答え。**サーバーが最初の描画で渡してくる**（design.md D7）。
+   *
+   * 一覧の取得には載っていない（載せるとメモの数だけ答えを運ぶ）ので、
+   * 詳細の Container が 1 件だけ引いている。以前はここから `useEffect` で
+   * 追いかけて取っており、答えの行と鉛筆が一拍遅れて現れていた。
+   *
+   * 状態として持つのは、**この画面で書き直せる**ため。書き直したあとは
+   * ここが最新になる（他のローカルの写しと同じ理由）。
    */
-  const [answer, setAnswer] = useState<string | null>(null);
+  const [answer, setAnswer] = useState<string | null>(initialAnswer);
   /**
    * この画面が持つ本文。
    *
@@ -78,23 +87,6 @@ export function MemoDetail({
     backRef.current?.focus({ preventScroll: true });
   }, []);
 
-  // 答えを引く。問答が無いメモでは引かない
-  useEffect(() => {
-    if (review.kind !== "scheduled") return;
-    let alive = true;
-    void fetch(`/api/memos/${memo.id}/quiz-item`)
-      .then((r) => (r.ok ? (r.json() as Promise<{ quizItem: { answer: string } }>) : null))
-      .then((d) => {
-        if (alive && d) setAnswer(d.quizItem.answer);
-      })
-      .catch(() => {
-        // 引けなくても問と出題日は読める。答えの行だけ出さない
-      });
-    return () => {
-      alive = false;
-    };
-  }, [memo.id, review.kind]);
-
   const current: TagRef | undefined = tags[0];
 
   async function assign(tagName: string) {
@@ -102,20 +94,15 @@ export function MemoDetail({
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/memos/${memo.id}/tag`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: tagName }),
-      });
-      if (!res.ok) {
+      const result = await assignTag(memo.id, tagName);
+      if (!result.ok) {
         setError("つけられませんでした。もう一度お試しください");
         return;
       }
-      const { tag } = (await res.json()) as { tag: TagRef };
-      setTags([tag]);
+      // 一覧の取り直しは action の中の `refresh()` が済ませている
+      setTags([result.tag]);
       setName("");
       setPicking(false);
-      onChanged();
     } catch {
       setError("つけられませんでした。もう一度お試しください");
     } finally {
@@ -128,17 +115,12 @@ export function MemoDetail({
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/memos/${memo.id}/tag`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tagId }),
-      });
-      if (!res.ok) {
+      const result = await unassignTag(memo.id, tagId);
+      if (!result.ok) {
         setError("外せませんでした。もう一度お試しください");
         return;
       }
       setTags([]);
-      onChanged();
     } catch {
       setError("外せませんでした。もう一度お試しください");
     } finally {
@@ -151,16 +133,22 @@ export function MemoDetail({
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/memos/${memo.id}`, { method: "DELETE" });
-      if (!res.ok) {
+      const result = await removeMemo(memo.id);
+      if (!result.ok) {
         // 消えていないのでシートは閉じない。押し直せる状態のまま残す
-        // （design.md D5）。閉じてから結果が分かる形だと、どこで失敗した
+        // （change 7 D5）。閉じてから結果が分かる形だと、どこで失敗した
         // のかが分からなくなる。
         setError("消せませんでした。もう一度お試しください");
         return;
       }
       onDeleted();
     } catch {
+      /*
+       * **action を呼ぶ側の try/catch は残す。** action の中の失敗は
+       * 戻り値になるが（design.md D4）、そこへ辿り着けない失敗は別にある——
+       * 圏外、そして配備で action の識別子が変わったあとに古いビルドから
+       * 呼んだ場合（design.md R2b）。どちらも throw で届く。
+       */
       setError("消せませんでした。もう一度お試しください");
     } finally {
       setBusy(false);
@@ -210,6 +198,13 @@ export function MemoDetail({
             type="button"
             className="pencil"
             aria-label="このメモを書き直す"
+            /*
+             * 答えが無いのに書き直しを開かせない。**以前はこれが「まだ
+             * 取得できていない」の意味だった**が、いまはサーバーが最初の
+             * 描画で渡してくる（design.md D7）ので、ここが真になるのは
+             * 問答とスケジュールが食い違っている場合だけである。
+             * 空欄で開くと、押した瞬間に答えを消してしまう。
+             */
             disabled={busy || (review.kind === "scheduled" && answer === null)}
             onClick={() => {
               setWritingMode("rewrite");
@@ -462,7 +457,6 @@ export function MemoDetail({
               });
               setAnswer(created.answer);
             }
-            onChanged();
           }}
           onLater={() => setWriting(false)}
         />

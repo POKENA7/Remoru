@@ -6,6 +6,7 @@ import {
   FirstRunNotice,
   type NoticeAnswer,
 } from "@/features/first-run/components/first-run-notice";
+import { markGuided } from "@/features/first-run/actions";
 import { announcement } from "@/features/first-run/first-run-view";
 import { TagSuggestionBand } from "@/features/tag/components/tag-suggestion-band";
 import type { SuggestionResult } from "@/features/tag/types";
@@ -18,10 +19,9 @@ import { MemoTab } from "./memo-tab";
  * メモの一覧の画面。**取得はしない**——渡されたものを表示し、
  * 利用者の操作に応じた状態だけを持つ（design.md D2）。
  *
- * データは `app/(app)/_containers/memo-list/` が Server Components で取り、
- * 書き込みのあとは `router.refresh()` でサーバーの描画ごと取り直す。
- * 次の change で Server Actions にしたとき、これは `revalidatePath()` に
- * 置き換わる。**つまり `router.refresh()` は途中の形である**（design.md D9）。
+ * データは `app/(app)/_containers/memo-list/` が Server Components で取る。
+ * **書き込みのあとの取り直しは action の中の `refresh()` が行う**ので、
+ * この画面は何もしない（server-actions-for-writes design.md D5）。
  */
 
 /**
@@ -40,6 +40,7 @@ export function MemoScreen({
   suggestion,
   guided,
   activeTagId,
+  vapidPublicKey,
 }: {
   memos: MemoRow[];
   tags: { id: string; name: string; count: number }[];
@@ -48,6 +49,13 @@ export function MemoScreen({
   guided: boolean;
   /** 絞り込むタグ。経路が持つ（`/?tag=`） */
   activeTagId: string | null;
+  /**
+   * VAPID の公開鍵。初回の告知で通知を差し出せるかの判断に要る。
+   *
+   * サーバーが最初の描画で渡す（design.md D8）。以前は告知の部品が
+   * `/api/notifications/settings` を叩いて確かめていた。
+   */
+  vapidPublicKey: string | null;
 }) {
   const router = useRouter();
 
@@ -87,8 +95,6 @@ export function MemoScreen({
   } | null>(null);
   const [noticeAnswer, setNoticeAnswer] = useState<NoticeAnswer>(null);
 
-  const refresh = useCallback(() => router.refresh(), [router]);
-
   const onSelectTag = useCallback(
     (next: string | null) => {
       router.replace(next ? `/?tag=${encodeURIComponent(next)}` : "/");
@@ -108,8 +114,9 @@ export function MemoScreen({
     if (!next) return;
     setNotice(next);
     // 記録に失敗しても告知は出したままにする。次に開いたときにまた出るが、
-    // 一度も見せないよりよい
-    void fetch("/api/first-run", { method: "POST" }).catch(() => {});
+    // 一度も見せないよりよい。**この action は `refresh()` を呼ばない**——
+    // 呼ぶと `guided` が真になった状態で描き直され、出した瞬間に消える
+    void markGuided().catch(() => {});
   }, [guided, memos, notice]);
 
   // 生成中のメモの並び。変わったら数え直す（新しく書いたときなど）
@@ -132,6 +139,14 @@ export function MemoScreen({
     if (generatingKey === "" || polls >= MAX_POLLS) return;
     const timer = setTimeout(() => {
       setPolls((n) => n + 1);
+      /*
+       * **ここの `router.refresh()` は残る**（server-actions-for-writes D5）。
+       *
+       * 書き込みのあとの取り直しは action の中の `refresh()` が行うので、
+       * 画面からは全部消えた。これだけは別物で、**応答を返したあとに走る
+       * 生成の完了を待っている**——対応する action が無く、「いま取り直したい」
+       * と判断できるのはこの画面だけである。
+       */
       router.refresh();
     }, POLL_INTERVAL_MS);
     return () => clearTimeout(timer);
@@ -141,7 +156,6 @@ export function MemoScreen({
     <MemoTab
       memos={memos}
       loading={false}
-      onChanged={refresh}
       /*
        * 詳細は固有の経路を持つ（navigation spec）。押すと履歴が積まれるので、
        * 端末の戻る操作でこの一覧へ返る。
@@ -173,6 +187,7 @@ export function MemoScreen({
                 <FirstRunNotice
                   nextReviewAt={notice.nextReviewAt}
                   now={notice.now}
+                  vapidPublicKey={vapidPublicKey}
                   answer={noticeAnswer}
                   onAnswer={setNoticeAnswer}
                 />
@@ -186,8 +201,6 @@ export function MemoScreen({
             untaggedCount={suggestion.untaggedCount}
             result={suggestionResult}
             onResult={setSuggestionResult}
-            onApplied={refresh}
-            onDismissed={refresh}
           />
         ) : null
       }

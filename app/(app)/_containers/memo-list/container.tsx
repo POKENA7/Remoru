@@ -29,6 +29,7 @@ export async function MemoListContainer({ tagId }: { tagId: string | null }) {
         suggestion={{ show: false, untaggedCount: 0 }}
         guided={true}
         activeTagId={tagId}
+        vapidPublicKey={null}
       />
     );
   }
@@ -57,6 +58,12 @@ async function render(tagId: string | null) {
       suggestion={suggestion}
       guided={guided}
       activeTagId={tagId}
+      /*
+       * 初回の告知が通知を差し出せるかの判断に要る（design.md D8）。
+       * 公開鍵なので隠す必要はなく、ビルド時に埋め込まないために
+       * `process.env` から読む（本番では `wrangler secret` で入れ替える）。
+       */
+      vapidPublicKey={process.env.VAPID_PUBLIC_KEY ?? null}
     />
   );
 }

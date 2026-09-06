@@ -1,18 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { rewriteMemoContent } from "@/features/memo/actions";
+import type { RewriteContentReason } from "@/features/memo/types";
 import { Sheet } from "@/features/sheet/sheet";
+import { rewriteQuiz, writeQuiz } from "../actions";
+import type { WriteQuizReason } from "../types";
 
-const ERRORS: Record<string, string> = {
+/**
+ * 失敗の理由を利用者の言葉にする。
+ *
+ * design.md D3: **総当たりの対応表にする。** `Record<string, string>` だった
+ * ころは `FALLBACK` が要り、しかも `too_long_content` という**どの経路からも
+ * 返らない鍵**が混じっていた（誰も気づけなかった）。理由が union になった
+ * ので、余った鍵も足りない鍵も型検査で出る。
+ */
+const ERRORS: Record<WriteQuizReason | RewriteContentReason, string> = {
   empty: "本文を入力してください",
-  too_long_content: `本文が長すぎます`,
   empty_question: "問を入力してください",
   empty_answer: "答を入力してください",
   too_long: "長すぎます。ひとことで書いてください",
   memo_not_found: "メモが見つかりませんでした",
+  not_found: "メモが見つかりませんでした",
   already_exists: "このメモにはすでに問と答があります",
+  failed: "保存できませんでした。もう一度お試しください",
 };
-const FALLBACK = "保存できませんでした。もう一度お試しください";
+
+type Done = { content: string; question: string; answer: string; nextReviewAt: number };
+
+type SheetState =
+  | { status: "idle" }
+  | { status: "done"; done: Done }
+  | { status: "error"; reason: WriteQuizReason | RewriteContentReason };
+
+const IDLE: SheetState = { status: "idle" };
 
 /**
  * 問と答のシート。2つの経路から開く（design.md D6）。
@@ -66,15 +87,15 @@ export function QuizSheet({
   const [answer, setAnswer] = useState(initial?.answer ?? "");
   /** 問と答の欄を出すか。作成のときと、既に持っているときだけ */
   const withQuiz = mode === "create" || initial !== undefined;
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (saving) return;
-    setSaving(true);
-    setError(null);
-
+  /**
+   * 保存は Server Action を 2 つ、順に呼ぶ。
+   *
+   * **生の action を `useActionState` に渡さない**（design.md D2）。ここは
+   * 2 つの action を順序づけて呼ぶ必要があり、また通信の失敗が
+   * error boundary へ飛ぶと入力中の問と答が消える。どちらの理由でも、
+   * クライアント側の関数で包む。
+   */
+  const [state, formAction, saving] = useActionState(async (): Promise<SheetState> => {
     try {
       /*
        * **本文を先に書く**（change 14 D4）。2つの表にまたがるので、まとめて
@@ -84,52 +105,53 @@ export function QuizSheet({
        * 変更が無い側は書かない。触っていない問答へ要求を投げない。
        */
       if (rewriting && content.trim() !== memoContent) {
-        const res = await fetch(`/api/memos/${memoId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content }),
-        });
-        if (!res.ok) {
-          const data = (await res.json()) as { error?: string };
-          setError(ERRORS[data.error ?? ""] ?? FALLBACK);
-          return;
-        }
+        const written = await rewriteMemoContent(memoId, content);
+        if (!written.ok) return { status: "error", reason: written.reason };
       }
 
       if (!withQuiz) {
         // 問答を持たないメモ。本文だけ直して終わり（change 14 D3）
-        onDone({ content: content.trim(), question, answer, nextReviewAt: 0 });
-        return;
+        return {
+          status: "done",
+          done: { content: content.trim(), question, answer, nextReviewAt: 0 },
+        };
       }
 
-      const res = await fetch(`/api/memos/${memoId}/quiz-item`, {
-        // 書き直しは置き換え。作成と保存先を分ける
-        method: rewriting ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, answer }),
-      });
-      const data = (await res.json()) as {
-        error?: string;
-        quizItem?: { question: string; answer?: string };
-        nextReviewAt?: number;
+      // 書き直しは置き換え、作成は新規。保存先を分ける
+      const result = rewriting
+        ? await rewriteQuiz(memoId, question, answer)
+        : await writeQuiz(memoId, question, answer);
+      // 失敗しても入力は消さない。そのまま押し直せる
+      if (!result.ok) return { status: "error", reason: result.reason };
+
+      return {
+        status: "done",
+        done: {
+          content: content.trim(),
+          question: result.question,
+          answer: result.answer,
+          nextReviewAt: result.nextReviewAt,
+        },
       };
-      if (!res.ok) {
-        // 失敗しても入力は消さない。そのまま押し直せる
-        setError(ERRORS[data.error ?? ""] ?? FALLBACK);
-        return;
-      }
-      onDone({
-        content: content.trim(),
-        question: data.quizItem?.question ?? question,
-        answer: data.quizItem?.answer ?? answer,
-        nextReviewAt: data.nextReviewAt ?? Date.now(),
-      });
     } catch {
-      setError(FALLBACK);
-    } finally {
-      setSaving(false);
+      return { status: "error", reason: "failed" };
     }
-  }
+  }, IDLE);
+
+  /** 打鍵したら、前の失敗の表示を引っ込める（memo-tab と同じ形） */
+  const [dismissed, setDismissed] = useState<SheetState | null>(null);
+  const error = state.status === "error" && state !== dismissed ? ERRORS[state.reason] : null;
+  const clearError = () => {
+    if (state.status === "error") setDismissed(state);
+  };
+
+  /** 保存できたら親へ返す。同じ結果で 2 度走らせない */
+  const handled = useRef<SheetState | null>(null);
+  useEffect(() => {
+    if (state.status !== "done" || handled.current === state) return;
+    handled.current = state;
+    onDone(state.done);
+  }, [state, onDone]);
 
   const ready =
     content.trim().length > 0 &&
@@ -137,7 +159,7 @@ export function QuizSheet({
 
   return (
     <Sheet label={rewriting ? "問と答の書き直し" : "問と答の作成"} onClose={onLater}>
-      <form onSubmit={submit}>
+      <form action={formAction}>
         <p className="sheet-label">{rewriting ? "このメモを直す" : "書きとめた"}</p>
 
         {/* 書き直しでは本文も直せる（change 14 D1）。作成では読むだけ */}
@@ -150,7 +172,7 @@ export function QuizSheet({
               value={content}
               onChange={(e) => {
                 setContent(e.target.value);
-                if (error) setError(null);
+                clearError();
               }}
               autoFocus
             />
@@ -173,7 +195,7 @@ export function QuizSheet({
               value={question}
               onChange={(e) => {
                 setQuestion(e.target.value);
-                if (error) setError(null);
+                clearError();
               }}
               placeholder="なにを思い出したい？"
               autoFocus={!rewriting}
@@ -189,7 +211,7 @@ export function QuizSheet({
               value={answer}
               onChange={(e) => {
                 setAnswer(e.target.value);
-                if (error) setError(null);
+                clearError();
               }}
               placeholder="ひとことで"
             />

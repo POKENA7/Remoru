@@ -15,9 +15,12 @@ import { MemoDetail } from "./memo-detail";
 export function MemoDetailScreen({
   memo,
   knownTags,
+  answer,
 }: {
   memo: MemoRow;
   knownTags: { id: string; name: string; count: number }[];
+  /** そのメモの答え。問答を持たないメモでは null（design.md D7） */
+  answer: string | null;
 }) {
   const router = useRouter();
 
@@ -28,13 +31,12 @@ export function MemoDetailScreen({
    * 当たる場合がある。
    */
   const close = useCallback(() => router.back(), [router]);
-  const refresh = useCallback(() => router.refresh(), [router]);
 
   return (
     <MemoDetail
       memo={memo}
       knownTags={knownTags}
-      onChanged={refresh}
+      answer={answer}
       onClose={close}
       onDeleted={() => router.replace("/")}
     />

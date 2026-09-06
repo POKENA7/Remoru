@@ -22,28 +22,29 @@ function codeOnly(src: string): string {
   return src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 }
 
-function routeFiles(dir: string): string[] {
-  const found: string[] = [];
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) found.push(...routeFiles(full));
-    else if (entry === "route.ts") found.push(full);
-  }
-  return found;
+const FEATURES = join(ROOT, "features");
+
+/** 書き込みの入口。`features/<機能>/actions.ts` に置く（design.md D1）。 */
+function actionFiles(): { name: string; code: string }[] {
+  return readdirSync(FEATURES)
+    .filter((d) => existsSync(join(FEATURES, d, "actions.ts")))
+    .map((d) => ({
+      name: `features/${d}/actions.ts`,
+      code: codeOnly(readFileSync(join(FEATURES, d, "actions.ts"), "utf8")),
+    }));
 }
 
-const ROUTES = routeFiles(join(ROOT, "app", "api"));
+const ACTIONS = actionFiles();
 
-/** HTTP のハンドラごとに、その関数の本体だけを切り出す。 */
-function handlers(src: string): [string, string][] {
+/** export された関数ごとに、その関数の本体だけを切り出す。 */
+function exportedFunctions(src: string): [string, string][] {
   const found: [string, string][] = [];
-  const re = /export\s+async\s+function\s+(GET|POST|PUT|PATCH|DELETE)\s*\(/g;
+  const re = /export\s+async\s+function\s+(\w+)\s*\(/g;
 
   for (const match of src.matchAll(re)) {
-    // 引数の分割代入（{ params }: { params: ... }）を本体と取り違えないよう、
-    // まず引数の丸括弧を閉じてから最初の波括弧を探す
+    // 引数の分割代入を本体と取り違えないよう、まず引数の丸括弧を閉じる
     let parens = 0;
-    let afterArgs = match.index! + match[0].length - 1;
+    let afterArgs = (match.index ?? 0) + match[0].length - 1;
     for (let i = afterArgs; i < src.length; i++) {
       if (src[i] === "(") parens++;
       else if (src[i] === ")") {
@@ -55,7 +56,6 @@ function handlers(src: string): [string, string][] {
       }
     }
     const start = src.indexOf("{", afterArgs);
-    // 波括弧の対応を数えて、この関数の終わりまでを本体とする
     let depth = 0;
     let end = start;
     for (let i = start; i < src.length; i++) {
@@ -73,38 +73,177 @@ function handlers(src: string): [string, string][] {
   return found;
 }
 
-describe("API ルートの認証", () => {
-  it("ルートが1つ以上見つかる", () => {
-    expect(ROUTES.length).toBeGreaterThan(0);
+/**
+ * export された関数の「引数の並び」だけを切り出す。
+ *
+ * 本体は `exportedFunctions` が返すので、こちらは型注釈を読むために使う。
+ */
+function exportedSignatures(src: string): [string, string][] {
+  const found: [string, string][] = [];
+  const re = /export\s+async\s+function\s+(\w+)\s*\(/g;
+
+  for (const match of src.matchAll(re)) {
+    const open = (match.index ?? 0) + match[0].length - 1;
+    let parens = 0;
+    let close = open;
+    for (let i = open; i < src.length; i++) {
+      if (src[i] === "(") parens++;
+      else if (src[i] === ")") {
+        parens--;
+        if (parens === 0) {
+          close = i;
+          break;
+        }
+      }
+    }
+    found.push([match[1], src.slice(open + 1, close)]);
+  }
+  return found;
+}
+
+/**
+ * 引数の並びを、深さ 0 のカンマで割って `名前: 型` に分ける。
+ *
+ * オブジェクト型の中のカンマで割らないよう、括弧の深さを数える。
+ */
+function topLevelParams(args: string): { param: string; type: string }[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let current = "";
+  for (const ch of args) {
+    if (ch === "{" || ch === "(" || ch === "[" || ch === "<") depth++;
+    else if (ch === "}" || ch === ")" || ch === "]" || ch === ">") depth--;
+    if (ch === "," && depth === 0) {
+      parts.push(current);
+      current = "";
+    } else current += ch;
+  }
+  if (current.trim()) parts.push(current);
+
+  return parts.flatMap((part) => {
+    const colon = part.indexOf(":");
+    if (colon === -1) return [];
+    const param = part.slice(0, colon).trim();
+    // 使わない引数（`_prev` など）は呼び出し側が形を決められない
+    if (!/^\w+$/.test(param) || param.startsWith("_")) return [];
+    return [{ param, type: part.slice(colon + 1).trim() }];
+  });
+}
+
+describe("Server Actions の認証", () => {
+  it("走査対象が空でない", () => {
+    // 置き場を間違えて 0 件になっても、下の検査は緑になってしまう（L06）
+    expect(ACTIONS.length).toBeGreaterThan(3);
   });
 
-  for (const file of ROUTES) {
-    const rel = file.slice(ROOT.length + 1);
-    const src = codeOnly(readFileSync(file, "utf8"));
+  for (const { name, code } of ACTIONS) {
+    it(`${name} は "use server" を宣言している`, () => {
+      // 宣言が無いと、ここは普通のモジュールとしてクライアントへ束ねられる
+      expect(code).toMatch(/^\s*["']use server["']/);
+    });
 
-    // **ファイル単位では足りない。** 1つのファイルに GET と PUT が同居して
-    // いると、片方の確認を丸ごと消してももう片方の分に一致して緑のままに
-    // なる。実際 quiz-item のルートは POST と PUT の2つを持っている。
-    for (const [name, body] of handlers(src)) {
-      it(`${rel} の ${name} はセッションから利用者を得ている`, () => {
-        expect(body).toMatch(/getCurrentUserId\s*\(/);
+    /**
+     * **関数単位で見る。** ファイル単位だと、1 つの action から
+     * `verifySession()` を消しても、同じファイルの別の action の分に
+     * 一致して緑のままになる。`features/tag/actions.ts` は 5 つ持っている。
+     */
+    const functions = exportedFunctions(code);
+
+    it(`${name} は export された関数を持つ`, () => {
+      expect(functions.length).toBeGreaterThan(0);
+    });
+
+    for (const [fn, body] of functions) {
+      it(`${name} の ${fn} は自分でセッションを確かめている`, () => {
+        /*
+         * Server Action は**公開された POST の宛先**である。呼び出し元の画面が
+         * 認証済みであることは、認証済みの呼び出ししか来ない担保にならない
+         * （design.md D6）。画面の描画で守ろうとすると、UI を経由しない
+         * 要求が素通りする。
+         */
+        expect(body).toMatch(/verifySession\(\)/);
       });
 
-      it(`${rel} の ${name} は未認証を自前で弾いている（middleware だけに頼らない）`, () => {
-        expect(body).toMatch(/if\s*\(\s*!userId\s*\)/);
-        expect(body).toMatch(/401/);
+      it(`${name} の ${fn} は try の外でセッションを確かめている`, () => {
+        /*
+         * **`verifySession()` は未認証のとき `redirect()` で投げる。**
+         * try の中で呼ぶと、その `NEXT_REDIRECT` を `catch` が飲み込み、
+         * セッションの切れた利用者はサインインへ飛ばされずに「保存できません
+         * でした」を見る（design.md D4）。
+         *
+         * 型でも実行でも出ない。**レビューで指摘されて初めて見つかった**ので、
+         * 検査にする。
+         */
+        const auth = body.indexOf("verifySession()");
+        const guard = body.indexOf("try {");
+        expect(auth, "verifySession() の呼び出しが見つからない").toBeGreaterThan(-1);
+        if (guard === -1) return; // try で包んでいない action もありうる
+        expect(auth).toBeLessThan(guard);
       });
     }
 
-    it(`${rel} は要求由来の値を userId に渡していない`, () => {
-      // body / searchParams / params から取り出した値が userId に入る形を禁じる
-      expect(src).not.toMatch(/userId\s*[:=]\s*(body|params|searchParams)\b/);
-      expect(src).not.toMatch(/userId\s*[:=]\s*await\s+req\b/);
-      expect(src).not.toMatch(/\buserId\b\s*[:=]\s*\(?\s*body\s*(as|\.)/);
-      // 分割代入で body から userId を取り出す形も禁じる
-      expect(src).not.toMatch(/const\s*\{[^}]*\buserId\b[^}]*\}\s*=\s*\(?\s*body/);
+    /**
+     * **型注釈は実行時に消える。**
+     *
+     * Server Action は公開された POST の宛先なので、宣言と違う値が届く。
+     * とくに `boolean` と `number` が危ない——`recalled: boolean` に文字列
+     * `"false"` が届くと `if (!outcome.recalled)` を素通りし、「忘れてた」が
+     * 「覚えてた」として記録される。**型でも実行でも出ず、復習の間隔だけが
+     * 静かに壊れる。** Route Handler にはあった検査で、action へ移したときに
+     * 落としていた（レビューで指摘された）。
+     *
+     * 見るのは**引数そのものが `boolean` / `number` の場合**だけ。オブジェクトを
+     * 受け取る action は、下の検査で `validate…()` を通すことを求める。
+     * 文字列はどちらでも見ない——ドメイン側の検証が `.trim()` などで throw し、
+     * `catch` が失敗に倒すため（それでも各 action で確かめてはいる）。
+     */
+    for (const [fn, args] of exportedSignatures(code)) {
+      const body = functions.find(([n]) => n === fn)?.[1] ?? "";
+
+      for (const { param, type } of topLevelParams(args)) {
+        if (type === "boolean") {
+          it(`${name} の ${fn} は ${param} が本当に boolean か確かめている`, () => {
+            expect(body).toMatch(new RegExp(`typeof\\s+${param}\\s*!==\\s*["']boolean["']`));
+          });
+        }
+        if (type === "number") {
+          it(`${name} の ${fn} は ${param} が本当に number か確かめている`, () => {
+            expect(body).toMatch(
+              new RegExp(
+                `Number\\.isFinite\\(\\s*${param}|typeof\\s+${param}\\s*!==\\s*["']number["']`,
+              ),
+            );
+          });
+        }
+        if (type.startsWith("{") || type.endsWith("[]")) {
+          it(`${name} の ${fn} は ${param} の形を実行時に確かめている`, () => {
+            // オブジェクトや配列は 1 つずつ typeof で書くと長い。
+            // `validate…()` に通すか、`Array.isArray` で入口を閉じる
+            expect(body).toMatch(
+              new RegExp(`validate\\w*\\(\\s*${param}|Array\\.isArray\\(\\s*${param}`),
+            );
+          });
+        }
+      }
+    }
+
+    it(`${name} は利用者の識別子を引数で受け取っていない`, () => {
+      // 値を渡せる構造にすると、差し替えるだけで他人のデータに到達できる
+      expect(code).not.toMatch(/\buserId\s*:\s*string\b/);
+      expect(code).not.toMatch(/userId\s*[:=]\s*(params|args|input)\b/);
     });
   }
+
+  it("Route Handler は残っていない", () => {
+    /*
+     * 書き込みは全部 Server Actions に移った（design.md D9）。`app/api/` が
+     * 戻ってきたら気づけるようにする。**この検査が無いと、上の走査対象が
+     * `actions.ts` だけなので、Route Handler を足しても誰も見ない。**
+     *
+     * サイト外からの操作（Webhook など）で必要になったら、そのときここを直す。
+     */
+    expect(existsSync(join(ROOT, "app", "api"))).toBe(false);
+  });
 });
 
 describe("画面の保護", () => {

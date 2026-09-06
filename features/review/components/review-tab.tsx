@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { recordGrade } from "../actions";
 import { cellFills } from "../cells";
 import type { DueItem } from "../types";
 
@@ -71,12 +72,8 @@ export function ReviewTab({
     setError(null);
 
     try {
-      const res = await fetch(`/api/review/${item.quizItemId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recalled, occurrenceAt: item.occurrenceAt }),
-      });
-      if (!res.ok) {
+      const result = await recordGrade(item.quizItemId, recalled, item.occurrenceAt);
+      if (!result.ok) {
         // 記録できていないので進めない。押し直せる状態のまま残す。
         setError("記録できませんでした。もう一度押してください");
         return;

@@ -67,7 +67,9 @@ features/<機能>/     機能を持つもの。memo / review / quiz / tag / noti
                      capability 名に合わせてある
   <機能>.ts          ドメイン。(db, userId, …) を受け取る純関数
   queries.ts         読み取りの入口。server-only + cache() + verifySession()
-  types.ts  …        その機能の型と純関数
+  actions.ts         書き込みの入口。"use server" + verifySession() + refresh()
+                     queries.ts と対。失敗は throw せず戻り値で返す
+  types.ts  …        その機能の型と純関数。action の結果の型もここ
   components/        画面の部品
   *.test.ts          対応するテストは隣に置く
 lib/                 **事前設定した外部ライブラリのラッパーだけ。**
@@ -80,8 +82,9 @@ tests/               どのモジュールにも属さないテスト
   helpers/           テスト補助（test-db.ts / test-d1.ts）
 db/                  schema.ts / types.ts と、スキーマの振る舞いのテスト
 app/                 Next.js の規約が置き場を決めるものだけ。
-                     layout.tsx / globals.css / manifest.ts / (app)/ / api/ /
-                     sign-in / sign-up
+                     layout.tsx / globals.css / manifest.ts / (app)/ /
+                     sign-in / sign-up。**Route Handler は無い**——書き込みは
+                     Server Actions、読み取りは Server Components が行う
 ```
 
 feature の中は相対 import（`./memos` `../memos`）、**feature をまたぐときだけ**

@@ -1,51 +1,52 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
+import { saveNotificationSettings, unregisterSubscription } from "../actions";
 import { pushSupported, subscribeToPush } from "../push-subscribe";
+import type { NotificationPayload } from "../types";
 
 type Settings = { enabled: boolean; hour: number; timeZone: string };
 
-type Payload = {
-  settings: Settings;
-  selectableHours: number[];
-  vapidPublicKey: string | null;
-};
-
-export function NotificationSettings({ onClose }: { onClose: () => void }) {
-  const [payload, setPayload] = useState<Payload | null>(null);
+/**
+ * 通知の設定。**取得はしない**（design.md D8）。
+ *
+ * 設定は `/review` の Container が読み、props で届く。以前はここで開いてから
+ * `/api/notifications/settings` を叩いており、開くたびに「読み込み中」が
+ * 挟まっていた。
+ *
+ * 保存したあとの値はこの画面が持つ。`refresh()` で新しい props も届くが、
+ * 往復を待たずに手応えを返すため。
+ */
+export function NotificationSettings({
+  payload,
+  onClose,
+}: {
+  /** サーバーが渡した設定。読めなかったときは null */
+  payload: NotificationPayload | null;
+  onClose: () => void;
+}) {
+  const [settings, setSettings] = useState<Settings | null>(payload?.settings ?? null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch("/api/notifications/settings");
-      if (res.ok) setPayload((await res.json()) as Payload);
-    } catch {
-      // 読めなかったときは何も出さない。設定は次に開いたときに読み直す。
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const vapidPublicKey = payload?.vapidPublicKey ?? null;
+  const selectableHours = payload?.selectableHours ?? [];
 
   async function save(next: Settings): Promise<boolean> {
-    const res = await fetch("/api/notifications/settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(next),
-    });
-    if (!res.ok) return false;
-    setPayload((p) => (p ? { ...p, settings: next } : p));
-    return true;
+    try {
+      const result = await saveNotificationSettings(next);
+      if (!result.ok) return false;
+      setSettings(result.settings);
+      return true;
+    } catch {
+      // action に辿り着けない失敗（圏外・配備後の古い識別子。design.md R2b）
+      return false;
+    }
   }
 
-  /** 端末の許可を得て購読を保存する。実体は app/push-subscribe.ts。 */
-  async function subscribe(vapidPublicKey: string): Promise<boolean> {
-    const result = await subscribeToPush(vapidPublicKey);
+  /** 端末の許可を得て購読を保存する。実体は features/notification/push-subscribe.ts。 */
+  async function subscribe(key: string): Promise<boolean> {
+    const result = await subscribeToPush(key);
     if (result.ok) return true;
     setNotice(
       result.reason === "blocked"
@@ -63,33 +64,29 @@ export function NotificationSettings({ onClose }: { onClose: () => void }) {
     if (!subscription) return;
 
     // 先に保存先から消す。端末側だけ消すと、届かない購読が残り続ける。
-    await fetch("/api/notifications/subscription", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ endpoint: subscription.endpoint }),
-    });
+    await unregisterSubscription(subscription.endpoint);
     await subscription.unsubscribe();
   }
 
   async function toggle(next: boolean) {
-    if (!payload || busy) return;
+    if (!settings || busy) return;
     setBusy(true);
     setNotice(null);
 
     try {
       if (next) {
-        if (!payload.vapidPublicKey) {
+        if (!vapidPublicKey) {
           setNotice("この環境では通知を用意できていません");
           return;
         }
-        if (!(await subscribe(payload.vapidPublicKey))) return;
+        if (!(await subscribe(vapidPublicKey))) return;
 
         const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        if (!(await save({ ...payload.settings, enabled: true, timeZone }))) {
+        if (!(await save({ ...settings, enabled: true, timeZone }))) {
           setNotice("保存できませんでした。もう一度試してください");
         }
       } else {
-        if (!(await save({ ...payload.settings, enabled: false }))) {
+        if (!(await save({ ...settings, enabled: false }))) {
           setNotice("保存できませんでした。もう一度試してください");
           return;
         }
@@ -103,11 +100,11 @@ export function NotificationSettings({ onClose }: { onClose: () => void }) {
   }
 
   async function changeHour(hour: number) {
-    if (!payload || busy) return;
+    if (!settings || busy) return;
     setBusy(true);
     setNotice(null);
     try {
-      if (!(await save({ ...payload.settings, hour }))) {
+      if (!(await save({ ...settings, hour }))) {
         setNotice("保存できませんでした。もう一度試してください");
       }
     } finally {
@@ -124,50 +121,47 @@ export function NotificationSettings({ onClose }: { onClose: () => void }) {
         <span className="counter">通知</span>
       </div>
 
-      {loading && <p className="muted">読み込み中...</p>}
-
-      {!loading && !pushSupported() && (
+      {!pushSupported() && (
         <p className="muted">このブラウザでは通知を扱えません。復習はこのまま使えます。</p>
       )}
 
-      {!loading && pushSupported() && payload && (
+      {/* **「読み込み中」は無くなった。** 設定はサーバーが最初の描画で渡す */}
+      {pushSupported() && settings && (
         <>
           <div className="setting-row">
             <div>
               <b>通知を受け取る</b>
               <p className="muted">
-                {payload.settings.enabled
-                  ? `毎日${payload.settings.hour}時ごろ、その日の分だけ`
-                  : "オフ"}
+                {settings.enabled ? `毎日${settings.hour}時ごろ、その日の分だけ` : "オフ"}
               </p>
             </div>
             <button
               type="button"
               role="switch"
-              aria-checked={payload.settings.enabled}
+              aria-checked={settings.enabled}
               aria-label="通知を受け取る"
               className="switch"
               disabled={busy}
-              onClick={() => void toggle(!payload.settings.enabled)}
+              onClick={() => void toggle(!settings.enabled)}
             >
               <i />
             </button>
           </div>
 
-          {payload.settings.enabled && (
+          {settings.enabled && (
             <div className="setting-row">
               <div>
                 <b>時刻</b>
-                <p className="muted">{payload.settings.timeZone} の時刻で送ります</p>
+                <p className="muted">{settings.timeZone} の時刻で送ります</p>
               </div>
               <select
                 className="hour"
-                value={payload.settings.hour}
+                value={settings.hour}
                 disabled={busy}
                 aria-label="通知の時刻"
                 onChange={(e) => void changeHour(Number(e.target.value))}
               >
-                {payload.selectableHours.map((h) => (
+                {selectableHours.map((h) => (
                   <option key={h} value={h}>
                     {h}時
                   </option>

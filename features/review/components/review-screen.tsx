@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { NotificationSettings } from "@/features/notification/components/notification-settings";
+import type { NotificationPayload } from "@/features/notification/types";
 import type { DueItem } from "../types";
 import { ReviewTab } from "./review-tab";
 
@@ -13,7 +14,14 @@ import { ReviewTab } from "./review-tab";
  * 通知設定は経路を持たない（design.md D6）。復習から開く画面で、
  * 下部タブの 3 つと並ぶものではない。
  */
-export function ReviewScreen({ items }: { items: DueItem[] }) {
+export function ReviewScreen({
+  items,
+  notification,
+}: {
+  items: DueItem[];
+  /** 通知の設定。サーバーが最初の描画で渡す（design.md D8）。読めなければ null */
+  notification: NotificationPayload | null;
+}) {
   const router = useRouter();
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -23,8 +31,9 @@ export function ReviewScreen({ items }: { items: DueItem[] }) {
    * 下部タブの復習バッジは `(app)/layout.tsx` が描いており、画面の中の状態を
    * 変えても動かない。**採点したのに件数が減らない**ので、ここで更新する。
    *
-   * 次の change で Server Actions にしたとき `revalidatePath()` に置き換わる。
-   * つまりこれは途中の形である（design.md D9）。
+   * **これは残る形である**（design.md D5）。採点の action は `refresh()` を
+   * 呼ばない——1 枚ごとに描き直すと `items` が縮んでカードが飛ぶ。取り直すのは
+   * 1 回の復習が終わったときで、その契機を知っているのはこの画面だけである。
    */
   const refresh = useCallback(() => router.refresh(), [router]);
 
@@ -47,7 +56,7 @@ export function ReviewScreen({ items }: { items: DueItem[] }) {
   }, []);
 
   if (settingsOpen) {
-    return <NotificationSettings onClose={() => setSettingsOpen(false)} />;
+    return <NotificationSettings payload={notification} onClose={() => setSettingsOpen(false)} />;
   }
 
   return (

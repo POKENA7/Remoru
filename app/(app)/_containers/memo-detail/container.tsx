@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { MemoDetailScreen } from "@/features/memo/components/memo-detail-screen";
 import { getMemoById } from "@/features/memo/queries";
 import type { MemoRow } from "@/features/memo/types";
-import { getMemoReviewStates } from "@/features/quiz/queries";
+import { getMemoReviewStates, getQuizDetail } from "@/features/quiz/queries";
 import { getTagsByMemo, getTagsWithCounts } from "@/features/tag/queries";
 
 /**
@@ -20,10 +20,16 @@ export async function MemoDetailContainer({ memoId }: { memoId: string }) {
   const memo = await getMemoById(memoId);
   if (!memo) notFound();
 
-  const [states, tagsByMemo, tags] = await Promise.all([
+  /*
+   * **答えもここで読む**（design.md D7）。以前は画面が開いてから
+   * `useEffect` で追いかけて取っており、答えの行と鉛筆のボタンが
+   * 一拍遅れて現れていた。
+   */
+  const [states, tagsByMemo, tags, quiz] = await Promise.all([
     getMemoReviewStates(),
     getTagsByMemo(),
     getTagsWithCounts(),
+    getQuizDetail(memoId),
   ]);
 
   const row: MemoRow = {
@@ -32,5 +38,5 @@ export async function MemoDetailContainer({ memoId }: { memoId: string }) {
     tags: (tagsByMemo.get(memo.id) ?? []).map((t) => ({ id: t.id, name: t.name })),
   };
 
-  return <MemoDetailScreen memo={row} knownTags={tags} />;
+  return <MemoDetailScreen memo={row} knownTags={tags} answer={quiz?.answer ?? null} />;
 }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { acceptTagSuggestion, dismissTagSuggestion, requestTagSuggestion } from "../actions";
 import type { SuggestionResult } from "../types";
 
 type Summary = { tag: string; count: number };
@@ -18,8 +19,6 @@ export function TagSuggestionBand({
   untaggedCount,
   result,
   onResult,
-  onApplied,
-  onDismissed,
 }: {
   untaggedCount: number;
   /**
@@ -31,8 +30,6 @@ export function TagSuggestionBand({
    */
   result: SuggestionResult;
   onResult: (result: SuggestionResult) => void;
-  onApplied: () => void;
-  onDismissed: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,14 +42,13 @@ export function TagSuggestionBand({
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/tags/suggestion", { method: "POST" });
-      if (!res.ok) {
-        // 失敗は静かに。帯は残り、あとでやり直せる（design.md D11）
+      const result = await requestTagSuggestion();
+      if (!result.ok) {
+        // 失敗は静かに。帯は残り、あとでやり直せる（change 12 D11）
         setError("いまはうまくいきませんでした。あとでまた試せます");
         return;
       }
-      const data = (await res.json()) as { summary: Summary[]; assignments: Assignment[] };
-      onResult({ summary: data.summary, assignments: data.assignments });
+      onResult({ summary: result.summary, assignments: result.assignments });
     } catch {
       setError("いまはうまくいきませんでした。あとでまた試せます");
     } finally {
@@ -65,24 +61,16 @@ export function TagSuggestionBand({
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/tags/suggestion", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assignments }),
-      });
+      const result = await acceptTagSuggestion(assignments);
       // **失敗したら提案を捨てない。** 捨てると、やり直すのにもう一度
       // モデルを呼ぶ（＝もう一度課金する）ことになる。
-      if (!res.ok) {
+      // 1件も付かなかった場合も失敗で、それは action 側が判定している。
+      if (!result.ok) {
         setError("いまはつけられませんでした。もう一度押せます");
         return;
       }
-      const result = (await res.json()) as { applied: number; skipped: number };
-      if (result.applied === 0) {
-        setError("いまはつけられませんでした。もう一度押せます");
-        return;
-      }
+      // 一覧の取り直しは action の中の `refresh()` が済ませている
       onResult(null);
-      onApplied();
     } catch {
       setError("いまはつけられませんでした。もう一度押せます");
     } finally {
@@ -94,8 +82,7 @@ export function TagSuggestionBand({
     if (busy) return;
     setBusy(true);
     try {
-      await fetch("/api/tags/suggestion", { method: "DELETE" });
-      onDismissed();
+      await dismissTagSuggestion();
     } catch {
       // 断れなくても害は無い。帯が残るだけ。
     } finally {

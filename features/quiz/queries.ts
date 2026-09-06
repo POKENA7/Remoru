@@ -4,7 +4,7 @@ import { cache } from "react";
 import { getDb } from "@/lib/db";
 import { requestNow } from "@/lib/request-clock";
 import { verifySession } from "@/lib/session";
-import { countUnwritten, getReviewStates } from "./quiz-items";
+import { countUnwritten, getQuizItem, getReviewStates } from "./quiz-items";
 
 /**
  * 時計はこの層で読む。ドメイン層には値として渡す（既存の慣習）。
@@ -23,4 +23,19 @@ export const getUnwrittenCount = cache(async () => {
   const userId = await verifySession();
   const db = await getDb();
   return await countUnwritten(db, userId, requestNow());
+});
+
+/**
+ * そのメモの問と答。**詳細を開いたときに1件だけ引く。**
+ *
+ * 一覧の取得には載せない。載せるとメモの数だけ答えを運ぶことになる
+ * （`getReviewStates` が問だけを返しているのはそのため）。
+ *
+ * design.md D7: 以前は詳細を開いてから `useEffect` で追いかけて取っていた。
+ * 答えの行と鉛筆のボタンが一拍遅れて現れるので、サーバーで読む側へ移した。
+ */
+export const getQuizDetail = cache(async (memoId: string) => {
+  const userId = await verifySession();
+  const db = await getDb();
+  return await getQuizItem(db, { memoId, userId });
 });

@@ -1,19 +1,27 @@
 "use client";
 
 import { UserButton } from "@clerk/nextjs";
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useActionState, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { saveMemo } from "../actions";
 import { stateLabel } from "../detail-selection";
 import { type FreshMemo, takeFresh } from "../fresh-memo";
 import { MAX_CONTENT_LENGTH } from "../memos";
-import type { MemoRow } from "../types";
+import type { MemoRow, SaveMemoReason, SaveMemoState } from "../types";
 
-const ERRORS: Record<string, string> = {
+/**
+ * 失敗の理由を利用者の言葉にする。
+ *
+ * design.md D3: **総当たりの対応表にする。** `Record<string, string>` だった
+ * ころは、無い鍵を引いたときのために `FALLBACK` が要り、理由が増えても
+ * 気づけなかった。理由がリテラルの union になったので、足りなければ型検査で出る。
+ */
+const ERRORS: Record<SaveMemoReason, string> = {
   empty: "本文を入力してください",
   too_long: `${MAX_CONTENT_LENGTH}文字を超えています`,
-  invalid_body: "保存できませんでした。入力内容を確認してください",
-  invalid_json: "保存できませんでした。入力内容を確認してください",
+  failed: "保存できませんでした。もう一度お試しください",
 };
-const FALLBACK = "保存できませんでした。もう一度お試しください";
+
+const IDLE: SaveMemoState = { status: "idle" };
 
 /**
  * 復習の状態を示す印（design.md D3）。
@@ -28,7 +36,6 @@ function StateMark({ kind }: { kind: MemoRow["review"]["kind"] }) {
 export function MemoTab({
   memos,
   loading,
-  onChanged,
   onOpenDetail,
   draft,
   onDraftChange,
@@ -43,7 +50,6 @@ export function MemoTab({
 }: {
   memos: MemoRow[];
   loading: boolean;
-  onChanged: () => void;
   onOpenDetail: (memo: MemoRow) => void;
   /** 書きかけの本文。詳細を開くとこの画面は unmount されるので、外で持つ */
   draft: string;
@@ -62,44 +68,60 @@ export function MemoTab({
   announcement: { memoId: string; node: React.ReactNode } | null;
 }) {
   const content = draft;
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const save = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (saving) return;
-      setSaving(true);
-      setError(null);
-
+  /**
+   * 保存は Server Action。`<form action={...}>` に渡す。
+   *
+   * **失敗しても入力は残る。** `<form>` の値はこちらが持ったままで、
+   * action は状態を返すだけだからである（spec `memo-capture`
+   * 「保存に失敗しても入力内容が残る」）。
+   */
+  const [state, formAction, saving] = useActionState(
+    async (prev: SaveMemoState, form: FormData) => {
       try {
-        const res = await fetch("/api/memos", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content }),
-        });
-        const data = (await res.json()) as {
-          memo?: MemoRow;
-          error?: string;
-        };
-        if (!res.ok || !data.memo) {
-          setError(ERRORS[data.error ?? ""] ?? FALLBACK);
-          return;
-        }
-        onDraftChange("");
-        onSaved(data.memo.id);
-        onChanged();
-        // 保存直後にシートをせり上げない。問と答は生成が作る。ここで手入力を
-        // 求めると、書いたものが遅れて届く生成結果と競合する。手で書く経路は
-        // 一覧の「問と答をつくる →」に残っている（生成に失敗したメモに出る）。
+        return await saveMemo(prev, form);
       } catch {
-        setError(FALLBACK);
-      } finally {
-        setSaving(false);
+        /*
+         * **action に辿り着けない失敗を、ここで戻り値に変える**（design.md D2）。
+         *
+         * `useActionState` に生の action を渡すと、通信の失敗（圏外、配備で
+         * 識別子が変わったあとの呼び出し）は error boundary へ飛び、入力中の
+         * 本文ごと画面が差し替わる。spec `memo-capture`「保存に失敗しても
+         * 入力内容が残る」を満たせない。
+         *
+         * 包むと JavaScript 未読込での submit は効かなくなるが、それは
+         * 約束していない（design.md Non-Goals）。
+         */
+        return { status: "error", reason: "failed" } as SaveMemoState;
       }
     },
-    [content, saving, onChanged, onDraftChange, onSaved],
+    IDLE,
   );
+
+  /**
+   * 一度出したエラーを、次の打鍵で引っ込める。
+   *
+   * action の状態は外から消せないので、「どの結果を見送ったか」を持つ。
+   * action は呼ばれるたびに新しいオブジェクトを返すので、同じ理由で
+   * 2 度失敗しても同一視されない。
+   */
+  const [dismissed, setDismissed] = useState<SaveMemoState | null>(null);
+  const error = state.status === "error" && state !== dismissed ? ERRORS[state.reason] : null;
+
+  /**
+   * 保存できたら下書きを消し、刷りの合図を立てる。
+   *
+   * どちらも親が持つ状態なので、描画の中では触れない。同じ結果で 2 度
+   * 走らないよう、処理済みの状態を控える。
+   */
+  const handled = useRef<SaveMemoState | null>(null);
+  useEffect(() => {
+    if (state.status !== "saved" || handled.current === state) return;
+    handled.current = state;
+    onDraftChange("");
+    onSaved(state.memoId);
+    // 一覧の取り直しは action の中の `refresh()` が済ませている
+  }, [state, onDraftChange, onSaved]);
 
   /**
    * 刷りの動きを付ける（design.md D1）。
@@ -149,13 +171,14 @@ export function MemoTab({
         <UserButton />
       </div>
 
-      <form className="composer" onSubmit={save}>
+      <form className="composer" action={formAction}>
         <textarea
           className="input"
+          name="content"
           value={content}
           onChange={(e) => {
             onDraftChange(e.target.value);
-            if (error) setError(null);
+            if (state.status === "error") setDismissed(state);
           }}
           placeholder="いま、覚えておきたいこと"
           rows={2}

@@ -160,16 +160,21 @@ describe("メモ全体を直す鉛筆（change 14）", () => {
      * 食い違いに気づけない（design.md D4）。
      */
     /*
-     * `/api/memos/${memoId}` は `/quiz-item` の接頭辞なので、素朴に
-     * indexOf で探すと**常に先にヒットして常に緑になる**。行ごとに見て、
-     * 末尾が `}\`` で終わる本文側だけを拾う。
+     * 以前は `fetch` の URL で見ていた。**`/api/memos/${memoId}` が
+     * `/quiz-item` の接頭辞になっており**、素朴に indexOf で探すと常に
+     * 先にヒットして常に緑になるので、行ごとに拾う必要があった。
+     *
+     * 書き込みが Server Actions になり、名前で区別できるようになったので
+     * その細工は要らない。接頭辞の関係も無い。
      */
-    const lines = sheet.split("\n");
-    const body = lines.findIndex((l) => /fetch\(`\/api\/memos\/\$\{memoId\}`/.test(l));
-    const quiz = lines.findIndex((l) => /fetch\(`\/api\/memos\/\$\{memoId\}\/quiz-item`/.test(l));
-    expect(body, "本文への PUT が見つからない").toBeGreaterThan(-1);
-    expect(quiz, "問答への要求が見つからない").toBeGreaterThan(-1);
-    expect(body).toBeLessThan(quiz);
+    const body = sheet.indexOf("rewriteMemoContent(");
+    const create = sheet.indexOf("writeQuiz(");
+    const rewrite = sheet.indexOf("rewriteQuiz(");
+    expect(body, "本文を書き直す action の呼び出しが見つからない").toBeGreaterThan(-1);
+    expect(create, "問答を作る action の呼び出しが見つからない").toBeGreaterThan(-1);
+    expect(rewrite, "問答を書き直す action の呼び出しが見つからない").toBeGreaterThan(-1);
+    expect(body).toBeLessThan(create);
+    expect(body).toBeLessThan(rewrite);
   });
 
   it("変更が無い側は書かない", () => {

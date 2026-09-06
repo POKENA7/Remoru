@@ -4,7 +4,14 @@ import { pushSupported, subscribeToPush } from "./push-subscribe";
 /**
  * 購読の手順は通知の設定と初回の告知の2箇所から呼ばれる（change 11）。
  * 端末の API は node に無いので、必要なものだけ立てて分岐を確かめる。
+ *
+ * **`./actions` は差し替える。** そこから辿ると `lib/db.ts` の `server-only` に
+ * 当たり、node では import した時点で throw する（`react-server` 条件が無い
+ * 環境では投げる側が解決される）。`vi.mock` は巻き上げられるので、本物の
+ * モジュールは読み込まれない。
  */
+const register = vi.fn(async () => ({ ok: true as const }));
+vi.mock("./actions", () => ({ registerSubscription: () => register() }));
 
 // navigator は node では getter のみなので、代入ではなく stubGlobal で差し替える
 function setupWindow(opts: { pushManager?: boolean; notification?: boolean } = {}) {
@@ -21,6 +28,7 @@ function setupWindow(opts: { pushManager?: boolean; notification?: boolean } = {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  register.mockClear();
 });
 
 describe("端末が通知を扱えるか", () => {
@@ -59,12 +67,10 @@ describe("購読", () => {
       permission: "default",
       requestPermission: async () => "default",
     });
-    const fetchSpy = vi.fn();
-    vi.stubGlobal("fetch", fetchSpy);
-
     const result = await subscribeToPush("key");
 
     expect(result).toEqual({ ok: false, reason: "declined" });
-    expect(fetchSpy).not.toHaveBeenCalled();
+    // 断られたのだから、保存にも行かない
+    expect(register).not.toHaveBeenCalled();
   });
 });

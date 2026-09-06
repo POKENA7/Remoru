@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { announcementText } from "../first-run-text";
+import { useState } from "react";
+import { saveNotificationSettings } from "@/features/notification/actions";
 import { pushSupported, subscribeToPush } from "@/features/notification/push-subscribe";
+import { announcementText } from "../first-run-text";
 
 /**
  * 最初の問答ができたことの告知（design.md D3）。
@@ -18,11 +19,20 @@ export type NoticeAnswer = "done" | "failed" | null;
 export function FirstRunNotice({
   nextReviewAt,
   now,
+  vapidPublicKey,
   answer,
   onAnswer,
 }: {
   nextReviewAt: number;
   now: number;
+  /**
+   * VAPID の公開鍵。**サーバーが最初の描画で渡す**（design.md D8）。
+   *
+   * 鍵が無い環境では差し出さない。押しても何も起きないものは出さない。
+   * 以前はここから `/api/notifications/settings` を叩いて確かめており、
+   * 差し出しが一拍遅れて現れていた。
+   */
+  vapidPublicKey: string | null;
   /**
    * 既に答えたか。**この画面の外で持つ。**
    *
@@ -32,17 +42,8 @@ export function FirstRunNotice({
   answer: NoticeAnswer;
   onAnswer: (answer: NoticeAnswer) => void;
 }) {
-  const [key, setKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!pushSupported()) return;
-    // 鍵が無い環境では差し出さない。押しても何も起きないものは出さない
-    void fetch("/api/notifications/settings")
-      .then((r) => (r.ok ? (r.json() as Promise<{ vapidPublicKey?: string | null }>) : null))
-      .then((d) => setKey(d?.vapidPublicKey ?? null))
-      .catch(() => {});
-  }, []);
+  const key = pushSupported() ? vapidPublicKey : null;
 
   async function accept() {
     if (!key || busy) return;
@@ -53,14 +54,13 @@ export function FirstRunNotice({
         onAnswer("failed");
         return;
       }
-      // 時刻は既定のまま。ここで選ばせない（design.md D4）
+      // 時刻は既定のまま。ここで選ばせない（change 9 D4）
       const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const res = await fetch("/api/notifications/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled: true, hour: 21, timeZone }),
-      });
-      onAnswer(res.ok ? "done" : "failed");
+      const saved = await saveNotificationSettings({ enabled: true, hour: 21, timeZone });
+      onAnswer(saved.ok ? "done" : "failed");
+    } catch {
+      // action に辿り着けない失敗（圏外・配備後の古い識別子。design.md R2b）
+      onAnswer("failed");
     } finally {
       setBusy(false);
     }
