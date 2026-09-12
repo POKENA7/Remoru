@@ -10,17 +10,21 @@ Next 16 の文書（`node_modules/next/dist/docs`）から、この change に�
 | ストリーミング中の `redirect()` は `<meta>` タグで**クライアント側**の遷移になる | `…/functions/redirect.md` 12 行 |
 | 共有 layout は遷移のたびに取り直されない。変わる page segment だけ | `staleTimes.md` Good to know |
 
-`server-side-reads` が作る形（design D1・D2）:
+main の形（2026-09-12）:
 
 ```
-app/(app)/layout.tsx          下部タブ。<Link>。Server Components
-app/(app)/page.tsx            MemoListContainer + TagListContainer
-app/(app)/review/page.tsx     DueReviewContainer
-app/(app)/record/page.tsx     LearningRecordContainer
-app/(app)/memos/[memoId]/page.tsx
+app/(app)/layout.tsx       verifySession() + getDue()（バッジ）。TabBar / NotificationBridge
+app/(app)/page.tsx         MemoListContainer（6 本を Promise.all。失敗は空の一覧）
+app/(app)/review/page.tsx  DueReviewContainer（失敗は空）
+app/(app)/record/page.tsx  LearningRecordContainer（失敗は空）
+app/(app)/memos/[memoId]/  MemoDetailContainer（無ければ notFound()）+ not-found.tsx ✓
 ```
 
-基準値: `docs/perf.md`（`measure-first-paint`）の「タブ切替」の行。現状のクライアント切替。
+`loading.tsx` `error.tsx` `<Suspense>` は 0 件。Container 3 つの `try/catch` は「途中の形」と
+コメントされている。`server-actions-for-writes` D5 により書き込み後は action の `refresh()` で
+RSC Payload が同梱して返る（Router Cache は捨てない）。
+
+基準値: `docs/perf.md`（`measure-first-paint`）の「一覧が読めるまで」「タブ切替」の行。
 
 ## Goals / Non-Goals
 
@@ -28,80 +32,73 @@ app/(app)/memos/[memoId]/page.tsx
 
 - タブをタップした瞬間に枠と骨格が出る。中身が来るまでの時間が基準値と同等
 - 一覧の取得を待たずに HTML の枠が届く
-- 失敗と不在に画面がある
+- 失敗に画面がある。空の一覧と見分けがつく
 
 **Non-Goals:**
 
-- 静的シェル・Cache Components
-- 骨格のアニメーション。まず出す
+- 静的シェル・Cache Components。骨格のアニメーション
 
 ## Decisions
 
-### D1: `(app)/layout.tsx` は取得しない。認証だけ 1 回行う
+### D1: `(app)/layout.tsx` は認証だけ。`getDue()` は Suspense の中へ
 
-layout が `verifySession()` を呼ぶ（未認証なら `/sign-in` へ）。それ以外の取得は持たない。
-取得を持つと、layout が最初の loading 境界より前に来て prefetch の範囲が狭まる。
+layout の `verifySession()` は残す（骨格を見せる前に追い返す。`auth.arch.test.ts`「画面の枠がサーバー側で
+利用者を確認している」が固定している）。`getDue()` は外し、`<TabBar>` のバッジを
+`<Suspense fallback={null}><DueBadge /></Suspense>` の小さな Server Component にする。
+`TabBar` は `"use client"` なので、バッジは `children` で挟む（Composition）。
 
-`queries.ts` の `verifySession()` は残す（`server-side-reads` D8: データが出ない側に倒れる）。
-二重に見えるが、layout 側は「骨格を見せる前に追い返す」ため、queries 側は「呼び忘れの保険」で、役目が違う。
-`cache()` で同じリクエスト内の `auth()` は 1 回になる。
+layout が取得を持つと「layout から最初の loading 境界まで」の prefetch にその取得が含まれ、
+prefetch のたびに D1 を叩く。外せば prefetch は静的な枠だけになる。
 
 ### D2: 経路ごとに `loading.tsx`。中身は Container の骨格
 
-`page.tsx` と同じ形の骨格（一覧なら行の形が 3 つ、復習なら 1 枚のカード）。**骨格の見た目は
-モックで 2〜3 案出して選んでもらう**（L11）。配色はいまのトークン。
+`page.tsx` と同じ形の骨格（一覧なら行の形が 3 つ、復習なら 1 枚のカード、記録なら格子）。
+**骨格の見た目はモックで 2〜3 案出して選んでもらう**（L11）。配色はいまのトークン。
 
-`loading.tsx` があることで prefetch が効き、タップ時に「layout + 骨格」が即座に出る。
-これが D5 の測定の第 1 案。
+`loading.tsx` があることで prefetch が効き、タップ時に「layout + 骨格」が即座に出る。これが D5 の第 1 案。
 
 ### D3: Container ごとの `<Suspense>` は、分けてよいものだけ
 
-一覧の経路には `MemoListContainer` と `TagListContainer` がある。別々に来てよいか
-（タグの帯が一覧より後に出て構わないか）は、**利用者に聞く**。聞くときはモックで、
-「一緒に来る」「帯が先」「一覧が先」の 3 つを見せる。
+一覧の経路は 6 本の取得を 1 つの `Promise.all` で待つ。一覧（`getMemos` + 状態 + タグ）と
+タグの帯（`getTagsWithCounts` + `getSuggestionStatus`）は別々に来てよいか——**利用者に聞く**。
+モックで「一緒に来る」「帯が先」「一覧が先」の 3 つを見せる。分けるなら Container を 2 つに割る。
 
 復習・記録は Container が 1 つなので `loading.tsx` だけで足りる。
 
-### D4: `error.tsx` は `(app)/` に 1 つ。`not-found.tsx` は詳細にだけ
+### D4: `error.tsx` は `(app)/` に 1 つ。Container の `try/catch` は消す
 
-`(app)/error.tsx`: 取得の失敗。文言は `docs/design-decisions.md` のトーン（短く、責めない、
-やり直す手段を 1 つ）。`reset()` のボタンを置く。
+`(app)/error.tsx`（Client Component。Next の制約）: 取得の失敗。文言は `docs/design-decisions.md` の
+トーン（短く、責めない、やり直す手段を 1 つ）。`reset()` のボタン。**空の一覧と見分けがつく**ことが
+要件（`navigation` spec 追加分）。
 
-`(app)/memos/[memoId]/not-found.tsx`: 無いメモと他人のメモ（`navigation` spec「他人のメモの詳細は
-開けない」——**他人のものであることを知らせない**ので、無いメモと同じ画面）。Container が
-`notFound()` を呼ぶ。`server-side-reads` 3.5 と整合させる。
+3 つの Container の `try/catch` を消す。**「途中の形」のコメントごと消す。** `not-found.tsx` は
+すでにあるので触らない。
 
-Route Handler と Server Action のエラーはこの change の範囲外。
-
-### D5: タブ切替は 2 案を測って決める。決めるのは実測
+### D5: タブ切替は 2 案を測って決める
 
 | 案 | 何をするか | 期待 | 副作用 |
 |---|---|---|---|
 | 1 | `loading.tsx` だけ | タップで即座に骨格、中身は往復後（Workers + D1、数百 ms） | 訪問済みのタブでも毎回骨格が一瞬出る |
-| 2 | 1 + `experimental.staleTimes.dynamic: 30` | 30 秒以内に戻ったタブは往復なしで中身が出る | experimental。30 秒間は古い中身が出る（書き込み後は `revalidatePath` / `router.refresh()` で更新されるので実害は限定的） |
+| 2 | 1 + `experimental.staleTimes.dynamic: 30` | 30 秒以内に戻ったタブは往復なしで中身が出る | experimental。30 秒間は古い中身が出うる（書き込み後は action の `refresh()` が同梱するので実害は限定的） |
 
-**案 1 で「同等」なら案 2 は入れない**（experimental を増やさない）。同等かどうかは
-`docs/perf.md` の手順で 5 回ずつ測り、利用者にも staging で触ってもらう。
-「同等」の数値の線は `measure-first-paint` の Open Questions で決めたものを使う。
+**案 1 で「同等」なら案 2 は入れない**（experimental を増やさない）。`docs/perf.md` の手順で 5 回ずつ測り、
+staging で利用者にも触ってもらう。「同等」の線は `measure-first-paint` で決めたもの。
 
-案 2 でも届かなければ、該当タブの中身だけクライアント保持へ戻す退路（`server-side-reads`
-Risks）を取る。経路は戻さない。
+### D6: 初期表示は「枠が先に届く」ことを Performance トレースで示す
 
-### D6: 本番投入は `server-side-reads` と同時
-
-`server-side-reads` 単独では、経路が dynamic で `loading.tsx` が無く prefetch されないので、
-タブ切替が確実に悪化する。staging で `server-side-reads` を確かめ、この change を重ねてから
-`main` へ merge する。**2 つの change を 1 つの PR にしない**——別々に merge し、
-2 つ目の merge が本番投入になる。1 つ目の merge から 2 つ目までの間、本番は悪化する。
-**間を空けない**（同じ日に続けて merge する）。
+一覧の HTML より先に下部タブが描かれる時刻を取る。`docs/perf.md` の「一覧が読めるまで」も 5 回測り、
+`measure-first-paint` の基準と比べる。**Streaming は「一覧が読めるまで」を縮めない**（取得の所要は同じ）。
+縮むのは「何かが見えるまで」で、それを別の列として記録する。目標の 1 秒に効くのは
+`lighten-first-paint` と `move-client-boundary-to-leaves` の側——**この change に 1 秒を期待しない**。
 
 ## Risks / Trade-offs
 
-- **骨格が一瞬出て消える（フラッシュ）** → 案 2 で消える範囲を測る。消えなければ骨格の出現に
-  100 ms 程度の遅延を入れる（CSS の `animation-delay`）。これも測ってから
-- **`error.tsx` は Client Component**（Next の制約） → 小さく保つ。取得は持たない
-- **`notFound()` を Container の中で呼ぶと、その Container の `<Suspense>` の外へ抜ける** →
-  詳細の経路は Container が 1 つなので問題にならない。一覧では呼ばない
+- **骨格が一瞬出て消える（フラッシュ）** → 案 2 で消える範囲を測る。消えなければ骨格の出現を
+  100 ms 程度遅らせる（CSS `animation-delay`）。測ってから
+- **`error.tsx` は取得の失敗しか受けない** → Server Action の失敗は戻り値（`server-actions-for-writes` D4）。
+  ここでは扱わない
+- **`getDue()` を layout から外すと、`refresh()` 後のバッジ更新が Suspense の中で起きる** → `refresh()` は
+  layout も描き直す（D5 の記述）。バッジも一緒に更新されるはず。E2E で採点後にバッジが減ることを見る
 
 ## Open Questions
 

@@ -1,6 +1,6 @@
 ## 0. 前提
 
-- [ ] 0.1 前の 3 change が済んでいる。`npm run harness:focus -- move-client-boundary-to-leaves`
+- [ ] 0.1 `stream-route-boundaries` が済んでいる。`npm run harness:focus -- move-client-boundary-to-leaves`
 - [ ] 0.2 `docs/perf.md` の最新の行から、この change の目標（KB）を決めて design D4 に書く
 
 ## 1. 一覧表

@@ -14,7 +14,9 @@
 curl では測れない。
 
 **`next build` は転送量を出力しない。** Next 16 のビルド結果に First Load JS の列は無い
-（実測）。代わりに `.next/build-manifest.json` の `rootMainFiles`（全経路共通 7 本）と
+（実測）。`server-side-reads` と `server-actions-for-writes` は `.next/static/chunks/*.js` の
+**合計**（773.6 → 827.0 KB、次いで 827.4 → 827.7 KB。raw。間の 827.0 → 827.4 は別の change の差分）で比べ、「経路ごとの内訳は取れなかった」と design に
+書いている。**合計は利用者 1 人が読む量ではない**（4 経路ぶん）。この change はその欠落を埋める。代わりに `.next/build-manifest.json` の `rootMainFiles`（全経路共通 7 本）と
 `.next/server/app/page_client-reference-manifest.js` が参照するチャンク（`/` 固有 8 本）が
 ある。この 2 つの和集合を gzip して足すと、本番で測った 224 KB に一致するはずである。
 

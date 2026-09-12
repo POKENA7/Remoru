@@ -4,7 +4,7 @@
 - `record-failure.sh` は change 名を「1 件だけなら採用、それ以外は空」で決める（28〜36 行）
 - `promote-gate.mjs` は `check@change` をキーに数える。`change` が null だと全 change の失敗が 1 つの鍵に集まる
 - `.harness/*` は gitignore 済み（`promotions.json` だけ例外）。worktree ごとに別の `.harness/` を持つ
-- 進行中の change は 2026-09-12 時点で 10 件
+- 進行中の change は 2026-09-12 時点で 9 件
 
 ## Decisions
 

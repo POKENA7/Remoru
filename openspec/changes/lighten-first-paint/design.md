@@ -1,8 +1,9 @@
 ## Context
 
 - `app/layout.tsx` が `<link rel="stylesheet">` で Google Fonts を読み、`ClerkProvider` で全体を包む
-- アプリ画面で Clerk のクライアント部品を使っているのは `app/memo-tab.tsx` の `UserButton` **だけ**
-  （`grep -rn "@clerk" app/*.tsx`）。`app/page.tsx` の認証は `auth()`（サーバー）
+- アプリ画面で Clerk のクライアント部品を使っているのは `features/memo/components/memo-tab.tsx` の
+  `UserButton` **だけ**（`grep -rn "@clerk" app features`、2026-09-12 の main）。認証は `(app)/layout.tsx` の
+  `verifySession()`（サーバー）
 - `@clerk/nextjs` v7 の `ClerkProvider` の props に `clerkJSVariant`（headless）は**無い**
   （`grep -rho "clerkJSVariant" node_modules/@clerk/` が 0 件）。あるのは `clerkJSUrl` と `dynamic`。
   つまり「Provider を残したまま JS を軽くする」手は無く、**Provider の範囲を絞る**しかない
@@ -49,7 +50,7 @@ app/(auth)/account/page.tsx UserButton（または UserProfile）。サインア
 app/page.tsx ほか           Provider なし。auth() で確認するだけ
 ```
 
-`UserButton` は `/account` へ移し、いま `UserButton` がある場所には同じ見た目のリンク
+`UserButton` は `/account` へ移し、いま `UserButton` がある場所（`memo-tab.tsx`）には同じ見た目のリンク
 （アバターの丸。Clerk の画像 URL は `auth()` から取れる `currentUser()` で得る。**`currentUser()` は
 Clerk の API を呼ぶので、画面ごとに呼ばない**——`server-side-reads` の `cache()` と同じ扱いで
 `lib/session.ts` に 1 つ置く）。押すと `/account` に飛び、そこで Clerk の UI が出る。

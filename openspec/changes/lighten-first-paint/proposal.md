@@ -38,7 +38,7 @@
 
 | 対象 | 変更 |
 |---|---|
-| 変更 | `app/layout.tsx`（フォントと Provider）, `app/globals.css`（`font-family` を変数に）, `app/memo-tab.tsx`（`UserButton` → リンク）, `scripts/harness/bundle-budget.json` |
+| 変更 | `app/layout.tsx`（フォントと Provider）, `app/globals.css`（`font-family` を変数に）, `features/memo/components/memo-tab.tsx`（`UserButton` → リンク）, `scripts/harness/bundle-budget.json` |
 | 新規 | `app/(auth)/layout.tsx`（Provider）, `app/(auth)/account/page.tsx`（`UserButton` または `UserProfile`）, `docs/perf.md` に前後の行 |
 | 依存 | 増えない |
 | 前提 | `measure-first-paint` が済んでいること（手順と基準値が要る） |

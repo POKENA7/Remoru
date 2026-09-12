@@ -108,7 +108,7 @@ import 文から見えるようにするため。増えたら境界がずれた�
 ## 進行中の大きな仕事: Next.js の考え方に沿った組み替えと初期表示の改善
 
 順序・依存・各 change の状態は [docs/nextjs-rework-plan.md](docs/nextjs-rework-plan.md)。
-**change を始める前に必ず読み、表の順序を守ること。** 10 件の change が
+**change を始める前に必ず読み、表の順序を守ること。** 9 件の change が
 `openspec/changes/` に立っている。どれを作業中かは `npm run harness:focus` で宣言する
 （`review-with-change-context` が済むまでは、その change の tasks の先頭に書く）。
 

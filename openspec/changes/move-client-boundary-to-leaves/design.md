@@ -1,7 +1,26 @@
 ## Context
 
-2026-09-12 時点で `"use client"` は `app/` の 10 ファイル全部。前の 3 change の後に何が残るかは
-そのときにしか分からないので、**この design は手順を決め、対象は実装時の一覧表で決める**。
+2026-09-12 の main で `"use client"` は 13 ファイル（サイズ順。`record-tab.tsx` は既に Server Component）:
+
+```
+17.0 KB features/memo/components/memo-detail.tsx
+11.4 KB features/memo/components/memo-tab.tsx
+ 8.8 KB features/quiz/components/quiz-sheet.tsx
+ 7.6 KB features/memo/components/memo-screen.tsx
+ 7.0 KB features/review/components/review-tab.tsx
+ 6.3 KB features/notification/components/notification-settings.tsx
+ 4.7 KB features/tag/components/tag-suggestion-band.tsx
+ 4.0 KB features/sheet/sheet.tsx
+ 3.5 KB app/(app)/tab-bar.tsx
+ 3.3 KB features/first-run/components/first-run-notice.tsx
+ 2.9 KB features/review/components/review-screen.tsx
+ 1.3 KB features/memo/components/memo-detail-screen.tsx
+ 1.1 KB app/(app)/notification-bridge.tsx
+```
+
+Container（`app/(app)/_containers/*`）は Server Components で、`*-screen.tsx` に props を渡す。
+つまり**境界は Container の直下**にあり、そこから下が全部クライアント。`stream-route-boundaries` の
+後に何が変わるかは小さいので、**この design は手順を決め、対象は実装時の一覧表で確定する**。
 
 第 12 章が挙げる Client Components の正当な理由:
 
@@ -38,7 +57,7 @@ Client にし、表示を持つ親は Server に戻し、親が子を挟む」�
 
 ### D2: 下ろす順は「表示が大きく操作が小さい」ものから
 
-効果（減る KB）が大きく、分けやすい。`memo-detail`（16 KB）が最初になる見込み:
+効果（減る KB）が大きく、分けやすい。`memo-detail`（17 KB）が最初になる見込み:
 
 ```
 features/memo/components/memo-detail.tsx         Server。本文・タグ・問答の表示。children を挟む

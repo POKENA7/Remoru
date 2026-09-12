@@ -48,15 +48,14 @@ page.getByRole("tab",     { name: "復習" })
 page.getByRole("listitem").filter({ hasText: body })
 ```
 
-`server-side-reads` で経路が変わり、`stream-route-boundaries` で読み込み中の枠が入り、
-`write-with-server-actions` で保存の実装が変わる。**利用者から見える名前**だけに依存
-していれば、どれも書き直しにならない。URL の断言は `navigation` spec の検査（`server-side-reads`
-2.3）に任せ、ここでは書かない。
+`stream-route-boundaries` で読み込み中の枠が入り、`move-client-boundary-to-leaves` で部品が割れ、
+`optimistic-memo-save` で保存の見え方が変わる。**利用者から見える名前**だけに依存
+していれば、どれも書き直しにならない。URL の断言は `tests/architecture/navigation.arch.test.ts` に任せ、ここでは書かない。
 
-**戻る操作は `page.goBack()`。** いまはクライアント状態なので戻る操作で一覧に戻らない
-（経路が無い）。`server-side-reads` が入るまでこの段は**失敗する**。それが正しい——この
-change では「戻る」の段を `test.fixme` で入れておき、`server-side-reads` の 2.3 で外す。
-**最初から緑になるものだけ書くと、経路の change が何を直したのか検査に残らない。**
+**戻る操作は `page.goBack()`。** 経路は `server-side-reads`（archive 済み）で分かれているので、
+詳細（`/memos/<id>`）から `goBack()` で一覧へ戻る。`navigation` spec「戻る操作は直前に見ていた
+画面へ返す」に対応する。**`?tag=` の絞り込みが戻ったあとも残ること**（`memo-capture`、実機で一度
+壊れた箇所）を、絞り込んでから詳細を開く順で 1 段足す。
 
 ### D3: 認証は `global-setup` で 1 回。`storageState` で使い回す
 
@@ -83,7 +82,7 @@ check:e2e = playwright test        （playwright.config の webServer が next d
 
 ### D5: 検査が検査であることを確かめる（L06）
 
-保存の Route Handler（後に Server Action）をわざと 500 にして E2E が赤くなること、
+保存の Server Action をわざと失敗させて E2E が赤くなること、
 戻して緑になることを 1 度確かめ、tasks に記録する。継続的な注入テストは書かない
 （E2E の中で E2E を壊す構造は複雑すぎる）。
 

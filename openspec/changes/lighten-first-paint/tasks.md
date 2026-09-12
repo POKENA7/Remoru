@@ -18,7 +18,7 @@
 - [ ] 2.2 `/account` の見た目のモックを 1 つ出し、利用者の確認を取る（L11）
 - [ ] 2.3 `app/(auth)/layout.tsx` に `ClerkProvider` を移し、sign-in / sign-up を `(auth)` の下へ移す。
       `app/layout.tsx` から Provider を消す。`next dev` で `/` の `auth()` が動くことを確かめる（design D2 の要検証）
-- [ ] 2.4 `app/(auth)/account/page.tsx` を作り、`UserButton` を置く。`app/memo-tab.tsx` の `UserButton` を
+- [ ] 2.4 `app/(auth)/account/page.tsx` を作り、`UserButton` を置く。`features/memo/components/memo-tab.tsx` の `UserButton` を
       `/account` へのリンクに替える。アバター画像の取り方は design Open Questions の答えに従う
 - [ ] 2.5 サインイン → `/` → `/account` → サインアウト → `/sign-in` へ戻る、を `next dev` で辿る。
       E2E スモーク（`add-e2e-smoke`）が緑

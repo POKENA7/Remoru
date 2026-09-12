@@ -1,10 +1,11 @@
 ## Why
 
-`server-side-reads` `stream-route-boundaries` `write-with-server-actions` が済むと、取得と
-書き込みはサーバー側にある。しかし**表示のコンポーネントは `"use client"` のまま**移されて
-いる可能性が高い（`server-side-reads` は「Presentational を `features/*/components/` に置く」と
-言うだけで、境界を下ろすとは言っていない）。`app/memo-detail.tsx` は 16 KB の Client Component で、
-本文・タグ・問答の**表示**と、編集フォーム・シートの引きずり・自己採点の**操作**が 1 ファイルにある。
+`server-side-reads` と `server-actions-for-writes` で取得と書き込みはサーバー側に移った。
+しかし**表示の部品は `"use client"` のまま**`features/*/components/` へ移されている（13 ファイル。`record-tab.tsx` だけは既に Server Component）。
+Container の直下から下が全部クライアントで、`memo-detail.tsx` は 17 KB の Client Component に
+本文・タグ・問答の**表示**と、編集フォーム・シートの引きずり・自己採点の**操作**が同居している。
+`server-actions-for-writes` の実測では、Server Actions 化でクライアントバンドルは変わらなかった
+（827.4 → 827.7 KB）。**減らすのはこの change の仕事**である。
 
 第 11〜13 章（バンドル境界、Client Components のユースケース、Composition パターン）が対象。
 `server-side-reads` の 4.2 は「`"use client"` が残る理由を確かめる」まで。この change は**減らす**。
@@ -36,4 +37,4 @@
 | 対象 | 変更 |
 |---|---|
 | 変更 | `features/*/components/**`（分割と改名）, `app/(app)/**`（Container の合成）, `lib/layer-boundary.test.ts`（規則 6）, `scripts/harness/bundle-budget.json`, `CLAUDE.md`（置き場の表に規則 6） |
-| 前提 | `server-side-reads` `stream-route-boundaries` `write-with-server-actions` が済んでいる |
+| 前提 | `stream-route-boundaries` が済んでいる（`server-side-reads` `server-actions-for-writes` は archive 済み） |

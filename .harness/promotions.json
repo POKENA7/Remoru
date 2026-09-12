@@ -1,0 +1,16 @@
+[
+  {
+    "check": "check:test",
+    "change": "server-side-reads",
+    "decision": "skip",
+    "note": "archive 済み change の実装中（2026-09-04）の失敗。棚卸未処理のまま残り、新しい worktree ごとに一度ブロックしていた",
+    "ts": "2026-09-12T04:45:10.009Z"
+  },
+  {
+    "check": "check:test",
+    "change": null,
+    "decision": "skip",
+    "note": "レビュー用 claude -p の Stop hook が worktree 内で落ちた記録。原因は古い .next の型と、biome の除外 !**/.claude/worktrees が worktree 内で 0 ファイルにしていたこと。どちらも直した（.next 削除、除外をルート基準に）",
+    "ts": "2026-09-12T04:45:10.239Z"
+  }
+]

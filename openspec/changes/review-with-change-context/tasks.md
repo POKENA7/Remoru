@@ -18,7 +18,7 @@
 - [ ] 3.1 `CLAUDE.md` のハーネスの節に「作業を始めるとき `npm run harness:focus -- <change>`」の 1 行と、
       「計画・実装・評価は別のセッションで行う。計画の成果は `docs/` か change の中に置く」の 3 行を足す
 - [ ] 3.2 `docs/Harness Engineering Checklist.md` の Level 3「Planner の成果が構造化された Artifact として保存される」を
-      証拠つきで ✅ にする（`docs/nextjs-rework-plan.md` と 10 件の change）
+      証拠つきで ✅ にする（`docs/nextjs-rework-plan.md` と 9 件の change）
 
 ## 4. 締め
 

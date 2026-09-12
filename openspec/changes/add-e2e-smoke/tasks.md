@@ -13,10 +13,10 @@
 ## 2. シナリオ
 
 - [ ] 2.1 `e2e/smoke.spec.ts` を書く（design D1・D2）。各段に対応する spec の Requirement 名をコメントに書く。
-      「戻る」の段は `test.fixme` にし、理由（経路が無い。`server-side-reads` 2.3 で外す）を書く
+      「絞り込んでから詳細を開き、戻っても絞り込みが残る」の段を含める
 - [ ] 2.2 `getByRole` で取れない要素があれば、**製品側に `aria-label` を足す**（design Risks）。足したものを列挙する
 - [ ] 2.3 `npm run check:e2e` が手元で緑
-- [ ] 2.4 保存の Route Handler を一時的に 500 にして赤、戻して緑を確かめる（design D5）。結果をここに書く
+- [ ] 2.4 保存の Server Action（`features/memo/actions.ts`）を一時的に失敗させて赤、戻して緑を確かめる（design D5）。結果をここに書く
 
 ## 3. CI
 

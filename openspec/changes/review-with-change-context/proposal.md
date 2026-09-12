@@ -5,7 +5,7 @@
 L08（`- [x]` を付けたがコードもテストも無かった）は、まさにこの不一致であり、レビューが
 見つけるべきものだった。
 
-もう 1 つ、進行中の change が **10 件**になった（`docs/nextjs-rework-plan.md`）。
+もう 1 つ、進行中の change が **9 件**になった（`docs/nextjs-rework-plan.md`）。
 `record-failure.sh` は「archive を除いた change がちょうど 1 件のときだけ change 名を記録する」
 ので、いまから失敗はすべて `change: null` で積まれ、`promote-gate` の 3 回のしきい値が
 change をまたいで混ざる。**どの change を作業中かを、機械が知る手段が要る。**

@@ -1,86 +1,81 @@
 ## Context
 
-既存の構造検査の形（`lib/query-boundary.test.ts` など）: 対象ファイルを glob で集め、
-テキストとして読み、`import` 行を正規表現で見る。AST は使わない。この形で足りている。
+`tests/architecture/layers.arch.test.ts`（main、2026-09-12）:
 
-到達点の層（`docs/nextjs-rework-plan.md` 2 節）:
+- `sources(dir)` が `.ts` `.tsx` を再帰で集め、`specifiers(src)` が import 指定子（静的・side-effect・動的）を拾う
+- 規則 1「`features/` `lib/` `hooks/` は `app/` を参照しない」、規則 5「`lib/` は `features/` を参照しない」
+- 「走査対象が空でない」の assert がある（L06 の「常に緑」を避ける形）
+
+`auth.arch.test.ts` が `features/*/actions.ts` の `"use server"` と `verifySession()` を見る。
+`query.arch.test.ts` が `queries.ts` の `server-only` と `cache()` を見る。**この change は
+それらに重ねない。** 向きだけを足す。
+
+層（`CLAUDE.md`「置き場」）:
 
 ```
-app/(app)/**             経路と Container
+app/(app)/**              経路と Container
 features/<機能>/queries.ts   読み取りの入口（server-only）
-features/<機能>/actions.ts   書き込みの入口（"use server"）    ← write-with-server-actions で増える
-features/<機能>/components/  表示
+features/<機能>/actions.ts   書き込みの入口（"use server"）
+features/<機能>/components/  表示（いまは全部 "use client"）
 features/<機能>/<機能>.ts    ドメイン（純関数）
-lib/                     横断
-cron-worker/src/         別 worker。ドメインの純関数だけ読む
+lib/                      外部ライブラリのラッパーだけ
+cron-worker/src/          別 worker。ドメインの純関数だけ読む
 ```
 
-**いまの実装が守れていない規則がある。** `app/api/**` の Route Handler は `lib/db` を直接
-import している（書き込みは `write-with-server-actions` まで残る）。検査は**いまの違反を
-許容リストに載せて始め**、後続の change が空にする。
-
-## Goals / Non-Goals
-
-**Goals:**
-
-- 向きの違反がコミットできない
-- 規則が `CLAUDE.md` と検査で同じ言葉
-
-**Non-Goals:**
-
-- いまの違反を直すこと
+2026-09-12 の main で規則 2〜4 の違反は **0 件**（`git show` で走査した）。検査は違反が無い状態で
+入るので、「いまの違反を許容する」仕組みは要らない。
 
 ## Decisions
 
-### D1: 規則は 5 つ。それぞれ 1 行で言える
+### D1: 規則は既存の 2 つに 3 つを足して 5 つ。番号を振る
 
-| # | 規則 | 守るもの |
+| # | 規則 | 状態 |
 |---|---|---|
-| 1 | `features/**` は `app/**` を import しない | feature がページを知らない（`server-side-reads` D2） |
-| 2 | `app/**` は `lib/db` と `drizzle-orm` を import しない。**例外は許容リスト**（いまは `app/api/**`。`write-with-server-actions` で空にする） | D1 の取り出しは `queries.ts` / `actions.ts` だけ |
-| 3 | `"use client"` のファイルは `queries` `server-only` `lib/db` を import しない。**`actions` は対象外**——Server Action は Client Component から import して呼ぶのが正規の使い方（`write-with-server-actions`） | クライアントバンドルにサーバーの読み取り入口が入らない（`next build` でも落ちるが、build は `check` の末尾で遅い。ここで先に出す） |
-| 4 | `cron-worker/src/**` は `queries` `actions` `lib/db` `lib/session` を import しない | cron はドメインの純関数だけ読む（`server-side-reads` D7） |
-| 5 | `lib/**`（テストを除く）は `features/**` を import しない | `lib/` は横断。feature に依存した瞬間に横断でなくなる |
+| 1 | `features/**` `lib/**` `hooks/**` は `app/**` を import しない | 既存 |
+| 2 | `app/**` は `@/lib/db` `drizzle-orm` を import しない | **足す** |
+| 3 | `"use client"` のファイルは `/queries`（`queries.ts`）`server-only` `@/lib/db` を import しない。**`actions` は対象外**——Server Action は Client Component から import して呼ぶのが正規の使い方 | **足す** |
+| 4 | `cron-worker/src/**` は `queries` `actions` `lib/db` `lib/session` を import しない | **足す** |
+| 5 | `lib/**` は `features/**` を import しない | 既存 |
 
-`.test.ts` は規則 5 の対象外（`lib/*.test.ts` は横断テストで、feature を読んでよい）。
-規則 1〜4 はテストも対象。
+**規則 3 の「`"use client"` のファイル」は先頭 3 行以内に行頭 `"use client"` または `'use client'` があるもの。**
+コメント中の文字列で誤検知しない。
 
-**規則 3 の「`"use client"` のファイル」は先頭 3 行以内に `"use client"` があるもの。**
-コメントの中の文字列で誤検知しないよう、行頭が `"use client"` または `'use client'` の行だけを見る。
+規則 4 の `cron-worker/src/` は `vitest` の走査対象（`cron-worker/src/*.test.ts` も拾っている）なので、
+同じテストファイルから読める。`node_modules` は `sources()` が除外している。
 
-### D2: 許容リストは検査ファイルの中に、消す change の名前つきで置く
-
-```ts
-/** write-with-server-actions で空にする。増やすときは理由を横に書く */
-const ALLOWED_DB_IMPORTS_IN_APP = ["app/api/"];
-```
-
-別ファイルにすると、リストだけ増えて検査が空洞化する。検査の隣に置き、diff に出るようにする。
-
-### D3: 違反のメッセージに規則の番号と直し方を出す
+### D2: 違反のメッセージに規則の番号と直し方
 
 ```
-layer-boundary #2: app/(app)/page.tsx が @/lib/db を import している。
+layers #2: app/(app)/page.tsx が @/lib/db を import している。
   読み取りは features/<機能>/queries.ts、書き込みは actions.ts を経由すること。
 ```
 
-チェックリスト「Architecture 違反のエラーメッセージに修正方法または参照先が含まれる」を満たす。
+`expect(offenders).toEqual([])` の `offenders` の各行にこの形で入れる。
 
-### D4: 5 つの規則それぞれに注入テストを付ける（L06）
+### D3: 注入テストは判定関数を文字列で試す
 
-`lib/layer-boundary.test.ts` の中で、規則ごとに「違反する 1 行を含む仮のソース文字列」を
-検査関数に食わせて赤になることを見る。検査関数はファイルを読む部分と判定する部分を分け、
-判定部分を文字列で試せるようにする（`scripts/harness/checks.test.ts` が一時ファイルを
-作る方式より軽い）。
+既存の `specifiers()` は文字列を受けるので、規則ごとの判定を `violations(rule, path, src)` の形に
+切り出し、「違反する 1 行を含む仮のソース」を渡して非空になることを見る。ファイルを作らない。
+規則 1・5 も同じ形に寄せ、5 つとも注入で赤を確かめる（L06）。
+
+### D4: `check:build` は `check` の末尾。`check:bundle` の前
+
+```
+check = format → lint → types → test → secrets → build
+```
+
+`measure-first-paint` が `check:bundle` を足すときは `build` の後ろに置く。どちらが先に merge されても
+成り立つよう、両方の tasks に「相手が未 merge なら `check:build` を自分で足す」を書いてある。
+
+`next build` が `next-env.d.ts` や `.next/` を書き換えても差分にならないことを確かめる（gitignore 済みのはず）。
+Linux（CI）で `next build` が通るかは**ここで初めて分かる**（L07）。
 
 ## Risks / Trade-offs
 
-- **正規表現で import を見るので、動的 import や再エクスポートは見ない** → 既存の構造検査も
-  同じ前提。動的 import が必要になったら、そのときに考える
-- **規則 2 の許容リストが「とりあえず足す」で増える** → D2 の「消す change の名前」を必須にする。
-  名前の無い項目があれば検査自体が赤（リストの形も検査する）
+- **`next build` が `check` に入り、precommit の門が数秒延びる** → 許容する。2 秒台
+- **`next build` が `next/font`（`lighten-first-paint`）で Google に接続する** → CI から接続できなければ
+  向こうが `next/font/local` に切り替える。この change の問題ではない
 
 ## Open Questions
 
-- `check:build` を `measure-first-paint` が先に足しているか。足していなければ、この change で
-  `check:build`（`next build`）だけ足し、`check:bundle` は向こうに残す
+- `check:build` を `measure-first-paint` が先に足しているか。足していれば D4 は「確かめるだけ」

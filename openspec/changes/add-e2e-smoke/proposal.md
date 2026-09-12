@@ -1,13 +1,13 @@
 ## Why
 
-`app/` の `.tsx` 10 本にテストが 1 本も無い。`server-side-reads` の design はこれを
-Risks に挙げ、「書き換えの最中は spec のシナリオを画面上で辿ること（L05）が頼り」と
-書いている。しかしブラウザ枠は実クリックが使えず（記憶: browser-real-clicks-unavailable）、
+画面の部品（`features/*/components/` の `.tsx` 13 本）にテストが 1 本も無い。`server-side-reads`
+の design はこれを Risks に挙げ、「書き換えの最中は spec のシナリオを画面上で辿ること（L05）が
+頼り」と書いていた。その change は済んだが、部品のテストは増えていない。しかしブラウザ枠は実クリックが使えず（記憶: browser-real-clicks-unavailable）、
 毎回 iPhone の利用者に委ねている。L05 と L10 はどちらも「人がやる」手順で、
 **人がやる手順は静かに省略される**（`add-deterministic-harness` の Why と同じ観測）。
 
-これから `app/` のほぼ全域を 4 つの change で書き換える。経路が変わり、
-取得が Server Components に移り、書き込みが Server Actions になる。**利用者が
+これから部品を葉へ割り（`move-client-boundary-to-leaves`）、読み込み中の枠を入れ
+（`stream-route-boundaries`）、保存の見え方を変える（`optimistic-memo-save`）。**利用者が
 使う 1 本の流れが通ることを、機械が毎回確かめる**必要がある。
 
 Playwright は実際のクリックと打鍵で画面を動かす。L10 の「人が押せる経路で辿る」を
@@ -22,7 +22,7 @@ Playwright は実際のクリックと打鍵で画面を動かす。L10 の「�
 - **`check:e2e` を足す。ただし `check` には入れない。** CI の別ジョブと、手で走らせる。
   Stop hook の `check:test` にも入れない（`next dev` の起動が要り、桁が変わる）
 - **場所を選ぶ規則を design に置く。** role と label で要素を取り、DOM の構造や
-  クラス名に依存しない。経路が変わっても書き直しにならないため
+  クラス名に依存しない。部品を割っても書き直しにならないため
 
 ### Non-goals
 
