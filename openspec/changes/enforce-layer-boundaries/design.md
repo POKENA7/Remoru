@@ -79,14 +79,18 @@ Linux（CI）で `next build` が通るかは**ここで初めて分かる**（L
 ## Open Questions
 
 - ~~`check:build` を `measure-first-paint` が先に足しているか。足していれば D4 は「確かめるだけ」~~
-  → **足していなかった**（2026-09-12、`origin/main` = `d7d12b0`）。この change が
-  `"check:build": "next build"` を足し、`check` の末尾に並べた。`measure-first-paint` が
-  `check:bundle` を足すときは、その後ろに置く
+  → **実装した時点では足していなかった**（`origin/main` = `d7d12b0`）ので、この change が足した。
+  その後 `measure-first-paint`（A1）が先に merge され（`2289c43`）、同じ `check:build` と
+  `check:bundle` が main に入った。**rebase で package.json は main 側を採用**したので、
+  この change は package.json に何も足していない。並びは D4 の通り
+  `format → lint → types → test → secrets → build → bundle` になっている
 
-- ~~**`scripts/harness/precommit-gate.sh:86` を直してよいか。**~~ → **このブランチで直した**（利用者の判断、2026-09-12）。
+- ~~**`scripts/harness/precommit-gate.sh:86` を直してよいか。**~~ → 利用者の判断でこのブランチでも直したが、
+  **A5（`review-with-change-context`）が先に main で同じ修正を入れていた**ため、rebase 後の差分は 0。
+  `scripts/spawn-change.sh` の同型 4 か所も main 側で直っている。
   同行の `（$hash）` が macOS の bash 3.2 + UTF-8 ロケールで `hash\xef: unbound variable` になり、
   門が exit 127 で終わる。PreToolUse は 2 以外をブロックとして扱わないので、
   **「受領書が無い」経路が fail open している**。`precommit-gate.test.ts` の (a)(c) もこれで赤い。
   `${hash}` にすれば直ることは確認済み。CI（`C.UTF-8`）では再現しないので、Linux だけを見ていると見えない（L07）。
-  Impact 表の外だが、直さないと `npm run check` も門も通らず 5 セッション全部が止まるため含めた。
-  `scripts/spawn-change.sh` の同型 4 か所は残してある。詳細は tasks の 5 節
+  3 つの worktree が同じ時刻に同じ検査で落ちている（`.learnings/failures.jsonl` の
+  07:02 / 07:05 / 07:11）ので、3 セッションが独立にこれを踏んだことになる。詳細は tasks の 5 節

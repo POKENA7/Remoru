@@ -58,7 +58,7 @@
 - [x] Unit Test が自動実行できる。
 - [x] Integration Test が自動実行できる。
 - [ ] E2E Test が存在する。
-- [x] Build が自動検証できる。 — `package.json` の `check:build`（`next build`）。`check` の末尾に入っており、コミット前の門と CI（`.github/workflows/ci.yml`）の両方で走る
+- [x] Build が自動検証できる。 — `package.json` の `check:build`（`next build`）。`check` に入っており、コミット前の門と CI（`.github/workflows/ci.yml`）の両方で走る
 - [ ] Dependency / Security Check が自動実行できる。
 - [x] Architecture / Structural Check が自動実行できる。
 - [x] CI で主要な検証が自動実行される。

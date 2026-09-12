@@ -31,8 +31,10 @@
 ## 2. `check:build`
 
 - [x] 2.1 `package.json` に `check:build` があるか見る。無ければ `next build` として足し、`check` の末尾に並べる（design D4）
-      → **無かった**（`measure-first-paint` は未 merge）。`"check:build": "next build"` を足し、
-      `check` を `format → lint → types → test → secrets → build` にした。
+      → **実装時は無かった**（`measure-first-paint` は未 merge）ので足した。
+      その後 A1 が先に merge され、**rebase で package.json は main 側を採用**した。
+      いまの並びは `format → lint → types → test → secrets → build → bundle`（D4 の通り）。
+      この change は package.json に何も足していない。
       **L06 の確認**: `"use client"` + `import "server-only"` の経路を 1 つ作ると
       `check:build` は exit 1 で落ち、`'server-only' cannot be imported from a Client Component module` を出す。
       取り除くと exit 0。**規則 3 は検査とビルドの二重で止まる**（ビルドは経路から辿れるときだけ）
@@ -87,8 +89,22 @@ bash 3.2.57（macOS 同梱）は `LANG=*.UTF-8` のとき `（`（U+FF09）の**
 | CI では出ない | GitHub の runner は `C.UTF-8` で、そこでは同じ行が通る（L07 そのもの） |
 
 - 原因は `$hash` の直後の全角括弧だけ。`${hash}` にすると 11 件とも緑になる
-- **利用者の判断（2026-09-12）: このブランチで直す。** `precommit-gate.sh:86` だけを `${hash}` にした。
-  Impact 表の外だが、これを直さないと `npm run check` も門も通らず、5 セッション全部が止まる
-- 同じ形が `scripts/spawn-change.sh:124,143` に 4 か所残っている（`$path（` `$pane）` `$ws（` `$branch）`）。
-  **こちらは直していない**（`set -u` は付いているが、落ちるのは最後の報告の行なので worktree は作られる）。
-  別の change で潰すこと
+- **利用者の判断（2026-09-12）: このブランチで直す。** `precommit-gate.sh:86` だけを `${hash}` にした
+- **その後 A5（`review-with-change-context`）が先に main で同じ修正を入れていたことが判明した。**
+  rebase 後、この change の `precommit-gate.sh` の差分は 0。`scripts/spawn-change.sh` の同型 4 か所も
+  main 側で直っている
+- **3 セッションが独立にこれを踏んでいる。** `.learnings/failures.jsonl` の
+  07:02（review-with-change-context）/ 07:05（enforce-layer-boundaries）/ 07:11（measure-first-paint）が
+  全て `check:test` の precommit 落ち。**同じ欠陥を 3 回別々に調べ直したことになる**
+
+## 6. rebase（2026-09-12）
+
+PR がコンフリクトしたので `origin/main`（`2289c43`）へ rebase した。main は 2 件進んでいた——
+A5 `review-with-change-context`（`a728e1c`）、A1 `measure-first-paint`（`2289c43`）。
+
+| ファイル | 衝突 | 解消 |
+|---|---|---|
+| `package.json` | `check` の並びと `check:build` / `check:bundle` / `harness:focus` | **main 側を全採用。** A1 が同じ `check:build` を足していたので、この change の分は要らなくなった |
+| `.learnings/failures.jsonl` | 3 worktree が同時刻に追記 | **和集合を時刻順に。** 追記専用の記録なので、どちらも消さない |
+| `CLAUDE.md` / `docs/Harness Engineering Checklist.md` | なし（自動 merge） | 層の 5 規則の表と 3 項目の ✅ はそのまま残った |
+| `scripts/harness/precommit-gate.sh` | なし | **main 側に同じ修正が入っていたので差分 0 になった**（5 節） |
