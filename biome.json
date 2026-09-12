@@ -7,7 +7,8 @@
       "!**/.next",
       "!**/.open-next",
       "!**/.wrangler",
-      "!**/.claude/worktrees",
+      "!.claude/worktrees",
+      "!.harness",
       "!drizzle",
       "!cloudflare-env.d.ts",
       "!next-env.d.ts"

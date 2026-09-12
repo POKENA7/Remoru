@@ -105,6 +105,13 @@ import 文から見えるようにするため。増えたら境界がずれた�
   ホスティング先のシークレットストアに置き、`*.example` にはプレースホルダのみ。
 - トランクは `main`。作業は短命なフィーチャーブランチから squash merge。
 
+## 進行中の大きな仕事: Next.js の考え方に沿った組み替えと初期表示の改善
+
+順序・依存・各 change の状態は [docs/nextjs-rework-plan.md](docs/nextjs-rework-plan.md)。
+**change を始める前に必ず読み、表の順序を守ること。** 9 件の change が
+`openspec/changes/` に立っている。どれを作業中かは `npm run harness:focus` で宣言する
+（`review-with-change-context` が済むまでは、その change の tasks の先頭に書く）。
+
 ## 未解決の問題
 
 直すと決めたが、まだ直していないものは [docs/open-issues.md](docs/open-issues.md)。
