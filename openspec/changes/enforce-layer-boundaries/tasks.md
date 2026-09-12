@@ -39,8 +39,9 @@
 - [x] 2.2 `next build` のあとに `git status --porcelain` が空のままであること
       → 空。`.next/` は gitignore 済み、`next-env.d.ts` は追跡されているが書き換わらなかった。
       所要は温まった状態で **2.41 / 2.46 / 2.74 秒**（3 回、`real`）、冷えた 1 回目は 8.78 秒
-- [ ] 2.3 CI が緑になることを見る（Linux で `next build` が通るかはここで初めて分かる——L07）
-      → PR を出した後に確かめる
+- [x] 2.3 CI が緑になることを見る（Linux で `next build` が通るかはここで初めて分かる——L07）
+      → PR #6 の `check` が **pass**。Linux（`ubuntu-latest`、`npm ci` + ネイティブバイナリの補填）で
+      `next build` も通った。手元にしか無い依存やロケール依存は出なかった
 
 ## 3. 規則の文書化
 
