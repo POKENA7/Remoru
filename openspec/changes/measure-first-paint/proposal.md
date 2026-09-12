@@ -47,5 +47,6 @@ L04 と L13 は、測らずに「効いた」と主張して覆った出来事�
 |---|---|
 | 新規 | `docs/perf.md`, `scripts/harness/bundle-budget.mjs`, `scripts/harness/bundle-budget.json`, `scripts/harness/bundle-budget.test.ts` |
 | 変更 | `package.json`（`check:build` `check:bundle` を `check` に追加）, `app/layout.tsx`（ビーコン 1 行）, `.github/workflows/ci.yml`（`check` に含まれるので変更不要のはず。確かめる） |
+| 変更（実装中に追加） | `scripts/harness/precommit-gate.sh`, `scripts/harness/precommit-gate.test.ts`, `scripts/spawn-change.sh` — 門が macOS で exit 1 になり**ブロックしていなかった**穴。利用者判断（2026-09-12）でこの change に含めた。経緯は design「実装中に見つけたこと」 |
 | 製品コード | ビーコンの `<script>` 1 本のみ |
 | 依存 | 増えない |

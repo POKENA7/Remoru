@@ -72,10 +72,14 @@ function writeReceipt(dir: string, hash: string, findings: string[]) {
   );
 }
 
-function runGate(dir: string, command: string): number {
+function runGate(dir: string, command: string, locale?: string): number {
   const r = spawnSync("bash", [GATE], {
     cwd: dir,
-    env: { ...process.env, HARNESS_ROOT: dir },
+    env: {
+      ...process.env,
+      HARNESS_ROOT: dir,
+      ...(locale ? { LANG: locale, LC_ALL: locale } : {}),
+    },
     input: JSON.stringify({ tool_name: "Bash", tool_input: { command } }),
     encoding: "utf8",
     stdio: ["pipe", "pipe", "pipe"],
@@ -453,4 +457,42 @@ describe("レビュー自身の書き込みは自分の受領書を無効にし�
       ["change-a"],
     );
   });
+});
+
+/**
+ * 門はロケールが変わっても 2 を返す（L07 / measure-first-paint で見つけた）。
+ *
+ * **出来事。** `precommit-gate.sh` の「受領書が無い」の文言が
+ * `この差分（$hash）の…` と書かれていた。macOS の bash 3.2 は UTF-8 ロケールだと
+ * 全角の閉じ括弧の先頭バイトを変数名に取り込み、`hash\xef` を未定義として
+ * `set -u` で **exit 1** にする。PreToolUse の hook は **exit 2 でなければ
+ * ブロックしない**ので、門は「止めたつもりで通して」いた。受領書が無いまま
+ * コミットできる状態が、手元では常に成り立っていた。
+ *
+ * **どこで壊れるかを実測した**（2026-09-12）。同じ 1 行を走らせた結果:
+ *
+ *   macOS bash 3.2  LANG=C            → 正常
+ *   macOS bash 3.2  LANG=en_US.UTF-8  → **壊れる**
+ *   macOS bash 3.2  LANG=ja_JP.UTF-8  → **壊れる**
+ *   Linux bash 5.2 / glibc 2.36       → 4 ロケールすべて正常
+ *   Linux bash 5.2 / musl             → 4 ロケールすべて正常
+ *
+ * つまり **macOS の libc の問題**である。UTF-8 ロケールで `isalnum()` が 0x80 以上の
+ * バイトを英数字として返すため、bash が変数名に取り込む。glibc/musl は返さない。
+ *
+ * **だから CI ではこの 3 件は常に緑で、何も守らない。** 守るのは手元の macOS である。
+ * それでも明示する価値がある: 直す前の (a)(c) は**開発者の `LANG` 次第**で色が変わり、
+ * `LANG` を設定していない人の手元では緑のまま門が開いていた。ここを固定すれば、
+ * どの macOS でも同じ結果になる。
+ */
+describe("門はロケールに依らず 2 を返す（L07）", () => {
+  // C は壊れない側の対照。UTF-8 の 2 つが手元の macOS で実際に壊れた組み合わせ
+  for (const locale of ["C", "en_US.UTF-8", "ja_JP.UTF-8"]) {
+    it(`LANG=${locale} でも受領書が無ければ 2`, () => {
+      withRepo((dir) => {
+        stage(dir, "export const a = 2;\n");
+        expect(runGate(dir, 'git commit -m "変更"', locale)).toBe(2);
+      });
+    });
+  }
 });

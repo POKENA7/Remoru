@@ -49,7 +49,7 @@ B（本の適用。この順。B1 と B2 は並列可）
 
 | # | change | 前提 | 本の章 | 状態 |
 |---|---|---|---|---|
-| A1 | `measure-first-paint` | なし | — | 未着手 |
+| A1 | `measure-first-paint` | なし | — | **実装中。** 検査（`check:build` `check:bundle`）と手順書は済み。時間の計測は Clerk のテスト利用者待ち |
 | A2 | `add-staging-environment` | なし | — | 未着手 |
 | A3 | `add-e2e-smoke` | なし | — | 未着手 |
 | A4 | `enforce-layer-boundaries` | A1 の `check:build`（無ければ自分で足す） | — | 未着手 |
@@ -91,12 +91,26 @@ B（本の適用。この順。B1 と B2 は並列可）
 |---|---|
 | `/` 未サインイン（307）TTFB | 0.53 / 0.53 / 0.99 秒 |
 | `/sign-in` TTFB | 0.07 / 0.48 / 0.53 秒（ばらつきが大きい。コールドスタートの疑い） |
-| 自前 JS（11 チャンク、gzip 合計） | 224 KB |
+| ~~自前 JS（11 チャンク、gzip 合計）~~ | ~~224 KB~~ **← `/sign-in` の値だった。下記参照** |
 | `clerk.browser.js`（gzip） | 81 KB（全ページで読む） |
 | `@clerk/ui`（gzip） | 44 KB（preload される） |
 | Google Fonts の CSS（gzip、iPhone UA） | 87 KB。日本語フォントは unicode-range で細切れになるため大きい。**描画ブロック** |
 | 自前 CSS（gzip） | 4 KB |
 | `next build` のチャンク合計（raw、4 経路ぶん） | 827.7 KB / 17 チャンク（`server-actions-for-writes` 実測） |
+
+**この表の「自前 JS 224 KB」は `/` の値ではなかった**（A1 の実装で 2026-09-12 に判明）。
+本番の HTML を取って数え直したところ、224 KB は **`/sign-in` の 11 チャンク**
+（実取得の合計 223,559 B）で、しかも `<script noModule>` が付いた polyfill 38.6 KB を
+含んでいた。**現代のブラウザはこれを読まない。**
+
+| 対象 | 実測（2026-09-12） |
+|---|---|
+| **`/` の自前 JS（13 チャンク、gzip、polyfill を除く）** | **206.2 KB**（206,221 B） |
+| `/sign-in` の自前 JS（11 チャンク、gzip、polyfill 込み） | 223.6 KB（223,559 B） |
+| うち polyfill（`noModule`。読まれない） | 38.6 KB |
+
+以後は `npm run check:bundle` が `/` の値を出し、予算（216,533 B）を超えると
+コミットできない。測り方は [docs/perf.md](perf.md)。
 | `npm run test`（Stop hook が走らせるもの） | 47 ファイル 558 件、9.6 秒 |
 | `next build` | 2 秒台（Turbopack） |
 
