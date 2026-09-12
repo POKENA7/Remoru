@@ -15,7 +15,7 @@ import { afterAll, afterEach, describe, expect, it } from "vitest";
  * 後者だけだと「常に緑の検査」も通る。両方あって初めて検査になる。
  *
  * 一時ファイルはリポジトリの中に置く。`check:*` はリポジトリ全体を走査する
- * ので、外に置くと入力に入らない（scan-secrets.sh で踏んだ L09 と同じ罠）。
+ * ので、外に置くと入力に入らない（scan-secrets.sh で踏んだ L09（棚卸で削除済み・`.learnings/archive.md`） と同じ罠）。
  *
  * `check:lint` / `check:format` に `--max-diagnostics=none` が付いているのは、
  * これがあってこそ成り立つ検査だからである。既定の 20 件で打ち切られると、
@@ -128,7 +128,7 @@ describe("壊した入力を食わせると赤くなる（D10）", () => {
 });
 
 /**
- * check:secrets の注入は、使い捨ての git リポジトリに対して行う（D10 / L09）。
+ * check:secrets の注入は、使い捨ての git リポジトリに対して行う（D10 / L09（棚卸で削除済み・`.learnings/archive.md`））。
  *
  * `scan-secrets.sh` は git の**全履歴の blob** を走査する。作業ツリーに置いた
  * だけでは入力に入らないので、必ずコミットしてから走らせる。

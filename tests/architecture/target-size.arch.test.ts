@@ -105,7 +105,7 @@ describe("メモ詳細の押せるものは 44px を確保する", () => {
 describe("2版は地に載せる色を使う", () => {
   it("問と答の版に淡色や塗りの色を使わない", () => {
     /*
-     * 実測（`prefers-color-scheme` を CDP で切り替え、学び L03）:
+     * 実測（`prefers-color-scheme` を CDP で切り替え、学び L03（棚卸で削除済み・`.learnings/archive.md`））:
      *   --orange-soft / --blue-soft   ライト 1.11 / 1.12   ← 見分けられない
      *   --orange      / --blue        ダーク 3.26 / 2.49   ← 答が基準割れ
      *   --orange-text / --blue-text   ライト 5.79 / 7.21、ダーク 7.37 / 6.65
