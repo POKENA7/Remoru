@@ -59,7 +59,7 @@ B（本の適用。この順。B1 と B2 は並列可）
 | B3 | `move-client-boundary-to-leaves` | B2 A3 A4 | 11 12 13 | 未着手 |
 | B4 | `optimistic-memo-save` | B2 B3 | 9 | 未着手。任意 |
 
-**並列で進めるなら:** A1〜A5 を別 worktree で同時に。B1 と B2 も同時にできる（触る場所が重ならない）。
+**並列で進めるなら:** A1〜A5 を別 worktree で同時に（`scripts/spawn-change.sh <change>` が herdr の worktree を作り、依存を入れ、Claude Code にプロンプトを渡す。**main の checkout から**打つ。`--dry-run` で内容を確かめられる）。B1 と B2 も同時にできる（触る場所が重ならない）。
 それ以外は直列。merge の順は A5 → A1 → A4 → A3 → A2（A5 が全員の使う review.sh を変え、A4 が A1 の
 `check:build` に依存する）。
 
