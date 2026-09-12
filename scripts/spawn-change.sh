@@ -121,7 +121,8 @@ if [ -z "$ws" ] || [ -z "$pane" ] || [ -z "$path" ] || [ ! -d "$path" ]; then
   rollback
   exit 1
 fi
-echo "worktree: $path（workspace $ws, pane $pane）"
+# `${…}` と括るのは bash 3.2 が全角括弧のバイトを変数名に含めるため（`set -u` で落ちる）
+echo "worktree: ${path}（workspace ${ws}, pane ${pane}）"
 
 # ---- 依存と環境（同期で）------------------------------------------------------
 
@@ -140,5 +141,5 @@ echo "worktree: $path（workspace $ws, pane $pane）"
 # 引用符は pane 側の shell が解釈するので、ここでは単一引用で包んだまま渡す。
 herdr pane run "$pane" 'claude "$(cat .harness/prompt.md)"'
 trap - INT TERM ERR
-echo "started: $change → herdr workspace $ws（$branch）"
+echo "started: $change → herdr workspace ${ws}（${branch}）"
 echo "様子を見る: herdr agent list / herdr pane read $pane --source recent-unwrapped --lines 60"

@@ -17,5 +17,32 @@
       "database_id": "5c1baf13-12a8-4e74-ad65-34a93d13a75f",
       "migrations_dir": "drizzle/migrations"
     }
-  ]
+  ],
+
+  // 名前付き環境。**トップレベルが本番**で、ここが staging（design.md D1）。
+  //
+  // **バインディングは継承されない。** `d1_databases` をここに書き忘れると
+  // staging は本番の D1 を指すのではなく DB バインディング無しで起動し、
+  // 一覧の取得が実行時に落ちる。`assets` も同じ理由でもう一度書く。
+  // （`main` `compatibility_date` `compatibility_flags` は継承される側）
+  //
+  // ここが本番の `database_id` と同じでないことは
+  // `scripts/harness/staging-isolation.test.ts` が見ている（design.md D3）。
+  "env": {
+    "staging": {
+      "name": "remoru-staging",
+      "assets": {
+        "directory": ".open-next/assets",
+        "binding": "ASSETS"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "remoru-db-staging",
+          "database_id": "afc356ae-56bf-4f52-9777-288151a26768",
+          "migrations_dir": "drizzle/migrations"
+        }
+      ]
+    }
+  }
 }

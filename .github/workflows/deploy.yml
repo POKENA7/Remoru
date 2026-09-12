@@ -1,0 +1,91 @@
+# 本番への出荷はここだけが行う（add-staging-environment design D4）。
+#
+# エージェントが手元から出せるのは staging まで（`npm run deploy:staging`）。
+# 本番は `main` に入ったものだけが、この経路を通って出る。
+#
+# `ci.yml` と分けてあるのは、`ci.yml` が「秘密情報は使わない。デプロイも載せない」
+# と自分で書いているため。混ぜると、その約束が静かに消える。
+#
+# **`check` はこのジョブの中で先に走らせる。** 別ワークフロー（`ci.yml`）の完了を
+# 待つ仕組みは、待ち方を間違えると「落ちた check を無視して出荷」になる。
+# 同じジョブに並べるほうが、順序が読んで分かる。
+name: deploy production
+
+on:
+  push:
+    branches: [main]
+
+# 出荷を重ねない。`main` に続けて 2 つ入ったとき、古いほうが後に着地すると
+# 本番が巻き戻る。cancel-in-progress は**しない**——マイグレーションを当てた
+# 直後に殺されると、新しいスキーマに古いコードが残る。
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # check:secrets は git の**全履歴の blob** を走査する。浅いクローンだと
+          # 入力がほとんど空になり、緑のまま何も守らない検査になる
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # npm の既知の欠陥（npm/cli#4828）への対処。**`ci.yml` と同じ内容**。
+      # lockfile に darwin-arm64 の分しか無いパッケージがあり、Linux では
+      # tsc も vitest も起動しない。片方だけ直すと、もう片方が Linux で落ちる。
+      # 詳しい経緯は `ci.yml` の同じステップに書いてある
+      - name: Linux 用のネイティブバイナリを足す
+        run: |
+          set -eu
+          ts=$(node -p "require('typescript/package.json').version")
+          rd=$(node -p "require('rolldown/package.json').version")
+          npm i --no-save \
+            "@typescript/typescript-linux-x64@$ts" \
+            "@rolldown/binding-linux-x64-gnu@$rd"
+
+      # cron worker は独自の package.json を持つ。テストが拾うだけでなく、
+      # `deploy:production` が `wrangler deploy` でこの worker を束ねるので、
+      # ここを入れないと配備そのものが依存を解決できない
+      - run: npm ci --prefix cron-worker
+
+      - run: npm run check
+
+      # **マイグレーション → 配備の順**（design D4）。逆にすると、新しいコードが
+      # 古いスキーマを読む窓ができる。当て忘れ（コードだけ出て 500）を防ぐために
+      # 人の手順から外して、ここに置いている
+      - name: 本番の D1 にマイグレーションを当てる
+        run: npx wrangler d1 migrations apply remoru-db --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # 本体と cron の両方を出す。共有コード（features/notification/*、
+      # features/review/review-scheduler）を変えたとき片方だけ古いと、
+      # 「復習タブには出るのに通知が来ない」形で静かに壊れる
+      - name: 本体と cron を本番へ出す
+        run: npm run deploy:production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # 出した直後に、期待どおりの応答かを見る（docs/deploy.md の確認節と同じ）。
+      # 500 が返るならシークレットが効いていない。**ここで落としてよい**——
+      # 気づかずに次の作業へ進むより、赤いほうがよい
+      - name: 出荷後の応答を確かめる
+        run: |
+          set -eu
+          base=https://remoru.pokena191.workers.dev
+          root=$(curl -s -o /dev/null -w "%{http_code}" "$base/")
+          signin=$(curl -s -o /dev/null -w "%{http_code}" "$base/sign-in")
+          echo "/ -> $root, /sign-in -> $signin"
+          test "$root" = "307"
+          test "$signin" = "200"

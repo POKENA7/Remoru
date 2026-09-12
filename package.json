@@ -8,7 +8,9 @@
     "build": "next build",
     "start": "next start",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "deploy:staging": "opennextjs-cloudflare build -e staging && opennextjs-cloudflare deploy -e staging",
+    "deploy:staging:cron": "cd cron-worker && wrangler deploy --env staging",
+    "deploy:production": "opennextjs-cloudflare build && opennextjs-cloudflare deploy && cd cron-worker && wrangler deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply remoru-db --local",
@@ -23,7 +25,7 @@
     "harness:review": "bash scripts/harness/review.sh",
     "harness:promote": "node scripts/harness/promote-gate.mjs --record",
     "learnings:index": "node scripts/harness/learnings-index.mjs",
-    "predeploy": "npm run check"
+    "predeploy:staging": "npm run check"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.8.0",
