@@ -28,8 +28,12 @@
 - [x] 1.4 `next build` のあとに `git status --porcelain` が空のままであることを確かめる
       → **確かめた。** `.next/` も `next-env.d.ts` も差分に現れない
       （前者は `.gitignore:6`、後者は追跡済みで中身が変わらない）
-- [ ] 1.5 CI が緑になることを見る（`check` に含まれるので `ci.yml` は変えないはず。
+- [x] 1.5 CI が緑になることを見る（`check` に含まれるので `ci.yml` は変えないはず。
       Linux で `next build` が通るかは**ここで初めて分かる**——L07）
+      → **緑**（run 34685274748）。`ci.yml` は変えていない。Linux でも `next build` が通り、
+      `check:bundle` が **手元と同じ 206.2 KB / 13 チャンク**を出した。
+      `bundle-budget.test.ts` は 4 件中 **1 件 skip**（本物の `.next` を要する 1 件。
+      `check:test` が `check:build` より先に走るため。design Open Questions に記録）
 
 ## 1b. 実装中に見つけた門の穴（利用者判断で範囲に追加）
 
@@ -78,7 +82,19 @@
 
 ## 4. 締め
 
-- [ ] 4.1 `performance` spec の 2 つの要件が、`docs/perf.md` の指標の定義と同じ言葉で
+- [x] 4.1 `performance` spec の 2 つの要件が、`docs/perf.md` の指標の定義と同じ言葉で
       書かれていることを確かめる（spec と手順書で「一覧が読めるまで」の定義がずれない）
-- [ ] 4.2 `npm run harness:review` で受領書を作り、コミットの門を通す
-- [ ] 4.3 `docs/nextjs-rework-plan.md` の表に「A1 完了」と基準値を書く
+      → spec が「メモの一覧の最初の本文」、手順書が「一覧の最初のメモの本文」と
+      **語順が違っていた**ので、spec と手順書の両方を「一覧の最初のメモの本文が
+      画面に描かれるまで」に揃えた。「ウォーム」の条件も spec と §2 で同じ。
+      `npx openspec validate --changes` は 9 件全て通る
+- [x] 4.2 `npm run harness:review` で受領書を作り、コミットの門を通す
+      → **2 度指摘を受けて直した。** (1) fixture の polyfill が `rootMainFiles` と
+      同じファイルを指しており Set が重複除去していた（＝「polyfill を足さない」ことを
+      何も見ていなかった）。(2)「CI でも同じ穴が捕まる」と根拠なく書いていた。
+      Docker で実測して Linux では再現しないことを確かめ、主張を実測に合わせた。
+      3 度目で指摘なし。受領書 `4be3f40…` でコミット `7bd39a3`
+- [x] 4.3 `docs/nextjs-rework-plan.md` の表に「A1 完了」と基準値を書く
+      → §2.2 の「自前 JS 224 KB」が `/sign-in` の値だったことを表で訂正し、
+      `/` の 206.2 KB を基準値として書いた。A1 の状態は**検査と手順書は完了・
+      時間の計測は利用者待ち**として残す（全部 [x] になるまで「完了」とは書かない——L08）
