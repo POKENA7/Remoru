@@ -83,7 +83,7 @@ fi
 
 receipt="$root/.harness/reviews/$hash.json"
 if [ ! -f "$receipt" ]; then
-  echo "門: この差分（$hash）のレビュー受領書が無い。npm run harness:review を実行すること。" >&2
+  echo "門: この差分（${hash}）のレビュー受領書が無い。npm run harness:review を実行すること。" >&2
   exit 2
 fi
 

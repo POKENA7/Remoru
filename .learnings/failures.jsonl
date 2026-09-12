@@ -8,3 +8,4 @@
 {"ts":"2026-09-05T01:28:39Z","check":"check:format","exit":2,"head":".harness/blocked.json format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━","change":"server-side-reads","phase":"precommit"}
 {"ts":"2026-09-12T04:34:48Z","check":"check:types","exit":2,"head":".next/types/validator.ts(53,39): error TS2307: Cannot find module '../../app/page.js' or its corresponding type declarations.","change":null,"phase":"stop"}
 {"ts":"2026-09-12T04:39:30Z","check":"check:test","exit":2,"head":" RUN  v4.1.11 /Users/pokena/Git/github.com/POKENA7/Remoru/.claude/worktrees/agitated-williamson-6dbb6b","change":null,"phase":"stop"}
+{"ts":"2026-09-12T07:02:17Z","check":"check:test","exit":2,"head":" RUN  v4.1.11 /Users/pokena/.herdr/worktrees/Remoru/change-review-with-change-context","change":null,"phase":"precommit"}

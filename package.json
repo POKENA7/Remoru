@@ -20,6 +20,7 @@
     "check:types": "npm run typecheck && npm --prefix cron-worker run typecheck",
     "check:test": "npm run test",
     "check:secrets": "bash scripts/scan-secrets.sh",
+    "harness:focus": "bash scripts/harness/focus.sh",
     "harness:review": "bash scripts/harness/review.sh",
     "harness:promote": "node scripts/harness/promote-gate.mjs --record",
     "learnings:index": "node scripts/harness/learnings-index.mjs",

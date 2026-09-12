@@ -12,13 +12,15 @@
 // なくファイルの状態で判定するためである。
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 const ROOT = process.env.HARNESS_ROOT ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const FAILURES = join(ROOT, ".learnings", "failures.jsonl");
 const PROMOTIONS = join(ROOT, ".harness", "promotions.json");
 const BLOCKED = join(ROOT, ".harness", "blocked.json");
+const FOCUS = join(ROOT, ".harness", "focus");
+const CHANGES = join(ROOT, "openspec", "changes");
 
 /** 同一 check が同一 change 内で何回落ちたら候補にするか。理論的根拠はない（D9） */
 const THRESHOLD = 3;
@@ -53,6 +55,24 @@ function writeJson(path, value) {
 }
 
 const key = (check, change) => `${check}@${change ?? "null"}`;
+
+/**
+ * 作業中の change（focus.sh --resolve と同じ順序: 宣言 → 1 件だけなら採用 → null）。
+ * `--record` で候補が複数の change にまたがるときの絞り込みに使う。
+ * 宣言だけを信じて存在を確かめないと、archive 済みの名前に決定が紐づく。
+ */
+function focusChange() {
+  if (existsSync(FOCUS)) {
+    const declared = readFileSync(FOCUS, "utf8").split("\n")[0].trim();
+    if (declared && declared !== "archive" && existsSync(join(CHANGES, declared))) return declared;
+  }
+  const open = existsSync(CHANGES)
+    ? readdirSync(CHANGES, { withFileTypes: true })
+        .filter((e) => e.isDirectory() && e.name !== "archive")
+        .map((e) => e.name)
+    : [];
+  return open.length === 1 ? open[0] : null;
+}
 
 /** 未処理の候補（しきい値に達し、まだ決定が書かれていないもの）を返す */
 function candidates() {
@@ -93,11 +113,18 @@ if (args.includes("--record")) {
     const k = matching[0]?.key.split("@")[1];
     change = k === undefined || k === "null" ? null : k;
   } else {
-    console.error(
-      `${check} の候補が ${matching.length} 件ある。どの change かを --change で指定すること:`,
-    );
-    for (const c of matching) console.error(`  --change ${c.key.split("@")[1]}`);
-    process.exit(1);
+    // 候補が複数の change にまたがるときは、宣言されている change に絞る。
+    // 宣言が無ければ黙って選ばず --change を要求する（取り違えは決定を汚す）
+    const focus = focusChange();
+    if (focus !== null && matching.some((c) => c.key.split("@")[1] === focus)) {
+      change = focus;
+    } else {
+      console.error(
+        `${check} の候補が ${matching.length} 件ある。どの change かを --change で指定すること:`,
+      );
+      for (const c of matching) console.error(`  --change ${c.key.split("@")[1]}`);
+      process.exit(1);
+    }
   }
   const rows = readJson(PROMOTIONS, []);
   rows.push({
