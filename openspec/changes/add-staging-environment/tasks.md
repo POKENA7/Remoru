@@ -60,8 +60,12 @@
       → `on: push: branches: [main]` のみ（`pull_request` は書いていない）。`concurrency` で
       出荷を重ねない（`cancel-in-progress: false`——マイグレーション直後に殺されると
       新しいスキーマに古いコードが残る）。順序は check → マイグレーション → 配備 → curl 確認
-- [ ] 4.3 ブランチに push して `deploy.yml` が**走らない**ことを Actions の一覧で確かめる（L06 の逆: 走ってはいけない条件で走らない）
-      → **コミットの門待ち**（下の 6 節）。push できていない
+- [x] 4.3 ブランチに push して `deploy.yml` が**走らない**ことを Actions の一覧で確かめる（L06 の逆: 走ってはいけない条件で走らない）
+      → `change/add-staging-environment` に push（`5bd7772`）し、PR #7 を作った。
+      走ったのは `check` の 2 本（`push` 契機と `pull_request` 契機）だけで、
+      **`deploy production` は 0 本**。`gh run list --json name,event,status,conclusion` で実測。
+      `gh workflow list --all` にも `check` しか出ない（`deploy.yml` は `main` に入るまで登録されない）。
+      CI（Linux）は両方 success。手元だけでは出ない欠陥（L07）は今回は無かった
 - [ ] 4.4 手元から `deploy:production` で本番を最新にしてから `main` に merge し、CI の配備が緑で終わること、
       本番の `curl` 確認が変わらないことを見る
       → **利用者に依頼中**（merge は利用者が行う）。本番の現状は `/`=307 `/sign-in`=200 を実測済み
@@ -174,4 +178,7 @@ GitHub リポジトリの secret に入れる。**エージェントはトーク
   └→ 4.4（利用者: 手元から deploy:production → main へ merge → CI が緑）
 ```
 
-4.3（ブランチ push で `deploy.yml` が走らないこと）はこのセッションで確認する。
+4.3（ブランチ push で `deploy.yml` が走らないこと）はこのセッションで確認済み。
+
+`docs/nextjs-rework-plan.md` の状態表（A2 = 未着手）は**更新していない**。Impact 表の外であり、
+5 セッションが同じ表を触ると衝突する。merge する側で 1 か所にまとめて直すのがよい。
