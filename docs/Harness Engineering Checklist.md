@@ -58,7 +58,7 @@
 - [x] Unit Test が自動実行できる。
 - [x] Integration Test が自動実行できる。
 - [ ] E2E Test が存在する。
-- [ ] Build が自動検証できる。
+- [x] Build が自動検証できる。 — `package.json` の `check:build`（`next build`）。`check` に入っており、コミット前の門と CI（`.github/workflows/ci.yml`）の両方で走る
 - [ ] Dependency / Security Check が自動実行できる。
 - [x] Architecture / Structural Check が自動実行できる。
 - [x] CI で主要な検証が自動実行される。
@@ -93,11 +93,11 @@
 ## Architecture Enforcement
 
 - [ ] 重要なアーキテクチャルールが機械的に検証される。
-- [ ] 禁止されている依存関係が CI で FAIL する。
+- [x] 禁止されている依存関係が CI で FAIL する。 — `tests/architecture/layers.arch.test.ts` の規則 #1〜#5。`npm run check` 経由で CI が走らせる。5 規則とも違反を注入して赤くなることを確かめてある（同ファイルの「注入すると赤くなる（L06）」）
 - [ ] 循環依存が自動検出される。
 - [ ] Public API の境界違反が自動検出される。
 - [ ] 重要な設計原則に対する Structural Test が存在する。
-- [ ] Architecture 違反のエラーメッセージに修正方法または参照先が含まれる。
+- [x] Architecture 違反のエラーメッセージに修正方法または参照先が含まれる。 — 例: `layers #2: app/(app)/page.tsx が @/lib/db を import している。 / 読み取りは features/<機能>/queries.ts、書き込みは actions.ts を経由すること。`（`layers.arch.test.ts` の `violations()`）
 
 ## Golden Principles / Invariants
 

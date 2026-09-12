@@ -38,4 +38,5 @@
 | 対象 | 変更 |
 |---|---|
 | 変更 | `tests/architecture/layers.arch.test.ts`, `package.json`（`check:build`）, `CLAUDE.md` |
-| 製品コード | 触らない。**いまの実装が規則に違反していれば、直さず理由つきの許容リストに載せる** |
+| 実装中に足した | `docs/Harness Engineering Checklist.md`（tasks 3.2 が名指ししている）, `scripts/harness/precommit-gate.sh`（既存の欠陥。利用者の判断で 1 行直した。tasks 5 節） |
+| 製品コード | 触らない。**いまの実装が規則に違反していれば、直さず理由つきの許容リストに載せる** → 違反 0 件だったので許容リストは作っていない |
