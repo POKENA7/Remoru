@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -14,13 +14,22 @@ import { describe, expect, it } from "vitest";
 
 const SCRIPT = join(process.cwd(), "scripts", "harness", "record-failure.sh");
 
-function record(check: string, stderr: string, changes: string[] = ["add-something"]) {
+function record(
+  check: string,
+  stderr: string,
+  changes: string[] = ["add-something"],
+  focus?: string,
+) {
   const root = mkdtempSync(join(tmpdir(), "harness-record-"));
   try {
     for (const c of changes) {
       mkdirSync(join(root, "openspec", "changes", c), { recursive: true });
     }
     mkdirSync(join(root, "openspec", "changes", "archive"), { recursive: true });
+    if (focus !== undefined) {
+      mkdirSync(join(root, ".harness"), { recursive: true });
+      writeFileSync(join(root, ".harness", "focus"), `${focus}\n`);
+    }
     spawnSync("bash", [SCRIPT, check, "2", "stop"], {
       cwd: root,
       env: { ...process.env, HARNESS_ROOT: root },
@@ -71,5 +80,12 @@ describe("失敗の記録（D8）", () => {
   it("change が 1 件も無ければ null", () => {
     const rows = record("check:test", "失敗\n", []);
     expect(rows[0].change).toBeNull();
+  });
+
+  it("複数あっても .harness/focus の宣言があればそれを使う（D1）", () => {
+    // 9 件の change が並ぶようになったので、宣言が無いと全ての失敗が null に
+    // 積み上がり、D9 のしきい値が change をまたいで混ざる
+    const rows = record("check:test", "失敗\n", ["change-a", "change-b"], "change-b");
+    expect(rows[0].change).toBe("change-b");
   });
 });

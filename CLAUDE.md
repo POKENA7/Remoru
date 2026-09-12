@@ -37,9 +37,14 @@
 
 手で走らせるときは `npm run check`。
 
+**作業を始めるとき `npm run harness:focus -- <change>` を打つ。** 宣言しないと
+レビューが落ちる（change が 9 件あり、機械にはどれを見ればよいか分からない）。
+
 **コミットの前にレビューが要る。** 門は `.harness/reviews/<差分のハッシュ>.json` が
 あって `findings` が空のときだけ通す。受領書を作れるのは `npm run harness:review` だけで、
-レビュー後に差分を変えると受領書は無効になる。
+レビュー後に差分を変えると受領書は無効になる。レビューには宣言した change の
+`tasks.md` と spec の delta を渡すので、`- [x]` と実装の食い違いは指摘として返る（L08）。
+所見は `openspec/changes/<change>/reviews.md` に追記され、change と一緒に archive される。
 
 **コミットは 2 回に分けて呼ぶ。** 門は tool の**実行前**に判定するので、
 `git add -A && git commit ...` を 1 コマンドで書くと、判定の時点でまだ add されておらず
@@ -54,6 +59,11 @@
 を実行すると外れる。見送りも記録として残る。ブロックは 1 候補につき 1 回だけ。
 
 検査の失敗は `.learnings/failures.jsonl` に機械が追記する。手で書かない。
+
+**計画・実装・評価は別のセッションで行う。** 同じセッションが計画し実装すると、
+自分の計画を自分だけが評価することになり、食い違いが誰にも見えない。
+計画の成果は `docs/` か change の中（proposal / design / tasks）に置く——
+セッションが終わると会話は消えるが、そこに置いたものは残る。
 
 **`disableAllHooks` を使ったら `.learnings/active.md` に記録すること。**
 それが使われた時点で、この設計は失敗したということである。何が耐えられなかったのかを
@@ -109,8 +119,7 @@ import 文から見えるようにするため。増えたら境界がずれた�
 
 順序・依存・各 change の状態は [docs/nextjs-rework-plan.md](docs/nextjs-rework-plan.md)。
 **change を始める前に必ず読み、表の順序を守ること。** 9 件の change が
-`openspec/changes/` に立っている。どれを作業中かは `npm run harness:focus` で宣言する
-（`review-with-change-context` が済むまでは、その change の tasks の先頭に書く）。
+`openspec/changes/` に立っている。どれを作業中かは `npm run harness:focus -- <change>` で宣言する。
 
 ## 未解決の問題
 

@@ -17,8 +17,13 @@ sha() {
   fi
 }
 
+# レビュー自身が書く `reviews.md` はハッシュに数えない（D6）。数えると、レビューが
+# 所見を書き足した瞬間に自分の受領書を無効にしてしまい、永久にコミットできない。
+# 門（precommit-gate.sh）もこの script を通すので、除外は 1 か所で揃う。
+exclude=':(exclude)openspec/changes/*/reviews.md'
+
 if git diff --cached --quiet 2>/dev/null; then
-  git diff HEAD | sha
+  git diff HEAD -- . "$exclude" | sha
 else
-  git diff --cached | sha
+  git diff --cached -- . "$exclude" | sha
 fi

@@ -194,7 +194,10 @@
 - [ ] Planner と Generator / Implementer の責務が分離されている。
 - [ ] Generator / Implementer と Evaluator の責務が分離されている。
 - [ ] Generator が自身の成果を唯一の評価者になっていない。
-- [ ] Planner の成果が構造化された Artifact として保存される。
+- [x] Planner の成果が構造化された Artifact として保存される。
+      証拠: `docs/nextjs-rework-plan.md`（順序・依存・状態の表）と、そこから分けた
+      9 件の change（`openspec/changes/*/proposal.md` `design.md` `tasks.md`）。
+      どれを作業中かは `.harness/focus` に宣言し、`npm run harness:focus` が書く。
 - [ ] Evaluator の成果が構造化された Artifact として保存される。
 
 ## Autonomous Feedback Loop

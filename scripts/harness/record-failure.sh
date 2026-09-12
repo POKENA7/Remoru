@@ -25,16 +25,13 @@ if [ "$check" != "check:secrets" ]; then
   head_line=$(printf '%s\n' "$input" | grep -m1 -v '^[[:space:]]*$' | cut -c1-300)
 fi
 
-# 作業中の change。archive を除いた openspec/changes 直下が**ちょうど 1 件**の
-# ときだけ採用する。複数あるとき先頭を選ぶと、落ちていない change に失敗が
-# 積み上がり、D9 のしきい値が別の change で立つ／立たないという取り違えになる。
-# 分からないときは null にする（null 同士でまとまるので、数え漏れにはならない）
-changes=$(ls -1 "$root/openspec/changes" 2>/dev/null | grep -v '^archive$')
-if [ "$(printf '%s\n' "$changes" | grep -c .)" = "1" ]; then
-  change="$changes"
-else
-  change=""
-fi
+# 作業中の change。`.harness/focus` の宣言を先に見て、無ければ archive を除いた
+# openspec/changes 直下が**ちょうど 1 件**のときだけ採用する（focus.sh --resolve）。
+# 複数あるとき先頭を選ぶと、落ちていない change に失敗が積み上がり、D9 のしきい値が
+# 別の change で立つ／立たないという取り違えになる。
+# 分からないときは null にする（null 同士でまとまるので、数え漏れにはならない）。
+# **ここでは落とさない。** 記録は宣言の有無に関わらず残す（review だけが落とす。D3）
+change=$(HARNESS_ROOT="$root" bash "$(dirname "$0")/focus.sh" --resolve)
 
 mkdir -p "$root/.learnings"
 jq -cn \

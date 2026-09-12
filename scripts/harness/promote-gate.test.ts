@@ -151,6 +151,23 @@ describe("棚卸の強制（D9）", () => {
     );
   });
 
+  it("候補が複数の change にまたがっても、focus の宣言があればそれに紐づける（D1）", () => {
+    withRoot(
+      [...times(3, "check:types", "change-a"), ...times(3, "check:types", "change-b")],
+      (root) => {
+        mkdirSync(join(root, "openspec", "changes", "change-a"), { recursive: true });
+        mkdirSync(join(root, "openspec", "changes", "change-b"), { recursive: true });
+        mkdirSync(join(root, ".harness"), { recursive: true });
+        writeFileSync(join(root, ".harness", "focus"), "change-b\n");
+        const rec = run(root, "--record", "--check", "check:types", "--decision", "skip");
+        expect(rec.status).toBe(0);
+        const open = JSON.parse(run(root, "--list").stdout);
+        expect(open).toHaveLength(1);
+        expect(open[0].key).toBe("check:types@change-a");
+      },
+    );
+  });
+
   it("決定の値が rule / check / skip 以外なら書かない", () => {
     withRoot(times(3, "check:types"), (root) => {
       const rec = run(root, "--record", "--check", "check:types", "--decision", "てきとう");
