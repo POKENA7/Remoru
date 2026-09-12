@@ -195,3 +195,24 @@ change `server-side-reads`（読み取りの Server Components 化と経路の�
 
 **どちらでも良いが、2 つあるのは良くない。** 片方に決めて、もう片方を消す。
 
+
+---
+
+## 4. `middleware.ts` が Next 16 で非推奨。`proxy.ts` には移れない
+
+**2026-09-12 に記録。直す手段が無いので待つ。**
+
+`next build` が毎回警告を出す:
+
+```
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.
+```
+
+`proxy.ts` に移すと OpenNext Cloudflare でビルドが通らない（`docs/deploy.md`「踏んだ罠 1」:
+Next 16 の proxy は Node.js ランタイム固定で、OpenNext が支援しない）。Clerk の `auth()` は
+`clerkMiddleware()` を前提にするので、middleware を消すこともできない（同「罠 2」）。
+
+**Next 17 で `middleware` が消えると、アップグレードできなくなる。** 契機は 2 つ:
+OpenNext が Node.js ランタイムの proxy を支援する、または Clerk が middleware 無しで
+`auth()` を動かせるようにする。change を立てるたびに一度、`@opennextjs/cloudflare` の
+リリースノートを見る。それまでは警告を無視する。
