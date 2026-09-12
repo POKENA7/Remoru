@@ -103,6 +103,20 @@ import 文から見えるようにするため。増えたら境界がずれた�
 
 `cron-worker/` には `@/` が無い（独自の tsconfig）。そちらからの参照は相対パス。
 
+**層の向きは 5 つの規則で固定してある。** 破ると `npm run check` が赤くなり、違反の行に
+規則の番号と直し方が出る。詳細は `tests/architecture/layers.arch.test.ts`。
+
+| # | 規則 | なぜ |
+|---|---|---|
+| 1 | `features/**` `lib/**` `hooks/**` は `app/**` を import しない | 逆流した瞬間に循環ができる |
+| 2 | `app/**` は `lib/db` `drizzle-orm` を import しない | D1 の取り出しは `queries.ts` / `actions.ts` だけ |
+| 3 | `"use client"` のファイルは `queries` `server-only` `lib/db` を import しない（`actions` は対象外——Client から呼ぶのが正規） | クライアントバンドルにサーバーの読み取り入口を入れない |
+| 4 | `cron-worker/src/**` は `queries` `actions` `lib/db` `lib/session` を import しない | cron は Next.js のアプリではない。ドメインの純関数だけ読む |
+| 5 | `lib/**` は `features/**` を import しない | `lib/` は外部ライブラリのラッパーだけ。機能を知ってはいけない |
+
+規則 3 は `next build`（`check:build`）でも出るが、そちらは違反した部品が経路から辿れるときだけ。
+規則 4 は Workers の実行時にしか出ない。**どちらも型検査では出ない**ので、検査で先に止める。
+
 **`tests/architecture/` と `scripts/harness/` は別物。** 前者はアプリの設計規則を
 検査する（レビュアーがいないので規約ではなく検査で守る）。後者は**検査そのものを
 検査する**（門・hook・`check:*` が壊れた入力で赤くなるか）。
