@@ -122,5 +122,9 @@ jobs: deploy
 
 ## Open Questions
 
-- `opennextjs-cloudflare deploy` に環境名を渡す旗の綴り（`--env` か `-e` か）。`--help` で確かめる
+- ~~`opennextjs-cloudflare deploy` に環境名を渡す旗の綴り~~ → **`-e, --env <name>`**（タスク 1.1 で
+  `npx opennextjs-cloudflare deploy --help` を実測。`@opennextjs/cloudflare` 1.20.2）。`--configPath` は
+  非推奨で `-c, --config` に置き換わっている。`build` にも同じ `-e` があり、**build にも渡す**——
+  build の段階で wrangler の設定を読んで環境変数や互換性フラグを解決するため、build を既定環境で
+  行って deploy だけ staging にすると、staging の設定が反映されない
 - Cloudflare Web Analytics（`measure-first-paint` D4）を staging にも入れるか。入れない（本番だけ）で始める

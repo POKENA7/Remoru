@@ -83,7 +83,10 @@ fi
 
 receipt="$root/.harness/reviews/$hash.json"
 if [ ! -f "$receipt" ]; then
-  echo "門: この差分（$hash）のレビュー受領書が無い。npm run harness:review を実行すること。" >&2
+  # `${hash}` と括る。このマシンの bash は 3.2 で、括弧無しだと直後の全角括弧のバイトを
+  # 変数名の一部として読む。`set -u` があるので「hash?: unbound variable」で
+  # **門ごと exit 1** になり、受領書が無くても 2 を返せていなかった
+  echo "門: この差分（${hash}）のレビュー受領書が無い。npm run harness:review を実行すること。" >&2
   exit 2
 fi
 

@@ -23,5 +23,33 @@
       "database_name": "remoru-db",
       "database_id": "5c1baf13-12a8-4e74-ad65-34a93d13a75f"
     }
-  ]
+  ],
+
+  // staging（design.md D1）。通知の変更を実機で確かめる場所が要るので、cron も
+  // staging を動かす。送る相手は **staging の D1 にいる購読者だけ**なので、
+  // 本番の利用者には届かない。
+  //
+  // **バインディングは継承されない。** `d1_databases` をここに書き忘れると
+  // 毎時起きては DB 無しで落ちる worker になる。`triggers` も明示する
+  // （継承される側だが、staging の cron を止めたいときの触り先をここにする）。
+  //
+  // 本番と同じ `database_id` になっていないことは
+  // `scripts/harness/staging-isolation.test.ts` が見ている（design.md D3）。
+  "env": {
+    "staging": {
+      "name": "remoru-cron-staging",
+      "workers_dev": false,
+      "preview_urls": false,
+      "triggers": {
+        "crons": ["0 * * * *"]
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "remoru-db-staging",
+          "database_id": "afc356ae-56bf-4f52-9777-288151a26768"
+        }
+      ]
+    }
+  }
 }
