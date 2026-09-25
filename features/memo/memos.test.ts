@@ -148,4 +148,22 @@ describe("listMemos", () => {
     const stored = await listMemos(db, USER);
     expect(stored.map((m) => m.content)).toEqual(["自分のメモ"]);
   });
+
+  it("件数の上限を守る", async () => {
+    const db = createTestDb();
+    await createMemo(db, { content: "1", now: 1_000, userId: USER });
+    await createMemo(db, { content: "2", now: 2_000, userId: USER });
+    await createMemo(db, { content: "3", now: 3_000, userId: USER });
+
+    const stored = await listMemos(db, USER, undefined, 2);
+    expect(stored.map((m) => m.content)).toEqual(["3", "2"]);
+  });
+
+  it("上限を渡さなければ全件を返す", async () => {
+    const db = createTestDb();
+    await createMemo(db, { content: "1", now: 1_000, userId: USER });
+    await createMemo(db, { content: "2", now: 2_000, userId: USER });
+
+    expect(await listMemos(db, USER)).toHaveLength(2);
+  });
 });

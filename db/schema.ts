@@ -180,6 +180,52 @@ export const firstRunState = sqliteTable("first_run_state", {
 });
 
 /**
+ * エージェント取り込みのトークン。
+ *
+ * **平文は置かない。** `token_hash` は平文の SHA-256 だけを持つ。表を読めても
+ * 使えるトークンには戻せない。平文は発行の応答で一度だけ示す（design D2）。
+ *
+ * 利用者ごとに複数持てる。端末ごとに分けて失効できるようにするため。
+ */
+export const importTokens = sqliteTable(
+  "import_tokens",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    /** 利用者が見分けるための名前。 */
+    name: text("name").notNull(),
+    /** 平文の SHA-256（16進）。平文そのものは保存しない。 */
+    tokenHash: text("token_hash").notNull().unique(),
+    createdAt: integer("created_at").notNull(),
+    /** 失効した時刻。失効していなければ null。 */
+    revokedAt: integer("revoked_at"),
+  },
+  // 設定の画面は利用者のトークンだけを引く
+  (t) => [index("import_tokens_user_id_idx").on(t.userId)],
+);
+
+/**
+ * 取り込みの速度の制限の数え上げ。
+ *
+ * KV も Durable Objects も無いため（wrangler.jsonc）、メモリ上の数え上げは
+ * 分離されたインスタンス間で共有されない。行を置いて数える（design D6）。
+ *
+ * `window_start` はエポックミリ秒を 60000 で割った値。数え上げは厳密では
+ * ない。守るのは濫用による費用であり、攻撃の遮断ではないためである。
+ */
+export const importRateLimits = sqliteTable(
+  "import_rate_limits",
+  {
+    tokenId: text("token_id")
+      .notNull()
+      .references(() => importTokens.id, { onDelete: "cascade" }),
+    windowStart: integer("window_start").notNull(),
+    count: integer("count").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.tokenId, t.windowStart] })],
+);
+
+/**
  * 想起の出来事。復習で自己採点するたびに1行増える。
  *
  * **二重採点の防止には使わない。** それは review_schedules の
@@ -217,3 +263,5 @@ export type MemoTag = typeof memoTags.$inferSelect;
 export type TagSuggestionState = typeof tagSuggestionState.$inferSelect;
 export type ReviewEvent = typeof reviewEvents.$inferSelect;
 export type FirstRunState = typeof firstRunState.$inferSelect;
+export type ImportToken = typeof importTokens.$inferSelect;
+export type NewImportToken = typeof importTokens.$inferInsert;

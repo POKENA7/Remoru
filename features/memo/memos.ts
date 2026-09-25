@@ -73,22 +73,30 @@ export async function listMemos(
    * 増えたときに全件を毎回送ることになる（design.md D5）。
    */
   tagId?: string,
+  /**
+   * 返す件数の上限。指定しなければ全件。
+   *
+   * 取り込みAPIの一覧が使う（design D4）。画面の一覧は渡さない。
+   */
+  limit?: number,
 ): Promise<Memo[]> {
   const owned = eq(memos.userId, userId);
 
-  const rows = tagId
-    ? await db
+  const query = tagId
+    ? db
         .select({ memo: memos })
         .from(memos)
         .innerJoin(memoTags, eq(memoTags.memoId, memos.id))
         .where(and(owned, eq(memoTags.tagId, tagId)))
         // 同じ保存時刻のときの順序を決定的にするため id を第二キーに使う
         .orderBy(desc(memos.createdAt), desc(memos.id))
-    : await db
+    : db
         .select({ memo: memos })
         .from(memos)
         .where(owned)
         .orderBy(desc(memos.createdAt), desc(memos.id));
+
+  const rows = limit === undefined ? await query : await query.limit(limit);
 
   return rows.map((r) => r.memo);
 }

@@ -36,6 +36,35 @@ function actionFiles(): { name: string; code: string }[] {
 
 const ACTIONS = actionFiles();
 
+/**
+ * `app/api` の経路を集める。**置き場を直書きしない。**
+ *
+ * 経路を足してもこの検査が対象を見失わないようにする（design.md D8 と同じ理由）。
+ * `route.ts` だけを集める。同じディレクトリの補助ファイルは認証を持たない。
+ */
+function routeFiles(): { name: string; code: string }[] {
+  const root = join(ROOT, "app", "api");
+  const out: { name: string; code: string }[] = [];
+  if (!existsSync(root)) return out;
+
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) walk(full);
+      else if (entry === "route.ts") {
+        out.push({
+          name: full.slice(ROOT.length + 1),
+          code: codeOnly(readFileSync(full, "utf8")),
+        });
+      }
+    }
+  };
+  walk(root);
+  return out;
+}
+
+const ROUTES = routeFiles();
+
 /** export された関数ごとに、その関数の本体だけを切り出す。 */
 function exportedFunctions(src: string): [string, string][] {
   const found: [string, string][] = [];
@@ -234,16 +263,55 @@ describe("Server Actions の認証", () => {
     });
   }
 
-  it("Route Handler は残っていない", () => {
+  it("app/api の各経路が自分でトークンを確かめている", () => {
     /*
-     * 書き込みは全部 Server Actions に移った（design.md D9）。`app/api/` が
-     * 戻ってきたら気づけるようにする。**この検査が無いと、上の走査対象が
-     * `actions.ts` だけなので、Route Handler を足しても誰も見ない。**
+     * 書き込みを Server Actions に寄せたあと、`app/api` は消えていた
+     * （server-actions-for-writes design.md D9）。エージェント取り込みで
+     * 経路が戻ったので、この検査は「残っていないこと」ではなく
+     * **「各経路が自分でトークンを確かめていること」**に変わった（design D3）。
      *
-     * サイト外からの操作（Webhook など）で必要になったら、そのときここを直す。
+     * **ファイル単位ではなくハンドラ単位で見る。** ファイル単位だと、同じ
+     * ファイルの `POST` に呼び出しが残っているかぎり、`GET` から消しても
+     * 緑のままになる（レビューで指摘された）。
+     *
+     * **この検査が無いと、`actions.ts` の走査対象は `actions.ts` だけなので、
+     * 経路を足しても誰も見ない。**
      */
-    expect(existsSync(join(ROOT, "app", "api"))).toBe(false);
+    expect(ROUTES.length).toBeGreaterThan(0);
+
+    for (const { name, code } of ROUTES) {
+      const handlers = exportedFunctions(code);
+      expect(handlers.length, `${name} にハンドラが無い`).toBeGreaterThan(0);
+
+      for (const [fn, body] of handlers) {
+        // 要求から認証を通すのはここ。import 文では `(` が続かないので、
+        // 呼び出しが無ければ一致しない
+        expect(body, `${name} の ${fn} が取り込みの認証を通していない`).toMatch(
+          /getImportRequestContext\(/,
+        );
+      }
+    }
   });
+
+  it("取り込みの認証は Authorization ヘッダを読む", () => {
+    /*
+     * `request-context.ts` は `server-only` を持つので、node の vitest から
+     * import できない（`query.arch.test.ts` と同じ理由）。**唯一の外との
+     * 接点**であるヘッダ名を、ここで固定する。
+     */
+    const code = codeOnly(
+      readFileSync(join(ROOT, "features", "import", "request-context.ts"), "utf8"),
+    );
+    expect(code).toMatch(/request\.headers\.get\(\s*["']authorization["']\s*\)/);
+  });
+
+  for (const { name, code } of ROUTES) {
+    it(`${name} は画面のための redirect を持ち込んでいない`, () => {
+      // `verifySession()` は未認証をサインインへ送る（`redirect()`）。
+      // APIの要求には画面が無いので、使うと応答の代わりに転送が返る
+      expect(code).not.toMatch(/verifySession\(/);
+    });
+  }
 });
 
 describe("画面の保護", () => {

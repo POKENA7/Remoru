@@ -47,6 +47,7 @@ export function MemoTab({
   onSelectTag,
   suggestion,
   announcement,
+  onOpenImportTokens,
 }: {
   memos: MemoRow[];
   loading: boolean;
@@ -66,6 +67,8 @@ export function MemoTab({
   suggestion: React.ReactNode;
   /** 初回の告知。付けるメモと、その中身。無ければ null */
   announcement: { memoId: string; node: React.ReactNode } | null;
+  /** 取り込みトークンの画面を開く。中身は app 側が持つ（design D10） */
+  onOpenImportTokens: () => void;
 }) {
   const content = draft;
 
@@ -168,7 +171,16 @@ export function MemoTab({
     <>
       <div className="brand-row">
         <h1 className="brand">Remoru</h1>
-        <UserButton />
+        <span className="brand-actions">
+          {/*
+           * 取り込みトークンへの入口。専用の設定画面は無く、通知の設定と
+           * 同じくシートで出す（design D10）。
+           */}
+          <button type="button" className="link-quiet" onClick={onOpenImportTokens}>
+            AIとつなぐ
+          </button>
+          <UserButton />
+        </span>
       </div>
 
       <form className="composer" action={formAction}>

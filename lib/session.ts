@@ -24,7 +24,7 @@ export async function getCurrentUserId(): Promise<string | null> {
  * `queries.ts` がこれを呼ぶので、画面側で呼び忘れても**データが出ない側に倒れる**。
  *
  * API ルートではこれを使わない。`redirect()` は画面のための応答であり、
- * ルートは `getCurrentUserId()` を見て 401 を返す。
+ * 取り込みAPIは `features/import/request-context.ts` がトークンで確かめる。
  */
 export async function verifySession(): Promise<string> {
   const userId = await getCurrentUserId();

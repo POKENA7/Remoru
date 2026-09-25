@@ -29,5 +29,5 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules", ".open-next", "cron-worker", ".claude/worktrees"]
+  "exclude": ["node_modules", ".open-next", "cron-worker", "cli", ".claude/worktrees"]
 }

@@ -25,6 +25,17 @@ cron worker を変えたときは、そちらも出す。
 (cd cron-worker && npx wrangler deploy)
 ```
 
+## マイグレーションを足したとき
+
+`db/schema.ts` を変えたら、**出荷の前に本番の D1 へ適用する。**
+
+```bash
+npx wrangler d1 migrations apply remoru-db --remote
+```
+
+`npm run deploy` は worker を出すだけで、**D1 は変えない。** 適用を忘れると、
+新しい列や表を使う経路が本番でだけ落ちる。
+
 **`cd` は括弧で囲む。** `cron-worker/wrangler.jsonc` には `migrations_dir` が
 無いため、そのまま次のコマンドへ進むと `d1 migrations apply` が
 「No migrations present at .../cron-worker/migrations」で落ちる。
@@ -155,7 +166,7 @@ Clerk の `auth()` は `clerkMiddleware()` が動いていることを前提に�
 |---|---|
 | `middleware.ts` | Clerk の文脈を用意するだけ。保護は担わない |
 | `app/page.tsx` | サーバー側で確認し、未認証なら `/sign-in` へ |
-| API ルート | 各自が `getCurrentUserId()` を確認し、未認証なら 401 |
+| `app/api`（取り込み） | 各経路が `getImportRequestContext()` を確認し、トークンが無効なら 401 |
 
 保護を資源側に置いたのは Clerk の推奨でもある（`createRouteMatcher` の非推奨理由: パス一致は Next.js のルーティングと乖離しうる）。
 

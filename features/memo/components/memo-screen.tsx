@@ -8,6 +8,8 @@ import {
 } from "@/features/first-run/components/first-run-notice";
 import { markGuided } from "@/features/first-run/actions";
 import { announcement } from "@/features/first-run/first-run-view";
+import { ImportTokenSheet } from "@/features/import/components/import-token-sheet";
+import type { ImportTokenView } from "@/features/import/types";
 import { TagSuggestionBand } from "@/features/tag/components/tag-suggestion-band";
 import type { SuggestionResult } from "@/features/tag/types";
 import { useSessionState } from "@/hooks/use-session-state";
@@ -41,6 +43,7 @@ export function MemoScreen({
   guided,
   activeTagId,
   vapidPublicKey,
+  importTokens,
 }: {
   memos: MemoRow[];
   tags: { id: string; name: string; count: number }[];
@@ -56,8 +59,11 @@ export function MemoScreen({
    * `/api/notifications/settings` を叩いて確かめていた。
    */
   vapidPublicKey: string | null;
+  /** 取り込みトークン。サーバーが最初の描画で渡す（design D10）。読めなければ null */
+  importTokens: ImportTokenView[] | null;
 }) {
   const router = useRouter();
+  const [tokensOpen, setTokensOpen] = useState(false);
 
   /**
    * 書きかけの本文と、受け取った提案。
@@ -153,57 +159,63 @@ export function MemoScreen({
   }, [generatingKey, polls, router]);
 
   return (
-    <MemoTab
-      memos={memos}
-      loading={false}
-      /*
-       * 詳細は固有の経路を持つ（navigation spec）。押すと履歴が積まれるので、
-       * 端末の戻る操作でこの一覧へ返る。
-       *
-       * **絞り込みを経路に持って行く。** PWA にはブラウザの戻るが無く、
-       * 下部タブが最も自然な戻り道になる。タブのリンクが `?tag=` を
-       * 引き継げるよう、詳細にいる間も経路が絞り込みを憶えている。
-       */
-      onOpenDetail={(memo) =>
-        router.push(
-          activeTagId
-            ? `/memos/${memo.id}?tag=${encodeURIComponent(activeTagId)}`
-            : `/memos/${memo.id}`,
-        )
-      }
-      draft={draft}
-      onDraftChange={setDraft}
-      fresh={fresh}
-      onSaved={onSaved}
-      onPrinted={onPrinted}
-      tags={tags}
-      activeTagId={activeTagId}
-      onSelectTag={onSelectTag}
-      announcement={
-        notice
-          ? {
-              memoId: notice.memoId,
-              node: (
-                <FirstRunNotice
-                  nextReviewAt={notice.nextReviewAt}
-                  now={notice.now}
-                  vapidPublicKey={vapidPublicKey}
-                  answer={noticeAnswer}
-                  onAnswer={setNoticeAnswer}
-                />
-              ),
-            }
-          : null
-      }
-      suggestion={
-        suggestion.show ? (
-          <TagSuggestionBand
-            untaggedCount={suggestion.untaggedCount}
-            result={suggestionResult}
-            onResult={setSuggestionResult}
-          />
-        ) : null
-      }
-    />
+    <>
+      <MemoTab
+        memos={memos}
+        loading={false}
+        /*
+         * 詳細は固有の経路を持つ（navigation spec）。押すと履歴が積まれるので、
+         * 端末の戻る操作でこの一覧へ返る。
+         *
+         * **絞り込みを経路に持って行く。** PWA にはブラウザの戻るが無く、
+         * 下部タブが最も自然な戻り道になる。タブのリンクが `?tag=` を
+         * 引き継げるよう、詳細にいる間も経路が絞り込みを憶えている。
+         */
+        onOpenDetail={(memo) =>
+          router.push(
+            activeTagId
+              ? `/memos/${memo.id}?tag=${encodeURIComponent(activeTagId)}`
+              : `/memos/${memo.id}`,
+          )
+        }
+        draft={draft}
+        onDraftChange={setDraft}
+        fresh={fresh}
+        onSaved={onSaved}
+        onPrinted={onPrinted}
+        tags={tags}
+        activeTagId={activeTagId}
+        onSelectTag={onSelectTag}
+        announcement={
+          notice
+            ? {
+                memoId: notice.memoId,
+                node: (
+                  <FirstRunNotice
+                    nextReviewAt={notice.nextReviewAt}
+                    now={notice.now}
+                    vapidPublicKey={vapidPublicKey}
+                    answer={noticeAnswer}
+                    onAnswer={setNoticeAnswer}
+                  />
+                ),
+              }
+            : null
+        }
+        suggestion={
+          suggestion.show ? (
+            <TagSuggestionBand
+              untaggedCount={suggestion.untaggedCount}
+              result={suggestionResult}
+              onResult={setSuggestionResult}
+            />
+          ) : null
+        }
+        onOpenImportTokens={() => setTokensOpen(true)}
+      />
+      {tokensOpen && (
+        <ImportTokenSheet tokens={importTokens} onClose={() => setTokensOpen(false)} />
+      )}
+    </>
   );
 }

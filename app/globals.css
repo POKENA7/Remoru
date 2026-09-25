@@ -1364,3 +1364,73 @@ body {
   outline: 2px solid var(--orange);
   outline-offset: 1px;
 }
+
+/* --- AIとつなぐ（取り込みトークン。design D10） --- */
+
+/* 上の帯の右側。入口と UserButton を並べる */
+.brand-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+/* 見出しの隣に置く入口。ボタンだが本文の邪魔をしない見た目にする */
+.link-quiet {
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+.token-issue {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.token-issue .input {
+  flex: 1;
+  min-width: 0;
+}
+/* 発行した平文。折り返して全部見えるようにする */
+.token-plain {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  word-break: break-all;
+  margin: 0.6rem 0 0.4rem;
+  padding: 0.6rem 0.7rem;
+  background: var(--paper);
+  border: 1px dashed var(--rule);
+  border-radius: 10px;
+}
+.token-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.token-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.token-row b {
+  font-size: 0.9rem;
+}
+.token-row .muted {
+  margin: 0.1rem 0 0;
+  font-size: 0.75rem;
+}
+.token-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+.token-actions .btn {
+  min-height: 44px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.85rem;
+}

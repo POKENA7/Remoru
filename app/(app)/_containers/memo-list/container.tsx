@@ -1,4 +1,5 @@
 import { getGuided } from "@/features/first-run/queries";
+import { getImportTokens } from "@/features/import/queries";
 import { MemoScreen } from "@/features/memo/components/memo-screen";
 import { getMemos } from "@/features/memo/queries";
 import type { MemoRow } from "@/features/memo/types";
@@ -30,19 +31,28 @@ export async function MemoListContainer({ tagId }: { tagId: string | null }) {
         guided={true}
         activeTagId={tagId}
         vapidPublicKey={null}
+        importTokens={null}
       />
     );
   }
 }
 
 async function render(tagId: string | null) {
-  const [memos, states, tagsByMemo, tags, suggestion, guided] = await Promise.all([
+  const [memos, states, tagsByMemo, tags, suggestion, guided, importTokens] = await Promise.all([
     getMemos(tagId ?? undefined),
     getMemoReviewStates(),
     getTagsByMemo(),
     getTagsWithCounts(),
     getSuggestionStatus(),
     getGuided(),
+    /*
+     * **トークンが読めなくても一覧は出す。** ここで投げると、関係のない
+     * メモの一覧まで空の画面に落ちる。シートは「読めなかった」と示す。
+     */
+    getImportTokens().catch((error) => {
+      console.error("取り込みトークンを読めなかった", error);
+      return null;
+    }),
   ]);
 
   const rows: MemoRow[] = memos.map((memo) => ({
@@ -64,6 +74,7 @@ async function render(tagId: string | null) {
        * `process.env` から読む（本番では `wrangler secret` で入れ替える）。
        */
       vapidPublicKey={process.env.VAPID_PUBLIC_KEY ?? null}
+      importTokens={importTokens}
     />
   );
 }
