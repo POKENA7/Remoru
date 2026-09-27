@@ -1,0 +1,29 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "bash": {
+      "*": "allow",
+      "git commit*": "deny",
+      "git push*": "deny",
+      "git reset*": "deny",
+      "git restore*": "deny",
+      "git checkout*": "deny",
+      "git switch*": "deny",
+      "git clean*": "deny",
+      "git rebase*": "deny",
+      "git merge*": "deny",
+      "git stash*": "deny",
+      "git add*": "deny",
+      "git worktree*": "deny",
+      "sudo*": "deny",
+      "openspec archive*": "deny",
+      "openspec init*": "deny",
+      "openspec update*": "deny",
+      "npm run harness:review*": "deny",
+      "bash scripts/harness/review.sh*": "deny",
+      "npm run harness:promote*": "deny",
+      "wrangler*": "deny",
+      "npx wrangler*": "deny"
+    }
+  }
+}

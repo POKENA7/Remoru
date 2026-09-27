@@ -51,3 +51,11 @@
 - `cli/api.ts` の `BATCH_SIZE` と `features/import/import-api.ts` の `MAX_IMPORT_ITEMS` は別々に書いてある（CLI は独立したパッケージのため import できない）。`tests/architecture/import-batch.arch.test.ts` で一致を固定した。
 - `features/import/import-read.ts` の一覧は、`limit` を付けても復習の状態とタグを利用者のメモ全体から求める。画面の一覧と同じ形であり、いまは許容する（design の Risks に記録）。
 - `tasks.md` 6.2 の往復は手作業の実測であり、リポジトリのテストからは再現できない（実施内容は tasks に記載）。
+
+## 2026-09-27T03:18:45Z  hash=ac38f2de5e01e09f1cdcf00bea73e6aedc0e1653175e8e5ad3644785c93cba49  runner=opencode  model=opencode-go/muse-spark-1.3-contributor  findings=0
+
+所見: 差分は harness の実行系切替と文書の更新に限定され、7.x は未チェックのため主張との不一致は無い。新規テストは受領書・終了コード・読み取り専用設定を直接検証し、runner 分岐は未知値で閉じる。確信できる正しさの欠陥は見つからなかった。
+
+## 2026-09-27T04:04:59Z  hash=939254f22b8997c20a1238652e53ba6b51b9f7b3343ae7bf0c233b7880c45f28  runner=opencode  model=opencode-go/muse-spark-1.3-contributor  findings=0
+
+差分は委任スクリプトとレビュー実行系の切替え、権限テスト、設計・spec・tasks文書の更新が中心である。正しさの観点で確信できる欠陥（await抜け、条件・境界値の誤り、分離破れ、資源漏れ、守っていない検査、タスクと実装の不一致）は見つからなかった。

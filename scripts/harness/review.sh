@@ -6,8 +6,19 @@
 # 門（precommit-gate.sh）は受領書の有無しか見ない。ここが壊れたときに起きるのは
 # 「受領書が作れない」であり、門は閉じたままになる（D6 の fail closed）。
 #
-# 実行系は `claude -p`。D7 の第 1 候補をタスク 6.1 で実測して採用した。
+# 実行系は `claude -p`（既定）と `opencode run`。`claude -p` は D7 の第 1 候補を
+# タスク 6.1 で実測して採用した。`opencode run` は cli-import で、Claude の利用料を
+# 抑えるために足した。HARNESS_REVIEW_RUNNER で切り替える。どちらの実行系で通った
+# かは、受領書と reviews.md の見出しに runner= / model= として残す。
 # 既定モデルが古い CLI では 404 になるため、モデルは明示して渡す。
+#
+# `opencode` では `--agent plan` を付け、さらに OPENCODE_CONFIG_CONTENT で
+# 読み取り専用のツール（read / grep / glob / list）以外を外す。`--agent plan` だけでは
+# シェルと MCP のツールが残り、断るかどうかはモデルの判断に委ねられていた（実際に
+# レビュー中に `which opencode` や `opencode run --help` が実行できた）。
+# `opencode run` の出力は JSON ではなくプレーンテキストで、`> plan · <モデル>` の
+# 行や ANSI のエスケープが前に付く。`.result` を取り出す段は `claude` のときだけ
+# 行い、「最初の `{` から最後の `}` までを取り出す」段は両者で共通にする。
 #
 # 差分だけでは「タスクの主張と実装の不一致」を判断できない（L08 がまさにそれ
 # だった）ので、作業中の change の tasks.md と spec の delta を添える
@@ -16,6 +27,10 @@
 #
 #   bash review.sh             レビューする
 #   bash review.sh --dry-run   組み立てたプロンプトを出して終わる（モデルを呼ばない）
+#
+#   HARNESS_REVIEW_RUNNER=opencode bash review.sh   Muse Spark にレビューさせる
+#   HARNESS_REVIEW_RUNNER       claude（既定）か opencode。他の値は落ちる（fail closed）
+#   HARNESS_REVIEW_MODEL        モデルの上書き
 set -u
 
 root="${HARNESS_ROOT:-${CLAUDE_PROJECT_DIR:-$PWD}}"
@@ -26,7 +41,19 @@ if [ "${1:-}" = "--dry-run" ]; then
   dry_run=true
 fi
 
-model="${HARNESS_REVIEW_MODEL:-claude-sonnet-5}"
+# 実行系を決める。読めない値は**受領書を作らずに落ちる**（fail closed）。既定を
+# 黙って使うと、書き間違えた値で気づかないまま別の実行系が走る
+runner="${HARNESS_REVIEW_RUNNER:-claude}"
+case "$runner" in
+  claude) default_model="claude-sonnet-5" ;;
+  opencode) default_model="opencode-go/muse-spark-1.3-contributor" ;;
+  *)
+    echo "レビュー: HARNESS_REVIEW_RUNNER に未知の値「${runner}」が指定された。" >&2
+    echo "  claude か opencode のいずれかにすること。受領書は作らない。" >&2
+    exit 1
+    ;;
+esac
+model="${HARNESS_REVIEW_MODEL:-$default_model}"
 hash=$(bash "$(dirname "$0")/diff-hash.sh")
 if [ -z "$hash" ]; then
   echo "レビュー: 差分のハッシュを計算できなかった。" >&2
@@ -118,7 +145,8 @@ fi
 # 指摘こそ、あとから「何を見て何を見逃したか」を読み返す値打ちがある
 append_review() {
   {
-    printf '\n## %s  hash=%s  findings=%s\n\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$hash" "$1"
+    printf '\n## %s  hash=%s  runner=%s  model=%s  findings=%s\n\n' \
+      "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$hash" "$runner" "$model" "$1"
     printf '%s\n' "$2"
     if [ -n "${3:-}" ]; then
       printf '\n%s\n' "$3"
@@ -131,22 +159,49 @@ append_review() {
 }
 
 # 書き込み系のツールを禁じる。レビューは**読んで指摘するだけ**で、直すのは実装側の
-# 仕事である。禁じないと「直す承認をくれ」と返してきて JSON にならない（実際に起きた）
-raw=$(printf '%s' "$prompt" |
-  claude -p --model "$model" --output-format json \
-    --disallowedTools "Edit,Write,NotebookEdit,Bash" 2>&1)
-if [ -z "$raw" ]; then
-  echo "レビュー: claude -p から応答が無かった。受領書は作らない。" >&2
-  exit 1
-fi
+# 仕事である。禁じないと「直す承認をくれ」と返してきて JSON にならない（実際に起きた）。
+#
+# `--agent plan` だけでは、シェルと MCP のツールが残る。モデルが断るかどうかに頼らず、
+# ツールそのものを外す。read / grep / glob / list だけを残し、書き込みとシェル、
+# webfetch を権限でも拒む。値を直書きせず変数に置くのは、テストで値を確かめるため
+opencode_config='{"tools":{"*":false,"read":true,"grep":true,"glob":true,"list":true},"permission":{"edit":"deny","bash":"deny","webfetch":"deny"}}'
+case "$runner" in
+  claude)
+    raw=$(printf '%s' "$prompt" |
+      claude -p --model "$model" --output-format json \
+        --disallowedTools "Edit,Write,NotebookEdit,Bash" 2>&1)
+    if [ -z "$raw" ]; then
+      echo "レビュー: claude -p から応答が無かった。受領書は作らない。" >&2
+      exit 1
+    fi
 
-text=$(printf '%s' "$raw" | jq -er 'if .is_error then empty else .result end' 2>/dev/null)
-if [ -z "$text" ]; then
-  echo "レビュー: claude -p が失敗した。受領書は作らない。" >&2
-  printf '%s\n' "$raw" | head -c 800 >&2
-  echo >&2
-  exit 1
-fi
+    # `.result` の取り出しは claude の出力（JSON）にだけ要る。opencode の出力は
+    # プレーンテキストなので、この段を飛ばして共通の抽出に渡す
+    text=$(printf '%s' "$raw" | jq -er 'if .is_error then empty else .result end' 2>/dev/null)
+    if [ -z "$text" ]; then
+      echo "レビュー: claude -p が失敗した。受領書は作らない。" >&2
+      printf '%s\n' "$raw" | head -c 800 >&2
+      echo >&2
+      exit 1
+    fi
+    ;;
+  opencode)
+    text=$(printf '%s' "$prompt" |
+      OPENCODE_CONFIG_CONTENT="$opencode_config" \
+        opencode run --standalone --agent plan -m "$model" 2>&1)
+    status=$?
+    if [ "$status" -ne 0 ]; then
+      echo "レビュー: opencode run が終了コード ${status} で失敗した。受領書は作らない。" >&2
+      printf '%s\n' "$text" | head -c 800 >&2
+      echo >&2
+      exit 1
+    fi
+    if [ -z "$text" ]; then
+      echo "レビュー: opencode run から応答が無かった。受領書は作らない。" >&2
+      exit 1
+    fi
+    ;;
+esac
 
 # 「JSON だけ」と指示しても、前置き・```json のフェンス・後書きが付いて返ることが
 # ある（実際に "Confirmed. Output:" が前に付いた）。最初の `{` から最後の `}` までを
@@ -187,10 +242,12 @@ mkdir -p "$root/.harness/reviews"
 jq -n \
   --arg hash "$hash" \
   --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --arg runner "$runner" \
+  --arg model "$model" \
   --argjson findings "$findings" \
   --arg body "$body" \
-  '{hash: $hash, ts: $ts, findings: $findings, body: $body}' \
+  '{hash: $hash, ts: $ts, runner: $runner, model: $model, findings: $findings, body: $body}' \
   > "$root/.harness/reviews/$hash.json"
 
-echo "レビュー: 指摘なし。受領書 .harness/reviews/$hash.json を作った。"
+echo "レビュー: 指摘なし。受領書 .harness/reviews/$hash.json を作った（runner=$runner model=$model）。"
 echo "  所見は ${reviews_file#"$root/"} に残した。"
