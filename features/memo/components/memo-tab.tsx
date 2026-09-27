@@ -47,7 +47,6 @@ export function MemoTab({
   onSelectTag,
   suggestion,
   announcement,
-  onOpenImportTokens,
 }: {
   memos: MemoRow[];
   loading: boolean;
@@ -67,8 +66,6 @@ export function MemoTab({
   suggestion: React.ReactNode;
   /** 初回の告知。付けるメモと、その中身。無ければ null */
   announcement: { memoId: string; node: React.ReactNode } | null;
-  /** 取り込みトークンの画面を開く。中身は app 側が持つ（design D10） */
-  onOpenImportTokens: () => void;
 }) {
   const content = draft;
 
@@ -173,13 +170,35 @@ export function MemoTab({
         <h1 className="brand">Remoru</h1>
         <span className="brand-actions">
           {/*
-           * 取り込みトークンへの入口。専用の設定画面は無く、通知の設定と
-           * 同じくシートで出す（design D10）。
+           * 取り込みトークンへの入口は、アカウントのメニューの1項目だけに
+           * する（design D10）。メモ画面の上部にはボタンを置かない。
+           * `labelIcon` は Clerk の型で必須なので、小さな鍵を渡す。
            */}
-          <button type="button" className="link-quiet" onClick={onOpenImportTokens}>
-            AIとつなぐ
-          </button>
-          <UserButton />
+          <UserButton>
+            <UserButton.MenuItems>
+              <UserButton.Link
+                label="API トークン"
+                href="/settings/api"
+                labelIcon={
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="7.5" cy="15.5" r="3.5" />
+                    <path d="m10.5 13 9-9" />
+                    <path d="m16 7.5 2.5 2.5" />
+                  </svg>
+                }
+              />
+            </UserButton.MenuItems>
+          </UserButton>
         </span>
       </div>
 

@@ -1,4 +1,4 @@
-import type { AddResult, ApiMemo, ApiMemoDetail, ApiTag } from "./api.ts";
+import type { AddResult, ApiMemo, ApiMemoDetail, ApiTag, TokenCheckReason } from "./api.ts";
 
 /**
  * 人のための表示。**純関数だけを置く。** 通信も端末も触らない。
@@ -30,6 +30,39 @@ export function reasonLabel(reason: string): string {
 
 export function formatDay(ms: number): string {
   return new Date(ms).toLocaleDateString("ja-JP", { month: "long", day: "numeric" });
+}
+
+/**
+ * 再開できる時刻（design D8）。実行環境のローカル時刻で示す。
+ *
+ * 入力はエポックミリ秒。呼び出し側が「受け取った時刻 + retry-after 秒」を
+ * 渡す。**テストは `TZ` に依存しない形で書く**——文字列そのものを固めず、
+ * 同じ関数で組み立てた値と突き合わせる（L07）。
+ */
+export function formatResumeAt(ms: number): string {
+  return new Date(ms).toLocaleString("ja-JP", {
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/**
+ * login が失敗した理由を人に分かる文にする（design D7）。
+ *
+ * 401 はトークンそのものの問題、通信の失敗はあて先の問題である。混ぜると、
+ * 直す先を取り違える。
+ */
+export function loginFailureMessage(reason: TokenCheckReason, baseUrl: string): string {
+  switch (reason) {
+    case "unauthorized":
+      return "トークンが違うか、失効しています";
+    case "unreachable":
+      return `つながらなかった: ${baseUrl}`;
+    case "failed":
+      return "トークンを確かめられませんでした";
+  }
 }
 
 /** 一覧で1行に収める。長い本文は切る。 */
@@ -108,8 +141,16 @@ export type AddReport = {
  *
  * **途中で失敗しても、それまでに登録できた件は必ず示す。** 黙って終わると、
  * 利用者はどこまで入ったか分からず、同じ内容を送り直して重複させる。
+ *
+ * 429（1日の上限）のときは、**送れた件と送れなかった件を分けて**示し、
+ * 残りの件数と再開できる時刻を添える（design D8）。`resumeAt` は呼び出し側が
+ * 「受け取った時刻 + retry-after 秒」で渡す。無ければ時刻は出さない。
  */
-export function reportAdd(contents: string[], result: AddResult): AddReport {
+export function reportAdd(
+  contents: string[],
+  result: AddResult,
+  options: { resumeAt?: number } = {},
+): AddReport {
   const items: string[] = [];
   const errors: string[] = [];
   let accepted = 0;
@@ -128,12 +169,26 @@ export function reportAdd(contents: string[], result: AddResult): AddReport {
   });
 
   const lines: string[] = [];
-  if (!result.ok) {
-    errors.unshift(`途中で失敗しました（${accepted}件は登録済み）: ${reasonLabel(result.error)}`);
-  } else if (failed === 0) {
-    lines.push(`${accepted}件を登録しました`);
+  if (result.ok) {
+    if (failed === 0) {
+      lines.push(`${accepted}件を登録しました`);
+    } else {
+      lines.push(`${accepted}件を登録しました。${failed}件は保存できませんでした`);
+    }
+  } else if (result.error === "rate_limited") {
+    // 結果が返らなかった件＝429 のバッチとそれ以降。送れた件と分けて示す
+    const notSent = contents.length - result.results.length;
+    lines.push(
+      `${accepted}件を登録しました。${notSent}件は送れませんでした（1日の上限に達しました）`,
+    );
+    if (result.remaining !== undefined) {
+      lines.push(`この日にあと ${result.remaining} 件送れます`);
+    }
+    if (options.resumeAt !== undefined) {
+      lines.push(`再開できるのは ${formatResumeAt(options.resumeAt)} ごろです`);
+    }
   } else {
-    lines.push(`${accepted}件を登録しました。${failed}件は保存できませんでした`);
+    errors.unshift(`途中で失敗しました（${accepted}件は登録済み）: ${reasonLabel(result.error)}`);
   }
   lines.push(...items);
 

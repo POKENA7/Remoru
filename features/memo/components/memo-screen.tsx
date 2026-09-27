@@ -8,8 +8,6 @@ import {
 } from "@/features/first-run/components/first-run-notice";
 import { markGuided } from "@/features/first-run/actions";
 import { announcement } from "@/features/first-run/first-run-view";
-import { ImportTokenSheet } from "@/features/import/components/import-token-sheet";
-import type { ImportTokenState } from "@/features/import/types";
 import { TagSuggestionBand } from "@/features/tag/components/tag-suggestion-band";
 import type { SuggestionResult } from "@/features/tag/types";
 import { useSessionState } from "@/hooks/use-session-state";
@@ -43,7 +41,6 @@ export function MemoScreen({
   guided,
   activeTagId,
   vapidPublicKey,
-  importToken,
 }: {
   memos: MemoRow[];
   tags: { id: string; name: string; count: number }[];
@@ -59,14 +56,8 @@ export function MemoScreen({
    * `/api/notifications/settings` を叩いて確かめていた。
    */
   vapidPublicKey: string | null;
-  /**
-   * 取り込みトークンの状態。サーバーが最初の描画で渡す（design D10）。
-   * 「ある」「無い」「読めなかった」を区別する（`ImportTokenState`）。
-   */
-  importToken: ImportTokenState;
 }) {
   const router = useRouter();
-  const [tokensOpen, setTokensOpen] = useState(false);
 
   /**
    * 書きかけの本文と、受け取った提案。
@@ -214,11 +205,7 @@ export function MemoScreen({
             />
           ) : null
         }
-        onOpenImportTokens={() => setTokensOpen(true)}
       />
-      {tokensOpen && (
-        <ImportTokenSheet tokenState={importToken} onClose={() => setTokensOpen(false)} />
-      )}
     </>
   );
 }

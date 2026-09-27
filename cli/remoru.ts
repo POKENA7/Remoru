@@ -2,15 +2,17 @@
 import { readFileSync } from "node:fs";
 import { type ParsedCommand, parseArgs, splitMemos } from "./args.ts";
 import { type Api, type AddResult, type ApiTag, createApi } from "./api.ts";
+import { loginWithToken } from "./login.ts";
 import {
   formatDryRun,
   formatMemo,
   formatMemoDetail,
   formatTag,
+  loginFailureMessage,
   reasonLabel,
   reportAdd,
 } from "./output.ts";
-import { apiBaseUrl, clearToken, readToken, tokenPath, writeToken } from "./store.ts";
+import { apiBaseUrl, clearToken, readToken } from "./store.ts";
 
 /**
  * Remoru のコマンド。
@@ -25,7 +27,7 @@ import { apiBaseUrl, clearToken, readToken, tokenPath, writeToken } from "./stor
 
 const HELP = `Remoru のコマンド
 
-  remoru login                    取り込みトークンを保存する（標準入力から読む）
+  remoru login                    取り込みトークンを確かめてから保存する（標準入力から読む）
     --token <平文>                引数で渡す。シェルの履歴に残るので、普段は標準入力を使う
   remoru logout                   保存したトークンを消す
 
@@ -80,7 +82,7 @@ function connect(): Api | null {
   const token = readToken();
   if (token === null) {
     console.error(
-      "トークンがありません。アプリの「AIとつなぐ」で発行し、remoru login で保存してください",
+      "トークンがありません。アプリの設定「API トークン」で発行し、remoru login で保存してください",
     );
     return null;
   }
@@ -103,8 +105,15 @@ async function login(token: string | null): Promise<number> {
     return 2;
   }
 
-  writeToken(value);
-  console.log(`保存しました: ${tokenPath()}`);
+  // **保存の前に確かめる**（design D7）。401 や通信の失敗では保存しない
+  const api = createApi({ baseUrl: apiBaseUrl(), token: value });
+  const result = await loginWithToken(api, value);
+  if (!result.ok) {
+    console.error(loginFailureMessage(result.reason, apiBaseUrl()));
+    return 1;
+  }
+
+  console.log(`保存しました: ${result.path}`);
   return 0;
 }
 
@@ -144,13 +153,21 @@ async function memoAdd(command: Extract<ParsedCommand, { kind: "memo-add" }>): P
     return 1;
   }
 
+  // 429 のときだけ、受け取った時刻 + retry-after 秒を再開できる時刻にする
+  const resumeAt =
+    !result.ok && result.retryAfterSeconds !== undefined
+      ? Date.now() + result.retryAfterSeconds * 1000
+      : undefined;
+
   if (command.json) {
-    console.log(JSON.stringify(result, null, 2));
+    // 同じ情報を構造化して出す。再開時刻はエポックミリ秒で添える
+    const output = resumeAt === undefined ? result : { ...result, resumeAt };
+    console.log(JSON.stringify(output, null, 2));
     if (!result.ok) console.error(reasonLabel(result.error));
     return result.ok && result.results.every((r) => r.ok) ? 0 : 1;
   }
 
-  const report = reportAdd(contents, result);
+  const report = reportAdd(contents, result, { resumeAt });
   if (report.lines.length > 0) console.log(report.lines.join("\n"));
   if (report.errors.length > 0) console.error(report.errors.join("\n"));
   return report.exitCode;

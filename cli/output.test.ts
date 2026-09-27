@@ -5,7 +5,9 @@ import {
   formatDryRun,
   formatMemo,
   formatMemoDetail,
+  formatResumeAt,
   formatTag,
+  loginFailureMessage,
   oneLine,
   reasonLabel,
   reportAdd,
@@ -96,6 +98,37 @@ describe("formatTag", () => {
   });
 });
 
+describe("formatResumeAt", () => {
+  // TZ に依存しない形で確かめる。文字列そのものは固めない（L07）
+  it("エポックミリ秒を人が読める日時にする", () => {
+    const at = 1_700_100_000_000;
+    expect(formatResumeAt(at)).toBe(
+      new Date(at).toLocaleString("ja-JP", {
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    );
+  });
+});
+
+describe("loginFailureMessage", () => {
+  it("401 はトークンが違うか失効していると言う", () => {
+    expect(loginFailureMessage("unauthorized", "https://example.test")).toContain("失効");
+  });
+
+  it("通信の失敗は、つながらなかったこととあて先を言う", () => {
+    const message = loginFailureMessage("unreachable", "https://example.test");
+    expect(message).toContain("つながらなかった");
+    expect(message).toContain("https://example.test");
+  });
+
+  it("その他の失敗は確かめられなかったと言う", () => {
+    expect(loginFailureMessage("failed", "https://example.test")).toContain("確かめられ");
+  });
+});
+
 describe("reportAdd", () => {
   it("全部通れば0で、登録した件を示す", () => {
     const result: AddResult = { ok: true, results: [{ ok: true, memoId: "1" }] };
@@ -121,12 +154,52 @@ describe("reportAdd", () => {
   it("途中で失敗したら、登録済みの件数を必ず示す", () => {
     const result: AddResult = {
       ok: false,
-      status: 429,
-      error: "rate_limited",
+      status: 500,
+      error: "http_500",
       results: [{ ok: true, memoId: "1" }],
     };
     const report = reportAdd(["ひとつめ", "ふたつめ"], result);
     expect(report.exitCode).toBe(1);
     expect(report.errors[0]).toContain("1件は登録済み");
+  });
+
+  it("429 のときは送れた件・送れなかった件・残り件数・再開時刻を示す", () => {
+    const resumeAt = 1_700_100_000_000;
+    const result: AddResult = {
+      ok: false,
+      status: 429,
+      error: "rate_limited",
+      remaining: 0,
+      retryAfterSeconds: 3600,
+      // 1バッチ目（2件）は保存できた。2バッチ目は結果が返っていない
+      results: [
+        { ok: true, memoId: "1" },
+        { ok: true, memoId: "2" },
+      ],
+    };
+
+    const report = reportAdd(["a", "b", "c", "d"], result, { resumeAt });
+
+    expect(report.exitCode).toBe(1);
+    const text = report.lines.join("\n");
+    expect(text).toContain("2件を登録しました");
+    expect(text).toContain("2件は送れませんでした");
+    expect(text).toContain("この日にあと 0 件送れます");
+    // 時刻は TZ に依存するので、同じ関数で組み立てた値と突き合わせる（L07）
+    expect(text).toContain(formatResumeAt(resumeAt));
+  });
+
+  it("429 で retry-after が無ければ時刻を出さない", () => {
+    const result: AddResult = {
+      ok: false,
+      status: 429,
+      error: "rate_limited",
+      remaining: 3,
+      results: [],
+    };
+
+    const text = reportAdd(["a"], result).lines.join("\n");
+    expect(text).toContain("この日にあと 3 件送れます");
+    expect(text).not.toContain("再開できる");
   });
 });

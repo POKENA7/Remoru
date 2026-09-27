@@ -70,3 +70,11 @@
 ## 2026-09-27T05:39:25Z  hash=d79ec5584b36c6c6c282192b0c04d9cbab2710599cef5dc04401ed4432817360  runner=opencode  model=opencode-go/muse-spark-1.3-contributor  findings=0
 
 差分全体を確認した。7.1から7.5の実装とテストはタスクの検証条件どおりで、await漏れや条件の取り違え、境界値や利用者分離の破れは見当たらなかった。順序の固定と枠消費の順序も仕様どおりである。
+
+## 2026-09-27T06:30:03Z  hash=c8a7c9dd41fe00bac5f49c9c8633609f4957dd9eaaa1140f7a653c0bad6baa65  runner=opencode  model=opencode-go/muse-spark-1.3-contributor  findings=0
+
+差分全体を確認した。7.6の画面移設と取得の分離、7.7のlogin事前確認と429表示はいずれも実装とテストが対応している。429時のバッチ打ち切りや残件数・再開時刻の扱い、利用者分離の経路にも確信できる誤りは見つからなかった。
+
+## 2026-09-27T06:34:16Z  hash=e0bdcd3dc5ede8a44ae7450b0d9914c4b5b941b1eb7bc9a1adc93184b7d11ba1  runner=opencode  model=opencode-go/muse-spark-1.3-contributor  findings=0
+
+差分全体を確認した。認証・件数上限・429の打ち切り・保存前確認のいずれにも、await漏れ・条件の取り違え・境界値の誤り・利用者分離の破れは見当たらない。テストは429と401/通信失敗の分岐を直接検証しており、緑のまま何も守っていない状態でもない。7.6と7.7の[x]に対応する実装と検証用テストは差分内に存在する。

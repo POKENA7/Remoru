@@ -1,6 +1,4 @@
 import { getGuided } from "@/features/first-run/queries";
-import { getImportToken } from "@/features/import/queries";
-import type { ImportTokenState } from "@/features/import/types";
 import { MemoScreen } from "@/features/memo/components/memo-screen";
 import { getMemos } from "@/features/memo/queries";
 import type { MemoRow } from "@/features/memo/types";
@@ -16,6 +14,10 @@ import { getSuggestionStatus, getTagsByMemo, getTagsWithCounts } from "@/feature
  * 6 本の取得に依存関係が無いので並行に走らせる（『Next.jsの考え方』第6章）。
  * `queries.ts` は `cache()` で包まれているので、他の Container が同じものを
  * 求めても 1 リクエストに 1 回しか問い合わせない。
+ *
+ * **トークンは読まない**（design D10）。以前は一覧の描画のたびに
+ * `getImportToken()` を呼び、シートへ渡していた。開く人の少ない画面の
+ * ために、全員の初期表示に取得を1つ足していたのをやめた。
  */
 export async function MemoListContainer({ tagId }: { tagId: string | null }) {
   try {
@@ -32,35 +34,19 @@ export async function MemoListContainer({ tagId }: { tagId: string | null }) {
         guided={true}
         activeTagId={tagId}
         vapidPublicKey={null}
-        importToken={{ status: "error" }}
       />
     );
   }
 }
 
 async function render(tagId: string | null) {
-  const [memos, states, tagsByMemo, tags, suggestion, guided, importToken] = await Promise.all([
+  const [memos, states, tagsByMemo, tags, suggestion, guided] = await Promise.all([
     getMemos(tagId ?? undefined),
     getMemoReviewStates(),
     getTagsByMemo(),
     getTagsWithCounts(),
     getSuggestionStatus(),
     getGuided(),
-    /*
-     * **トークンが読めなくても一覧は出す。** ここで投げると、関係のない
-     * メモの一覧まで空の画面に落ちる。
-     *
-     * **失敗を `null` に潰さない。** `null` は「トークンが無い」と同じ値で、
-     * シートが発行の操作を出してしまう。発行は古い行を消してから作るので
-     * （design D2）、読めなかっただけの利用者の有効なトークンを消させる。
-     * 「読めなかった」は別の値で渡し、シートに操作を出させない。
-     */
-    getImportToken()
-      .then((token): ImportTokenState => ({ status: "ok", token }))
-      .catch((error): ImportTokenState => {
-        console.error("取り込みトークンを読めなかった", error);
-        return { status: "error" };
-      }),
   ]);
 
   const rows: MemoRow[] = memos.map((memo) => ({
@@ -82,7 +68,6 @@ async function render(tagId: string | null) {
        * `process.env` から読む（本番では `wrangler secret` で入れ替える）。
        */
       vapidPublicKey={process.env.VAPID_PUBLIC_KEY ?? null}
-      importToken={importToken}
     />
   );
 }

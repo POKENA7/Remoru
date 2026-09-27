@@ -31,8 +31,27 @@ export type ApiFailure = { ok: false; status: number; error: string };
 
 export type AddResult =
   | { ok: true; results: ImportItemResult[] }
-  /** 途中で失敗したときは、それまでに受理された結果も返す */
-  | { ok: false; status: number; error: string; results: ImportItemResult[] };
+  /**
+   * 途中で失敗したときは、それまでに受理された結果も返す。
+   *
+   * 429（1日の上限）のときは `remaining`（その日の残り件数）と
+   * `retryAfterSeconds`（翌日までの秒数）が付く。ヘッダが無い・数値でない
+   * ときは `retryAfterSeconds` を付けない（design D8。時刻を出さないだけ）。
+   */
+  | {
+      ok: false;
+      status: number;
+      error: string;
+      results: ImportItemResult[];
+      remaining?: number;
+      retryAfterSeconds?: number;
+    };
+
+/** トークンが使えるかの確認の結果。 */
+export type TokenCheck = { ok: true } | { ok: false; reason: TokenCheckReason };
+
+/** 確認に落ちた理由。文言は `output.ts` が持つ。 */
+export type TokenCheckReason = "unauthorized" | "unreachable" | "failed";
 
 export type Api = {
   addMemos(contents: string[]): Promise<AddResult>;
@@ -86,6 +105,34 @@ export function createApi(options: {
     return { ok: false, status: response.status, error };
   }
 
+  /**
+   * 429 の応答から、その日の残り件数と翌日までの秒数を取り出す。
+   *
+   * **無くても落ちない。** `retry-after` が無い・数値でないときは
+   * `retryAfterSeconds` を付けない（時刻を出さないだけ）。
+   */
+  function rateLimitInfo(
+    response: Response,
+    json: unknown,
+  ): { remaining?: number; retryAfterSeconds?: number } {
+    if (response.status !== 429) return {};
+    const info: { remaining?: number; retryAfterSeconds?: number } = {};
+
+    const rawRetryAfter = response.headers.get("retry-after");
+    const seconds = rawRetryAfter === null ? Number.NaN : Number(rawRetryAfter);
+    if (Number.isFinite(seconds) && seconds >= 0) info.retryAfterSeconds = seconds;
+
+    if (
+      typeof json === "object" &&
+      json !== null &&
+      typeof (json as { remaining?: unknown }).remaining === "number"
+    ) {
+      info.remaining = (json as { remaining: number }).remaining;
+    }
+
+    return info;
+  }
+
   return {
     async addMemos(contents) {
       const results: ImportItemResult[] = [];
@@ -95,7 +142,8 @@ export function createApi(options: {
         const { response, json } = await request("POST", "/api/memos", batch);
 
         if (!response.ok) {
-          return { ...failure(response, json), results };
+          // 429 なら、それ以降のバッチは送らない。ここで打ち切る
+          return { ...failure(response, json), ...rateLimitInfo(response, json), results };
         }
 
         const items = (json as { results?: ImportItemResult[] } | null)?.results ?? [];
@@ -140,4 +188,23 @@ export function createApi(options: {
       return { ok: true, data: (json as { tags?: ApiTag[] } | null)?.tags ?? [] };
     },
   };
+}
+
+/**
+ * 保存する前に、そのトークンが使えるかを確かめる（design D7）。
+ *
+ * `GET /api/tags` をそのトークンで呼ぶ。200 なら使える。401 は「違うか
+ * 失効している」、通信の失敗は「つながらなかった」、それ以外は確認できなかった
+ * として返す。**保存も削除もしない。** 判定だけを行う——既に保存された
+ * トークンを、新しいトークンの確認失敗で消してしまわないためである。
+ */
+export async function checkToken(api: Api): Promise<TokenCheck> {
+  try {
+    const result = await api.listTags();
+    if (result.ok) return { ok: true };
+    return { ok: false, reason: result.status === 401 ? "unauthorized" : "failed" };
+  } catch {
+    // fetch が投げた（圏外・あて先が無い・TLS の失敗など）
+    return { ok: false, reason: "unreachable" };
+  }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type ImportItemResult, createApi } from "./api.ts";
+import { type ImportItemResult, checkToken, createApi } from "./api.ts";
 
 /** 通信を差し替えるための偽の fetch。呼び出しを記録する。 */
 function fakeFetch(reply: (call: { url: string; init: RequestInit }) => Response) {
@@ -167,5 +167,86 @@ describe("createApi", () => {
       error: "invalid_response",
       results: [],
     });
+  });
+
+  it("429 は残り件数と再開までの秒数を添えて返す", async () => {
+    const { fn } = fakeFetch(() =>
+      Response.json(
+        { error: "rate_limited", remaining: 10 },
+        { status: 429, headers: { "retry-after": "3600" } },
+      ),
+    );
+    const api = createApi({ baseUrl: "https://example.test", token: "t", fetch: fn });
+
+    expect(await api.addMemos(["ひとつめ"])).toEqual({
+      ok: false,
+      status: 429,
+      error: "rate_limited",
+      remaining: 10,
+      retryAfterSeconds: 3600,
+      results: [],
+    });
+  });
+
+  it("429 で retry-after が無くても落ちない", async () => {
+    const { fn } = fakeFetch(() =>
+      Response.json({ error: "rate_limited", remaining: 0 }, { status: 429 }),
+    );
+    const api = createApi({ baseUrl: "https://example.test", token: "t", fetch: fn });
+
+    const result = await api.addMemos(["ひとつめ"]);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    // 秒数だけが無い。残り件数は本文から読む
+    expect(result.remaining).toBe(0);
+    expect(result.retryAfterSeconds).toBeUndefined();
+  });
+
+  it("429 を受けたら、それ以降のバッチを送らない", async () => {
+    const { fn, calls } = fakeFetch(() =>
+      Response.json({ error: "rate_limited", remaining: 5 }, { status: 429 }),
+    );
+    const api = createApi({ baseUrl: "https://example.test", token: "t", fetch: fn });
+
+    // 21件なら2バッチ。1バッチ目で429になるので2バッチ目は送らない
+    const contents = Array.from({ length: 21 }, (_, i) => `memo ${i}`);
+    const result = await api.addMemos(contents);
+
+    expect(calls).toHaveLength(1);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.results).toEqual([]);
+  });
+});
+
+describe("checkToken", () => {
+  it("200 なら使える", async () => {
+    const { fn } = fakeFetch(() => Response.json({ tags: [] }));
+    const api = createApi({ baseUrl: "https://example.test", token: "t", fetch: fn });
+
+    expect(await checkToken(api)).toEqual({ ok: true });
+  });
+
+  it("401 は unauthorized", async () => {
+    const { fn } = fakeFetch(() => Response.json({ error: "unauthorized" }, { status: 401 }));
+    const api = createApi({ baseUrl: "https://example.test", token: "bad", fetch: fn });
+
+    expect(await checkToken(api)).toEqual({ ok: false, reason: "unauthorized" });
+  });
+
+  it("通信の失敗は unreachable", async () => {
+    const fn = (async () => {
+      throw new Error("network down");
+    }) as typeof fetch;
+    const api = createApi({ baseUrl: "https://example.test", token: "t", fetch: fn });
+
+    expect(await checkToken(api)).toEqual({ ok: false, reason: "unreachable" });
+  });
+
+  it("その他の失敗は failed", async () => {
+    const { fn } = fakeFetch(() => Response.json({ error: "boom" }, { status: 500 }));
+    const api = createApi({ baseUrl: "https://example.test", token: "t", fetch: fn });
+
+    expect(await checkToken(api)).toEqual({ ok: false, reason: "failed" });
   });
 });
