@@ -25,6 +25,17 @@ cron worker を変えたときは、そちらも出す。
 (cd cron-worker && npx wrangler deploy)
 ```
 
+## マイグレーションを足したとき
+
+`db/schema.ts` を変えたら、**出荷の前に本番の D1 へ適用する。**
+
+```bash
+npx wrangler d1 migrations apply remoru-db --remote
+```
+
+`npm run deploy` は worker を出すだけで、**D1 は変えない。** 適用を忘れると、
+新しい列や表を使う経路が本番でだけ落ちる。
+
 **`cd` は括弧で囲む。** `cron-worker/wrangler.jsonc` には `migrations_dir` が
 無いため、そのまま次のコマンドへ進むと `d1 migrations apply` が
 「No migrations present at .../cron-worker/migrations」で落ちる。
@@ -102,12 +113,14 @@ cron worker を変えたときは、そちらも出す。
    入れ忘れや期限切れは**エラーとして現れない**。生成されないメモが増える
    ことでしか気づけないので、`wrangler secret list` で確認する。
 
-   利用回数の上限はアプリ側に無い（意図的な判断）。呼び出しが起きるのは
-   次の2つで、**どちらも1回につき1呼び出し**。
+   利用回数の上限はアプリ側に無い（意図的な判断）。ただし取り込みAPIの登録だけは、
+   利用者ごとの1日の件数で抑える（下の表）。呼び出しが起きるのは次の経路で、
+   **いずれも1回につき1呼び出し**。
 
    | 経路 | 上限 |
    |---|---|
    | メモの保存 | 無し。ただしメモが1件増える |
+   | 取り込み（`POST /api/memos`） | 利用者ごとに1日（UTC）100件（`DAILY_IMPORT_LIMIT`）。1件ごとに生成が1回起きる |
    | 問答の作り直し（`PUT /api/memos/{id}/quiz-item`） | **無し。同じメモに何度でも投げられる** |
    | タグの提案（`POST /api/tags/suggestion`） | **無し。ただし1回で渡すメモは30件まで** |
 
@@ -155,7 +168,7 @@ Clerk の `auth()` は `clerkMiddleware()` が動いていることを前提に�
 |---|---|
 | `middleware.ts` | Clerk の文脈を用意するだけ。保護は担わない |
 | `app/page.tsx` | サーバー側で確認し、未認証なら `/sign-in` へ |
-| API ルート | 各自が `getCurrentUserId()` を確認し、未認証なら 401 |
+| `app/api`（取り込み） | 各経路が `getImportRequestContext()` を確認し、トークンが無効なら 401。トークンは利用者ごとに1個で、再発行は古いものを消してから作り直す（失効は消す）。登録は利用者ごとに1日（UTC）`DAILY_IMPORT_LIMIT`（100）件までで、超えると429 |
 
 保護を資源側に置いたのは Clerk の推奨でもある（`createRouteMatcher` の非推奨理由: パス一致は Next.js のルーティングと乖離しうる）。
 

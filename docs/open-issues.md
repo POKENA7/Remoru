@@ -216,3 +216,32 @@ Next 16 の proxy は Node.js ランタイム固定で、OpenNext が支援し�
 OpenNext が Node.js ランタイムの proxy を支援する、または Clerk が middleware 無しで
 `auth()` を動かせるようにする。change を立てるたびに一度、`@opennextjs/cloudflare` の
 リリースノートを見る。それまでは警告を無視する。
+
+## 5. 何も stage せずにレビューすると、未追跡の新規ファイルが受領書から漏れる
+
+**2026-09-27 に判断（cli-import 7.12）。規則ではなく検査にする。まだ入れていない。**
+
+### 何が起きるか
+
+`scripts/harness/diff-hash.sh` は、index が空なら `git diff HEAD`、そうでなければ
+`git diff --cached` のハッシュを出す。`review.sh` も同じ分岐でレビュアーに差分を渡す。
+`git diff HEAD` は**未追跡のファイルを含まない**。
+
+- 何も stage せずに `harness:review` を流し、そのあと `git add -A` してコミットすると、
+  ハッシュが変わって門に弾かれる（cli-import の 7.6・7.7 で実際に起きた。費用の無駄だが、fail closed）
+- 何も stage せずに `harness:review` を流し、そのあと `-a` を付けてコミットすると、未追跡の
+  新規ファイルはコミットにもハッシュにも入らない。門のハッシュは一致して**通る**。
+  検査は作業ツリー（新規ファイル込み）で緑なので、**新規ファイルを欠いた壊れたコミットが
+  静かに通る**。（この経路は推論。実際に踏んではいない）
+
+### なぜ規則でなく検査か
+
+規則（「レビューの前に `git add -A`」）は、前のセッションでも知っていながら踏んだ。
+後者の経路は門が素通りする側に出るので、覚えていることに頼れない。
+
+### どうするか
+
+`review.sh` と `precommit-gate.sh` の両方で、gitignore されていない未追跡のファイルが
+あれば落ちる（部分ステージと同じ扱い。`git ls-files --others --exclude-standard` が空で
+なければ exit 2 と、`git add` を促す文）。L06 に従い、`scripts/harness/*.test.ts` に
+未追跡のファイルを注入して赤くなることと、取り除くと通ることの両方を足す。

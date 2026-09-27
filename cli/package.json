@@ -1,0 +1,8 @@
+{
+  "name": "remoru-cli",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}

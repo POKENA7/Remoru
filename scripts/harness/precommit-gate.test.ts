@@ -284,8 +284,43 @@ function fakeClaude(dir: string, response: object): string {
   return bin;
 }
 
-function runReview(dir: string, opts: { args?: string[]; bin?: string } = {}) {
-  const env: NodeJS.ProcessEnv = { ...process.env, HARNESS_ROOT: dir };
+/**
+ * `opencode` を名乗る偽物を PATH の先頭に置く。
+ *
+ * `opencode run` の出力は JSON ではなくプレーンテキストで、先頭に `> plan · <モデル>`
+ * の行や ANSI が付く。それを再現できるよう、`stdout` をそのまま渡す。受け取った
+ * 引数は argsFile に 1 行ずつ書き残し、`OPENCODE_CONFIG_CONTENT` は envFile に
+ * 書き残す（`--agent plan` と読み取り専用の設定の確認に使う）。
+ */
+function fakeOpencode(
+  dir: string,
+  opts: { stdout?: string; exit?: number; argsFile?: string; envFile?: string } = {},
+): { bin: string; argsFile: string; envFile: string } {
+  const bin = join(dir, "fake-bin");
+  mkdirSync(bin, { recursive: true });
+  const stub = join(bin, "opencode");
+  const argsFile = opts.argsFile ?? join(dir, "opencode-args.txt");
+  const envFile = opts.envFile ?? join(dir, "opencode-env.txt");
+  const stdout = opts.stdout ?? "";
+  writeFileSync(
+    stub,
+    `#!/bin/bash\ncat > /dev/null\nprintf '%s\\n' "$@" >> ${JSON.stringify(argsFile)}\n` +
+      `printf '%s' "$OPENCODE_CONFIG_CONTENT" > ${JSON.stringify(envFile)}\n` +
+      `cat <<'OUT'\n${stdout}\nOUT\nexit ${opts.exit ?? 0}\n`,
+  );
+  chmodSync(stub, 0o755);
+  return { bin, argsFile, envFile };
+}
+
+function runReview(
+  dir: string,
+  opts: { args?: string[]; bin?: string; env?: Record<string, string> } = {},
+) {
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    HARNESS_ROOT: dir,
+    ...(opts.env ?? {}),
+  };
   if (opts.bin) env.PATH = `${opts.bin}:${process.env.PATH}`;
   const r = spawnSync("bash", [REVIEW, ...(opts.args ?? [])], {
     cwd: dir,
@@ -495,4 +530,131 @@ describe("門はロケールに依らず 2 を返す（L07）", () => {
       });
     });
   }
+});
+
+/**
+ * レビューの実行系を切り替える（HARNESS_REVIEW_RUNNER）。
+ *
+ * `opencode run` は JSON ではなくプレーンテキストを返し、先頭に `> plan · <モデル>`
+ * の行や ANSI のエスケープが付く。受領書に**どの実行系で通ったか**を残さないと、
+ * あとから見分けられない。ここでは偽の `opencode` を PATH の先頭に置き、
+ * 受領書に何が記録されるか、どこで落ちるかを見る。
+ */
+describe("レビューの実行系を切り替える（HARNESS_REVIEW_RUNNER）", () => {
+  const emptyFindings = { findings: [], body: "所見: 問題は見つからなかった" };
+
+  /** 偽の opencode が返す 1 つの応答（先頭の `> plan · <モデル>` の行つき） */
+  function opencodeResponse(response: object, prefix = "> plan · muse-spark-1.3-contributor\n") {
+    return `${prefix}${JSON.stringify(response)}\n`;
+  }
+
+  it("既定は claude で、受領書に runner=claude model=claude-sonnet-5 を記録する", () => {
+    withReviewRepo(["change-a"], (dir) => {
+      const bin = fakeClaude(dir, { findings: [], body: "所見" });
+      const r = runReview(dir, { bin });
+      expect(r.status).toBe(0);
+      const hash = diffHash(dir);
+      const receipt = JSON.parse(
+        readFileSync(join(dir, ".harness", "reviews", `${hash}.json`), "utf8"),
+      ) as { runner: string; model: string };
+      expect(receipt.runner).toBe("claude");
+      expect(receipt.model).toBe("claude-sonnet-5");
+      const md = readFileSync(join(dir, "openspec", "changes", "change-a", "reviews.md"), "utf8");
+      expect(md).toContain("runner=claude");
+      expect(md).toContain("model=claude-sonnet-5");
+    });
+  });
+
+  it("opencode が findings の空の JSON を返すと、受領書を作り runner=opencode を記録する", () => {
+    withReviewRepo(["change-a"], (dir) => {
+      const { bin } = fakeOpencode(dir, { stdout: opencodeResponse(emptyFindings) });
+      const r = runReview(dir, { bin, env: { HARNESS_REVIEW_RUNNER: "opencode" } });
+      expect(r.status).toBe(0);
+      const hash = diffHash(dir);
+      const receipt = JSON.parse(
+        readFileSync(join(dir, ".harness", "reviews", `${hash}.json`), "utf8"),
+      ) as { runner: string; model: string };
+      expect(receipt.runner).toBe("opencode");
+      expect(receipt.model).toBe("opencode-go/muse-spark-1.3-contributor");
+      const md = readFileSync(join(dir, "openspec", "changes", "change-a", "reviews.md"), "utf8");
+      expect(md).toContain("runner=opencode");
+      expect(md).toContain("model=opencode-go/muse-spark-1.3-contributor");
+    });
+  });
+
+  it("opencode が findings を返すと、受領書を作らずに exit 1", () => {
+    withReviewRepo(["change-a"], (dir) => {
+      const { bin } = fakeOpencode(dir, {
+        stdout: opencodeResponse({
+          findings: [{ file: "code.ts", line: 1, summary: "await が抜けている" }],
+          body: "所見: 1 件",
+        }),
+      });
+      const r = runReview(dir, { bin, env: { HARNESS_REVIEW_RUNNER: "opencode" } });
+      expect(r.status).toBe(1);
+      expect(existsSync(join(dir, ".harness", "reviews"))).toBe(false);
+      const md = readFileSync(join(dir, "openspec", "changes", "change-a", "reviews.md"), "utf8");
+      expect(md).toContain("findings=1");
+      expect(md).toContain("await が抜けている");
+    });
+  });
+
+  it("`> plan` の行と ANSI が前に付いても JSON を取り出す", () => {
+    withReviewRepo(["change-a"], (dir) => {
+      // 見出し行が ANSI で囲まれ、空行が挟まる形。素のテキストから最初の `{` を探す
+      const prefix = "\u001b[36m> plan · muse-spark-1.3-contributor\u001b[0m\n\u001b[1m\u001b[0m\n";
+      const { bin } = fakeOpencode(dir, { stdout: opencodeResponse(emptyFindings, prefix) });
+      const r = runReview(dir, { bin, env: { HARNESS_REVIEW_RUNNER: "opencode" } });
+      expect(r.status).toBe(0);
+      expect(existsSync(join(dir, ".harness", "reviews", `${diffHash(dir)}.json`))).toBe(true);
+    });
+  });
+
+  it("opencode が 0 以外で終わると、受領書を作らない", () => {
+    withReviewRepo(["change-a"], (dir) => {
+      // 有効な JSON を返しても、終了コードが 0 でなければ通さない
+      const { bin } = fakeOpencode(dir, { stdout: opencodeResponse(emptyFindings), exit: 1 });
+      const r = runReview(dir, { bin, env: { HARNESS_REVIEW_RUNNER: "opencode" } });
+      expect(r.status).not.toBe(0);
+      expect(existsSync(join(dir, ".harness", "reviews"))).toBe(false);
+    });
+  });
+
+  it("HARNESS_REVIEW_RUNNER が未知の値なら、受領書を作らずに落ちる（fail closed）", () => {
+    withReviewRepo(["change-a"], (dir) => {
+      // モデルを PATH に置かない。呼ぶ前に落ちる経路であることもここで見ている
+      const r = runReview(dir, { env: { HARNESS_REVIEW_RUNNER: "unknown" } });
+      expect(r.status).not.toBe(0);
+      expect(r.stderr).toContain("HARNESS_REVIEW_RUNNER");
+      expect(existsSync(join(dir, ".harness", "reviews"))).toBe(false);
+    });
+  });
+
+  it("opencode には読み取り専用の --agent plan を渡す", () => {
+    withReviewRepo(["change-a"], (dir) => {
+      const { bin, argsFile } = fakeOpencode(dir, { stdout: opencodeResponse(emptyFindings) });
+      expect(runReview(dir, { bin, env: { HARNESS_REVIEW_RUNNER: "opencode" } }).status).toBe(0);
+      const args = readFileSync(argsFile, "utf8").trim().split("\n").join(" ");
+      expect(args).toContain("run");
+      expect(args).toContain("--standalone");
+      expect(args).toContain("--agent plan");
+      expect(args).toContain("-m opencode-go/muse-spark-1.3-contributor");
+    });
+  });
+
+  it("opencode には読み取り専用の設定を OPENCODE_CONFIG_CONTENT で渡す", () => {
+    withReviewRepo(["change-a"], (dir) => {
+      const { bin, envFile } = fakeOpencode(dir, { stdout: opencodeResponse(emptyFindings) });
+      expect(runReview(dir, { bin, env: { HARNESS_REVIEW_RUNNER: "opencode" } }).status).toBe(0);
+      // `--agent plan` だけではシェルと MCP のツールが残る。ここで確かめるのは
+      // ツールそのものを外す設定が実際に渡っていること
+      const config = JSON.parse(readFileSync(envFile, "utf8")) as {
+        tools: Record<string, boolean>;
+        permission: Record<string, string>;
+      };
+      expect(config.permission.bash).toBe("deny");
+      expect(config.permission.edit).toBe("deny");
+      expect(config.tools["*"]).toBe(false);
+    });
+  });
 });

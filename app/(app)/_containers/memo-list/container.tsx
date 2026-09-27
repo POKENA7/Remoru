@@ -14,6 +14,10 @@ import { getSuggestionStatus, getTagsByMemo, getTagsWithCounts } from "@/feature
  * 6 本の取得に依存関係が無いので並行に走らせる（『Next.jsの考え方』第6章）。
  * `queries.ts` は `cache()` で包まれているので、他の Container が同じものを
  * 求めても 1 リクエストに 1 回しか問い合わせない。
+ *
+ * **トークンは読まない**（design D10）。以前は一覧の描画のたびに
+ * `getImportToken()` を呼び、シートへ渡していた。開く人の少ない画面の
+ * ために、全員の初期表示に取得を1つ足していたのをやめた。
  */
 export async function MemoListContainer({ tagId }: { tagId: string | null }) {
   try {

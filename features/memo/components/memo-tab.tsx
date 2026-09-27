@@ -168,7 +168,38 @@ export function MemoTab({
     <>
       <div className="brand-row">
         <h1 className="brand">Remoru</h1>
-        <UserButton />
+        <span className="brand-actions">
+          {/*
+           * 取り込みトークンへの入口は、アカウントのメニューの1項目だけに
+           * する（design D10）。メモ画面の上部にはボタンを置かない。
+           * `labelIcon` は Clerk の型で必須なので、小さな鍵を渡す。
+           */}
+          <UserButton>
+            <UserButton.MenuItems>
+              <UserButton.Link
+                label="API トークン"
+                href="/settings/api"
+                labelIcon={
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="7.5" cy="15.5" r="3.5" />
+                    <path d="m10.5 13 9-9" />
+                    <path d="m16 7.5 2.5 2.5" />
+                  </svg>
+                }
+              />
+            </UserButton.MenuItems>
+          </UserButton>
+        </span>
       </div>
 
       <form className="composer" action={formAction}>

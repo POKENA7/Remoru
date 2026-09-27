@@ -153,57 +153,59 @@ export function MemoScreen({
   }, [generatingKey, polls, router]);
 
   return (
-    <MemoTab
-      memos={memos}
-      loading={false}
-      /*
-       * 詳細は固有の経路を持つ（navigation spec）。押すと履歴が積まれるので、
-       * 端末の戻る操作でこの一覧へ返る。
-       *
-       * **絞り込みを経路に持って行く。** PWA にはブラウザの戻るが無く、
-       * 下部タブが最も自然な戻り道になる。タブのリンクが `?tag=` を
-       * 引き継げるよう、詳細にいる間も経路が絞り込みを憶えている。
-       */
-      onOpenDetail={(memo) =>
-        router.push(
-          activeTagId
-            ? `/memos/${memo.id}?tag=${encodeURIComponent(activeTagId)}`
-            : `/memos/${memo.id}`,
-        )
-      }
-      draft={draft}
-      onDraftChange={setDraft}
-      fresh={fresh}
-      onSaved={onSaved}
-      onPrinted={onPrinted}
-      tags={tags}
-      activeTagId={activeTagId}
-      onSelectTag={onSelectTag}
-      announcement={
-        notice
-          ? {
-              memoId: notice.memoId,
-              node: (
-                <FirstRunNotice
-                  nextReviewAt={notice.nextReviewAt}
-                  now={notice.now}
-                  vapidPublicKey={vapidPublicKey}
-                  answer={noticeAnswer}
-                  onAnswer={setNoticeAnswer}
-                />
-              ),
-            }
-          : null
-      }
-      suggestion={
-        suggestion.show ? (
-          <TagSuggestionBand
-            untaggedCount={suggestion.untaggedCount}
-            result={suggestionResult}
-            onResult={setSuggestionResult}
-          />
-        ) : null
-      }
-    />
+    <>
+      <MemoTab
+        memos={memos}
+        loading={false}
+        /*
+         * 詳細は固有の経路を持つ（navigation spec）。押すと履歴が積まれるので、
+         * 端末の戻る操作でこの一覧へ返る。
+         *
+         * **絞り込みを経路に持って行く。** PWA にはブラウザの戻るが無く、
+         * 下部タブが最も自然な戻り道になる。タブのリンクが `?tag=` を
+         * 引き継げるよう、詳細にいる間も経路が絞り込みを憶えている。
+         */
+        onOpenDetail={(memo) =>
+          router.push(
+            activeTagId
+              ? `/memos/${memo.id}?tag=${encodeURIComponent(activeTagId)}`
+              : `/memos/${memo.id}`,
+          )
+        }
+        draft={draft}
+        onDraftChange={setDraft}
+        fresh={fresh}
+        onSaved={onSaved}
+        onPrinted={onPrinted}
+        tags={tags}
+        activeTagId={activeTagId}
+        onSelectTag={onSelectTag}
+        announcement={
+          notice
+            ? {
+                memoId: notice.memoId,
+                node: (
+                  <FirstRunNotice
+                    nextReviewAt={notice.nextReviewAt}
+                    now={notice.now}
+                    vapidPublicKey={vapidPublicKey}
+                    answer={noticeAnswer}
+                    onAnswer={setNoticeAnswer}
+                  />
+                ),
+              }
+            : null
+        }
+        suggestion={
+          suggestion.show ? (
+            <TagSuggestionBand
+              untaggedCount={suggestion.untaggedCount}
+              result={suggestionResult}
+              onResult={setSuggestionResult}
+            />
+          ) : null
+        }
+      />
+    </>
   );
 }

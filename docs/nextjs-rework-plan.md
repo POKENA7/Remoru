@@ -63,6 +63,12 @@ B（本の適用。この順。B1 と B2 は並列可）
 それ以外は直列。merge の順は A5 → A1 → A4 → A3 → A2（A5 が全員の使う review.sh を変え、A4 が A1 の
 `check:build` に依存する）。
 
+**この計画に含まれない change:** `cli-import`（AI からの取り込み。`app/api` を戻す）。
+A1〜A5 と並行してよい。メモ画面に触れるのは `memo-tab.tsx` の `UserButton` に
+「API トークン」の `UserButton.Link` を1つ足すだけで、**一覧の初期表示で読むものは増えない**
+（トークンの画面は `/settings/api` の別経路にある）。重なるのはこの1か所なので、
+**B3 とはどちらかを先にすればよい。**
+
 ---
 
 ## 2. 現状（2026-09-12、main `f3f78d3`）
@@ -73,7 +79,7 @@ B（本の適用。この順。B1 と B2 は並列可）
 |---|---|
 | 経路は `/` `/review` `/record` `/memos/[memoId]`。`(app)/layout.tsx` が `verifySession()` と `getDue()` を持つ | `app/(app)/` |
 | 読み取りは Container → `features/*/queries.ts`（`server-only` + `cache()` + `verifySession()`） | `app/(app)/_containers/` |
-| 書き込みは `features/*/actions.ts`（`"use server"` + `verifySession()` + `refresh()`）。`app/api` は無い | `server-actions-for-writes` |
+| 書き込みは `features/*/actions.ts`（`"use server"` + `verifySession()` + `refresh()`）。取り込みAPI（`app/api`）だけは、ブラウザのセッションを持てないCLIとAIのために**トークン**で認証する（`cli-import`） | `server-actions-for-writes` |
 | `"use client"` は 13 ファイル（`record-tab.tsx` だけ Server Component）。Container の直下から下がほぼクライアント。`memo-detail.tsx` 17 KB | `grep` |
 | `loading.tsx` `error.tsx` `<Suspense>` は 0 件。Container 3 つが `try/catch` で空の画面を返す「途中の形」 | 各 Container のコメント |
 | dynamic な経路に `loading.js` が無いので、タブの `<Link>` は **prefetch されていない** | Next 16 `prefetching.md` 31 行 |
@@ -149,7 +155,7 @@ features/<機能>/actions.ts     書き込みの入口。"use server" + verifySe
 features/<機能>/components/    Presentational。操作を持つ葉だけ *-client.tsx                   ← B3
 features/<機能>/<機能>.ts      ドメイン。(db, userId, …) の純関数                              ✓
 lib/                           外部ライブラリのラッパーだけ                                    ✓
-app/api/                       無い                                                            ✓
+app/api/                       取り込みAPIのみ。トークンで認証する                     ✓
 ```
 
 層の向きは `tests/architecture/layers.arch.test.ts`（A4 の後は 5 規則）。

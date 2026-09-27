@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["esnext"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["node"],
+    /*
+     * Node の型の除去（type stripping）でそのまま動かすため、相対 import は
+     * `.ts` まで書く。tsc にその拡張子を認めさせるのがこの指定である。
+     */
+    "allowImportingTsExtensions": true
+  },
+  "include": ["**/*.ts"]
+}

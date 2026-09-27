@@ -13,7 +13,7 @@ import { clerkMiddleware } from "@clerk/nextjs/server";
  * ため、保護されるべき資源に到達できる場合がある」と警告している。
  * 未認証の遮断は資源の側で行う:
  *   - 画面      app/page.tsx がサーバー側で確認して /sign-in へ送る
- *   - API ルート 各自が getCurrentUserId() を確認して 401 を返す
+ *   - 取り込みAPI 各経路が getImportRequestContext() を確認して 401 を返す
  * ここは auth() が動くための土台にすぎない。
  */
 export default clerkMiddleware();

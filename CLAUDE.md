@@ -46,6 +46,16 @@
 `tasks.md` と spec の delta を渡すので、`- [x]` と実装の食い違いは指摘として返る（L08）。
 所見は `openspec/changes/<change>/reviews.md` に追記され、change と一緒に archive される。
 
+レビューの実行系は既定で `claude -p`（`claude-sonnet-5`）。環境変数
+`HARNESS_REVIEW_RUNNER` を `opencode` にすると `opencode run --agent plan` に切り替わり、
+`OPENCODE_CONFIG_CONTENT` で読み取り専用のツール（read / grep / glob / list）だけを残して
+シェルと MCP のツールを外す。`--agent plan` だけではそれらは残る。既定モデルは
+`opencode-go/muse-spark-1.3-contributor` になる。手元で試すときは
+`HARNESS_REVIEW_RUNNER=opencode npm run harness:review` を打つ。`HARNESS_REVIEW_MODEL` で
+モデルを上書きでき、`HARNESS_REVIEW_RUNNER` が `claude` と `opencode` 以外なら
+受領書を作らずに落ちる。どちらの実行系で通ったかは受領書と `reviews.md` の見出しに
+`runner=` と `model=` として残る。
+
 **コミットは 2 回に分けて呼ぶ。** 門は tool の**実行前**に判定するので、
 `git add -A && git commit ...` を 1 コマンドで書くと、判定の時点でまだ add されておらず
 「部分ステージ」として必ず落ちる。add とコミットは別々の呼び出しにする。
@@ -68,6 +78,16 @@
 **`disableAllHooks` を使ったら `.learnings/active.md` に記録すること。**
 それが使われた時点で、この設計は失敗したということである。何が耐えられなかったのかを
 残さないと、次も同じものを作る。
+
+## 実装の委任
+
+change の実装は `scripts/delegate.sh` で OpenCode Go のモデルに任せる。手順は
+`.claude/skills/delegate/SKILL.md` にあり、計画（change の成果物）と実装を別の
+セッションに分けるための入口である。実装担当が触ってよい範囲は notes に書き、
+禁止する操作（git の書き込み、`openspec archive`、`harness:review`、`wrangler`）は
+`opencode.json` が権限として強制する。監督役は委任した実装を自分で検証し、
+`HARNESS_REVIEW_RUNNER=opencode npm run harness:review` を通してから、
+add とコミットを別々の呼び出しで行う。
 
 ## 置き場
 
