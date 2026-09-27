@@ -1,5 +1,6 @@
 import { getGuided } from "@/features/first-run/queries";
-import { getImportTokens } from "@/features/import/queries";
+import { getImportToken } from "@/features/import/queries";
+import type { ImportTokenState } from "@/features/import/types";
 import { MemoScreen } from "@/features/memo/components/memo-screen";
 import { getMemos } from "@/features/memo/queries";
 import type { MemoRow } from "@/features/memo/types";
@@ -31,14 +32,14 @@ export async function MemoListContainer({ tagId }: { tagId: string | null }) {
         guided={true}
         activeTagId={tagId}
         vapidPublicKey={null}
-        importTokens={null}
+        importToken={{ status: "error" }}
       />
     );
   }
 }
 
 async function render(tagId: string | null) {
-  const [memos, states, tagsByMemo, tags, suggestion, guided, importTokens] = await Promise.all([
+  const [memos, states, tagsByMemo, tags, suggestion, guided, importToken] = await Promise.all([
     getMemos(tagId ?? undefined),
     getMemoReviewStates(),
     getTagsByMemo(),
@@ -47,12 +48,19 @@ async function render(tagId: string | null) {
     getGuided(),
     /*
      * **トークンが読めなくても一覧は出す。** ここで投げると、関係のない
-     * メモの一覧まで空の画面に落ちる。シートは「読めなかった」と示す。
+     * メモの一覧まで空の画面に落ちる。
+     *
+     * **失敗を `null` に潰さない。** `null` は「トークンが無い」と同じ値で、
+     * シートが発行の操作を出してしまう。発行は古い行を消してから作るので
+     * （design D2）、読めなかっただけの利用者の有効なトークンを消させる。
+     * 「読めなかった」は別の値で渡し、シートに操作を出させない。
      */
-    getImportTokens().catch((error) => {
-      console.error("取り込みトークンを読めなかった", error);
-      return null;
-    }),
+    getImportToken()
+      .then((token): ImportTokenState => ({ status: "ok", token }))
+      .catch((error): ImportTokenState => {
+        console.error("取り込みトークンを読めなかった", error);
+        return { status: "error" };
+      }),
   ]);
 
   const rows: MemoRow[] = memos.map((memo) => ({
@@ -74,7 +82,7 @@ async function render(tagId: string | null) {
        * `process.env` から読む（本番では `wrangler secret` で入れ替える）。
        */
       vapidPublicKey={process.env.VAPID_PUBLIC_KEY ?? null}
-      importTokens={importTokens}
+      importToken={importToken}
     />
   );
 }

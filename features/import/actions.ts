@@ -14,14 +14,12 @@ import type { IssueTokenActionResult, RevokeTokenActionResult } from "./types";
  */
 
 /**
- * トークンを発行する。
+ * トークンを発行する。**すでにあれば再発行**（古い行を消してから作る）。
  *
  * 返す平文は**この応答だけ**に載る。データベースにはハッシュしか無いので、
  * 画面を閉じたら二度と読めない（spec「発行と失効」）。
  */
-export async function createImportToken(name: string): Promise<IssueTokenActionResult> {
-  if (typeof name !== "string") return { ok: false, reason: "failed" };
-
+export async function createImportToken(): Promise<IssueTokenActionResult> {
   // 認証の失敗は `redirect()` に任せる。**try の外で呼ぶ**——
   // 中で呼ぶと `NEXT_REDIRECT` を catch が飲み込み、サインインへ飛ばずに
   // ただの失敗になる（`features/memo/actions.ts` と同じ）
@@ -29,8 +27,7 @@ export async function createImportToken(name: string): Promise<IssueTokenActionR
 
   try {
     const db = await getDb();
-    const result = await issueToken(db, { userId, name, now: Date.now() });
-    if (!result.ok) return { ok: false, reason: result.error };
+    const result = await issueToken(db, { userId, now: Date.now() });
 
     refresh();
     return { ok: true, token: result.token, view: result.view };
@@ -40,10 +37,8 @@ export async function createImportToken(name: string): Promise<IssueTokenActionR
   }
 }
 
-/** トークンを失効する。持ち主でないトークンは「無い」として返る。 */
-export async function discardImportToken(tokenId: string): Promise<RevokeTokenActionResult> {
-  if (typeof tokenId !== "string") return { ok: false, reason: "failed" };
-
+/** トークンを失効する（行を消す）。持っていなければ「無い」として返る。 */
+export async function discardImportToken(): Promise<RevokeTokenActionResult> {
   // 認証の失敗は `redirect()` に任せる。**try の外で呼ぶ**——
   // 中で呼ぶと `NEXT_REDIRECT` を catch が飲み込み、サインインへ飛ばずに
   // ただの失敗になる（`features/memo/actions.ts` と同じ）
@@ -51,7 +46,7 @@ export async function discardImportToken(tokenId: string): Promise<RevokeTokenAc
 
   try {
     const db = await getDb();
-    const revoked = await revokeToken(db, { userId, tokenId, now: Date.now() });
+    const revoked = await revokeToken(db, { userId });
     if (!revoked) return { ok: false, reason: "not_found" };
 
     refresh();

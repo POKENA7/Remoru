@@ -185,44 +185,42 @@ export const firstRunState = sqliteTable("first_run_state", {
  * **平文は置かない。** `token_hash` は平文の SHA-256 だけを持つ。表を読めても
  * 使えるトークンには戻せない。平文は発行の応答で一度だけ示す（design D2）。
  *
- * 利用者ごとに複数持てる。端末ごとに分けて失効できるようにするため。
+ * **利用者ごとに1個だけ。** `user_id` を一意にする。再発行は古い行を消して
+ * から作る。失効は行を消す。使う場面が「自分の端末で動くAI」に限られるため、
+ * 端末ごとに分けて失効する必要が無い。名前の列も、見分ける対象が1個しか
+ * 無いので持たない（design D2）。
  */
 export const importTokens = sqliteTable(
   "import_tokens",
   {
     id: text("id").primaryKey(),
     userId: text("user_id").notNull(),
-    /** 利用者が見分けるための名前。 */
-    name: text("name").notNull(),
     /** 平文の SHA-256（16進）。平文そのものは保存しない。 */
     tokenHash: text("token_hash").notNull().unique(),
     createdAt: integer("created_at").notNull(),
-    /** 失効した時刻。失効していなければ null。 */
-    revokedAt: integer("revoked_at"),
   },
-  // 設定の画面は利用者のトークンだけを引く
-  (t) => [index("import_tokens_user_id_idx").on(t.userId)],
+  // 有効なトークンは利用者ごとに1個。画面は利用者のトークンだけを引く
+  (t) => [uniqueIndex("import_tokens_user_id_unique").on(t.userId)],
 );
 
 /**
- * 取り込みの速度の制限の数え上げ。
+ * 取り込みの1日の件数。
  *
- * KV も Durable Objects も無いため（wrangler.jsonc）、メモリ上の数え上げは
- * 分離されたインスタンス間で共有されない。行を置いて数える（design D6）。
+ * 費用の歯止め。費用が増えるのはメモ1件ごとの問答の生成なので、数える単位は
+ * 要求ではなく件数、相手はトークンではなく利用者にする（design D6）。
  *
- * `window_start` はエポックミリ秒を 60000 で割った値。数え上げは厳密では
- * ない。守るのは濫用による費用であり、攻撃の遮断ではないためである。
+ * `day` はエポックミリ秒を 86,400,000 で割った値（UTC の日付）。要求を
+ * 受け付けた時点で、送られた件数を1文の upsert で確保する。
  */
-export const importRateLimits = sqliteTable(
-  "import_rate_limits",
+export const importDailyUsage = sqliteTable(
+  "import_daily_usage",
   {
-    tokenId: text("token_id")
-      .notNull()
-      .references(() => importTokens.id, { onDelete: "cascade" }),
-    windowStart: integer("window_start").notNull(),
+    userId: text("user_id").notNull(),
+    /** UTC の日付。エポックミリ秒を 86,400,000 で割った整数。 */
+    day: integer("day").notNull(),
     count: integer("count").notNull(),
   },
-  (t) => [primaryKey({ columns: [t.tokenId, t.windowStart] })],
+  (t) => [primaryKey({ columns: [t.userId, t.day] })],
 );
 
 /**
@@ -265,3 +263,4 @@ export type ReviewEvent = typeof reviewEvents.$inferSelect;
 export type FirstRunState = typeof firstRunState.$inferSelect;
 export type ImportToken = typeof importTokens.$inferSelect;
 export type NewImportToken = typeof importTokens.$inferInsert;
+export type ImportDailyUsage = typeof importDailyUsage.$inferSelect;

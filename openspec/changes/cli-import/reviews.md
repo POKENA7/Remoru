@@ -59,3 +59,14 @@
 ## 2026-09-27T04:04:59Z  hash=939254f22b8997c20a1238652e53ba6b51b9f7b3343ae7bf0c233b7880c45f28  runner=opencode  model=opencode-go/muse-spark-1.3-contributor  findings=0
 
 差分は委任スクリプトとレビュー実行系の切替え、権限テスト、設計・spec・tasks文書の更新が中心である。正しさの観点で確信できる欠陥（await抜け、条件・境界値の誤り、分離破れ、資源漏れ、守っていない検査、タスクと実装の不一致）は見つからなかった。
+
+## 2026-09-27T05:23:01Z  hash=2ea45cc21801cebf7be4d75e677e845e4d58cb9b75055d4957d7c9538edd8ad7  runner=opencode  model=opencode-go/muse-spark-1.3-contributor  findings=2
+
+読取失敗と空状態の区別喪失と、失効後の平文残留の2件。いずれも単一トークン化で顕在化し、前者は有効トークンの誤削除、後者は無効な秘密鍵の提示につながる。
+
+- app/(app)/_containers/memo-list/container.tsx:52 getImportToken() の失敗を catch で null に潰し、トークン無しと同一視している。Sheet は null を「まだありません」として発行表示に切り替えるため、読取失敗時に既存トークンの再発行を誘発し古い有効トークンを消しかねない。コメントの「読めなかった」と示す主張とも不一致。
+- features/import/components/import-token-sheet.tsx:55 revoke() が issued（発行直後の平文）を消さない。1人1個のため失効は直前に発行した平文を必ず無効化するが、画面には無効な秘密鍵が有効であるかのように残り続け、複写した利用者は401になる。
+
+## 2026-09-27T05:39:25Z  hash=d79ec5584b36c6c6c282192b0c04d9cbab2710599cef5dc04401ed4432817360  runner=opencode  model=opencode-go/muse-spark-1.3-contributor  findings=0
+
+差分全体を確認した。7.1から7.5の実装とテストはタスクの検証条件どおりで、await漏れや条件の取り違え、境界値や利用者分離の破れは見当たらなかった。順序の固定と枠消費の順序も仕様どおりである。

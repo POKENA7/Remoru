@@ -1,52 +1,23 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
+import { importTokens } from "@/db/schema";
 import { createTestDb } from "@/tests/helpers/test-db";
-import { importRateLimits, importTokens } from "@/db/schema";
-import {
-  authenticateToken,
-  issueToken,
-  listTokens,
-  revokeToken,
-  validateTokenName,
-} from "./import-tokens";
-import { takeRateLimit } from "./import-rate-limit";
-import { MAX_TOKEN_NAME_LENGTH } from "./types";
+import { authenticateToken, getTokenView, issueToken, revokeToken } from "./import-tokens";
 
 /** テスト用の利用者。認証導入後は userId が必須になった。 */
 const USER = "user_a";
 const OTHER = "user_b";
 
-describe("validateTokenName", () => {
-  it("空文字を拒否する", () => {
-    expect(validateTokenName("")).toEqual({ ok: false, error: "empty_name" });
-  });
-
-  it("空白文字のみを拒否する", () => {
-    expect(validateTokenName("  　 ")).toEqual({ ok: false, error: "empty_name" });
-  });
-
-  it("前後の空白を除去した名前を返す", () => {
-    expect(validateTokenName("  MacBook  ")).toEqual({ ok: true, name: "MacBook" });
-  });
-
-  it(`${MAX_TOKEN_NAME_LENGTH}文字ちょうどは受け付ける`, () => {
-    const name = "あ".repeat(MAX_TOKEN_NAME_LENGTH);
-    expect(validateTokenName(name)).toEqual({ ok: true, name });
-  });
-
-  it(`${MAX_TOKEN_NAME_LENGTH}文字を超えると拒否する`, () => {
-    expect(validateTokenName("あ".repeat(MAX_TOKEN_NAME_LENGTH + 1))).toEqual({
-      ok: false,
-      error: "too_long_name",
-    });
-  });
-});
+async function countRows(db: ReturnType<typeof createTestDb>, userId: string): Promise<number> {
+  const rows = await db.select().from(importTokens).where(eq(importTokens.userId, userId));
+  return rows.length;
+}
 
 describe("issueToken", () => {
   it("平文を返し、平文そのものは保存しない", async () => {
     const db = createTestDb();
 
-    const result = await issueToken(db, { userId: USER, name: "MacBook", now: 1_700_000_000_000 });
+    const result = await issueToken(db, { userId: USER, now: 1_700_000_000_000 });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -58,32 +29,62 @@ describe("issueToken", () => {
     expect(stored[0].tokenHash).not.toBe(result.token);
     expect(stored[0].tokenHash).toHaveLength(64);
     expect(stored[0].userId).toBe(USER);
-    expect(stored[0].revokedAt).toBeNull();
   });
 
   it("発行のたびに違うトークンを作る", async () => {
     const db = createTestDb();
 
-    const first = await issueToken(db, { userId: USER, name: "A", now: 1 });
-    const second = await issueToken(db, { userId: USER, name: "B", now: 2 });
+    const first = await issueToken(db, { userId: USER, now: 1 });
+    const second = await issueToken(db, { userId: USER, now: 2 });
     expect(first.ok && second.ok).toBe(true);
     if (!first.ok || !second.ok) return;
     expect(first.token).not.toBe(second.token);
   });
 
-  it("空の名前を拒否し、保存しない", async () => {
+  // spec: Scenario「トークンを再発行する」
+  it("再発行すると古い1個が消え、新しい1個だけ残る", async () => {
     const db = createTestDb();
+    const first = await issueToken(db, { userId: USER, now: 1 });
+    if (!first.ok) throw new Error("発行できなかった");
 
-    const result = await issueToken(db, { userId: USER, name: "   ", now: 1 });
-    expect(result.ok).toBe(false);
-    expect(await listTokens(db, USER)).toHaveLength(0);
+    const second = await issueToken(db, { userId: USER, now: 2 });
+    if (!second.ok) throw new Error("再発行できなかった");
+
+    expect(await countRows(db, USER)).toBe(1);
+    expect(await getTokenView(db, USER)).toEqual({ id: second.view.id, createdAt: 2 });
+  });
+
+  // spec: Scenario「トークンを再発行する」
+  it("再発行のあと、古いトークンは null になる", async () => {
+    const db = createTestDb();
+    const first = await issueToken(db, { userId: USER, now: 1 });
+    if (!first.ok) throw new Error("発行できなかった");
+
+    await issueToken(db, { userId: USER, now: 2 });
+
+    expect(await authenticateToken(db, first.token)).toBeNull();
+  });
+
+  it("再発行を挟んでも、もう一方の利用者に影響しない", async () => {
+    const db = createTestDb();
+    const mine = await issueToken(db, { userId: USER, now: 1 });
+    const theirs = await issueToken(db, { userId: OTHER, now: 1 });
+    if (!mine.ok || !theirs.ok) throw new Error("発行できなかった");
+
+    await issueToken(db, { userId: USER, now: 2 });
+
+    expect(await authenticateToken(db, theirs.token)).toEqual({
+      userId: OTHER,
+      tokenId: theirs.view.id,
+    });
+    await expect(getTokenView(db, OTHER)).resolves.toEqual({ id: theirs.view.id, createdAt: 1 });
   });
 });
 
 describe("authenticateToken", () => {
   it("有効なトークンから持ち主を返す", async () => {
     const db = createTestDb();
-    const issued = await issueToken(db, { userId: USER, name: "MacBook", now: 1 });
+    const issued = await issueToken(db, { userId: USER, now: 1 });
     if (!issued.ok) throw new Error("発行できなかった");
 
     expect(await authenticateToken(db, issued.token)).toEqual({
@@ -94,7 +95,7 @@ describe("authenticateToken", () => {
 
   it("知らないトークンを拒否する", async () => {
     const db = createTestDb();
-    await issueToken(db, { userId: USER, name: "MacBook", now: 1 });
+    await issueToken(db, { userId: USER, now: 1 });
 
     expect(await authenticateToken(db, "rem_00000000000000000000000000000000")).toBeNull();
   });
@@ -107,72 +108,68 @@ describe("authenticateToken", () => {
   // spec: Scenario「トークンを失効する」
   it("失効したトークンを拒否する", async () => {
     const db = createTestDb();
-    const issued = await issueToken(db, { userId: USER, name: "MacBook", now: 1 });
+    const issued = await issueToken(db, { userId: USER, now: 1 });
     if (!issued.ok) throw new Error("発行できなかった");
 
-    expect(await revokeToken(db, { userId: USER, tokenId: issued.view.id, now: 2 })).toBe(true);
+    expect(await revokeToken(db, { userId: USER })).toBe(true);
     expect(await authenticateToken(db, issued.token)).toBeNull();
   });
 });
 
 describe("revokeToken", () => {
-  it("他人のトークンは失効できない", async () => {
+  it("失効させると行が消え、有無は null になる", async () => {
     const db = createTestDb();
-    const issued = await issueToken(db, { userId: USER, name: "MacBook", now: 1 });
-    if (!issued.ok) throw new Error("発行できなかった");
+    await issueToken(db, { userId: USER, now: 1 });
 
-    expect(await revokeToken(db, { userId: OTHER, tokenId: issued.view.id, now: 2 })).toBe(false);
-    expect(await authenticateToken(db, issued.token)).not.toBeNull();
+    await revokeToken(db, { userId: USER });
+
+    expect(await countRows(db, USER)).toBe(0);
+    expect(await getTokenView(db, USER)).toBeNull();
+  });
+
+  it("他人のトークンは失効させない", async () => {
+    const db = createTestDb();
+    const mine = await issueToken(db, { userId: USER, now: 1 });
+    const theirs = await issueToken(db, { userId: OTHER, now: 1 });
+    if (!mine.ok || !theirs.ok) throw new Error("発行できなかった");
+
+    expect(await revokeToken(db, { userId: OTHER })).toBe(true);
+
+    // OTHER のものだけ消える
+    expect(await authenticateToken(db, mine.token)).toEqual({
+      userId: USER,
+      tokenId: mine.view.id,
+    });
+    expect(await authenticateToken(db, theirs.token)).toBeNull();
   });
 
   it("存在しないトークンは false を返す", async () => {
     const db = createTestDb();
-    expect(await revokeToken(db, { userId: USER, tokenId: "missing", now: 1 })).toBe(false);
-  });
-
-  it("失効させると速度の制限の数え上げも消す", async () => {
-    const db = createTestDb();
-    const issued = await issueToken(db, { userId: USER, name: "MacBook", now: 1 });
-    if (!issued.ok) throw new Error("発行できなかった");
-    await takeRateLimit(db, { tokenId: issued.view.id, now: 1_700_000_000_000 });
-
-    await revokeToken(db, { userId: USER, tokenId: issued.view.id, now: 2 });
-
-    const rows = await db
-      .select()
-      .from(importRateLimits)
-      .where(eq(importRateLimits.tokenId, issued.view.id));
-    expect(rows).toHaveLength(0);
+    expect(await revokeToken(db, { userId: USER })).toBe(false);
   });
 });
 
-describe("listTokens", () => {
+describe("getTokenView", () => {
   // spec: Scenario「他人のトークンは見えない」
-  it("自分のトークンだけを新しい順に返す", async () => {
+  it("自分のトークンだけを返す", async () => {
     const db = createTestDb();
-    await issueToken(db, { userId: USER, name: "古い", now: 1 });
-    await issueToken(db, { userId: USER, name: "新しい", now: 3 });
-    await issueToken(db, { userId: OTHER, name: "他人", now: 2 });
+    await issueToken(db, { userId: OTHER, now: 1 });
+    await issueToken(db, { userId: USER, now: 3 });
 
-    const rows = await listTokens(db, USER);
-    expect(rows.map((r) => r.name)).toEqual(["新しい", "古い"]);
+    const view = await getTokenView(db, USER);
+    expect(view).toEqual({ id: expect.any(String), createdAt: 3 });
+  });
+
+  it("トークンが無ければ null", async () => {
+    const db = createTestDb();
+    expect(await getTokenView(db, USER)).toBeNull();
   });
 
   it("ハッシュを返さない", async () => {
     const db = createTestDb();
-    await issueToken(db, { userId: USER, name: "MacBook", now: 1 });
+    await issueToken(db, { userId: USER, now: 1 });
 
-    const rows = await listTokens(db, USER);
-    expect(Object.keys(rows[0]).sort()).toEqual(["createdAt", "id", "name", "revokedAt"]);
-  });
-
-  it("失効済みも含めて返す", async () => {
-    const db = createTestDb();
-    const issued = await issueToken(db, { userId: USER, name: "MacBook", now: 1 });
-    if (!issued.ok) throw new Error("発行できなかった");
-    await revokeToken(db, { userId: USER, tokenId: issued.view.id, now: 2 });
-
-    const rows = await listTokens(db, USER);
-    expect(rows[0].revokedAt).toBe(2);
+    const view = await getTokenView(db, USER);
+    expect(Object.keys(view ?? {}).sort()).toEqual(["createdAt", "id"]);
   });
 });

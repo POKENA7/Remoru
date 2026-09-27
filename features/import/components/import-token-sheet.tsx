@@ -4,31 +4,35 @@ import { useState } from "react";
 import { formatDay } from "@/features/memo/types";
 import { Sheet } from "@/features/sheet/sheet";
 import { createImportToken, discardImportToken } from "../actions";
-import { MAX_TOKEN_NAME_LENGTH, type ImportTokenView } from "../types";
+import type { ImportTokenState } from "../types";
 
 /**
  * 取り込みトークンの設定。**取得はしない**（design D10）。
  *
- * トークンはメモの一覧の描画でサーバーが読み、props で届く。
+ * トークンはメモの一覧の描画でサーバーが読み、props で届く。利用者ごとに
+ * 1個なので、一覧ではなく有無を示す（design D2）。
  *
  * 外枠は共通の `<Sheet>` を使う。閉じる手段（外側・引く・ボタン・Escape）と
  * 焦点の復帰を1箇所に持つためである（`sheet` の要件）。
+ *
+ * **この画面は第二段階の途中である**——`/settings/api` への移動と、再発行・
+ * 失効の確認は 7.6 で行う。
  */
 export function ImportTokenSheet({
-  tokens,
+  tokenState,
   onClose,
 }: {
-  /** 発行済みのトークン。ハッシュは含まれない。読めなかったときは null */
-  tokens: ImportTokenView[] | null;
+  /**
+   * トークンの状態。**「読めなかった」を「無い」と混ぜない。**
+   * 読めなかったときに発行を出すと、有効なトークンを消させてしまう（design D2）。
+   */
+  tokenState: ImportTokenState;
   onClose: () => void;
 }) {
   /** いま発行した平文。**この画面を閉じると消える。** サーバーには残らない */
   const [issued, setIssued] = useState<string | null>(null);
-  const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  /** 失効の確認を出しているトークン。同じ位置の二度押しで消えないようにする */
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   async function issue(): Promise<void> {
     if (busy) return;
@@ -37,19 +41,12 @@ export function ImportTokenSheet({
     setIssued(null);
 
     try {
-      const result = await createImportToken(name);
+      const result = await createImportToken();
       if (!result.ok) {
-        setNotice(
-          result.reason === "empty_name"
-            ? "名前を入力してください"
-            : result.reason === "too_long_name"
-              ? `名前は${MAX_TOKEN_NAME_LENGTH}文字までです`
-              : "発行できませんでした。もう一度お試しください",
-        );
+        setNotice("発行できませんでした。もう一度お試しください");
         return;
       }
       setIssued(result.token);
-      setName("");
     } catch {
       // action に辿り着けない失敗（圏外・配備後の古い識別子）
       setNotice("発行できませんでした。もう一度お試しください");
@@ -58,13 +55,13 @@ export function ImportTokenSheet({
     }
   }
 
-  async function revoke(tokenId: string): Promise<void> {
+  async function revoke(): Promise<void> {
     if (busy) return;
     setBusy(true);
     setNotice(null);
 
     try {
-      const result = await discardImportToken(tokenId);
+      const result = await discardImportToken();
       if (!result.ok) {
         setNotice(
           result.reason === "not_found"
@@ -73,7 +70,8 @@ export function ImportTokenSheet({
         );
         return;
       }
-      setConfirmingId(null);
+      // 1人1個なので、失効は直前に発行した平文も無効にする。残すと複写して401になる
+      setIssued(null);
     } catch {
       setNotice("失効できませんでした。もう一度お試しください");
     } finally {
@@ -81,7 +79,9 @@ export function ImportTokenSheet({
     }
   }
 
-  const canIssue = !busy && name.trim().length > 0;
+  /** 読めたときだけ操作を出す。読めなかったときは発行も失効もさせない */
+  const token = tokenState.status === "ok" ? tokenState.token : null;
+  const readable = tokenState.status === "ok";
 
   return (
     <Sheet label="AIとつなぐ" onClose={onClose}>
@@ -89,98 +89,53 @@ export function ImportTokenSheet({
       <p className="muted">コマンドを実行するAIから、メモを登録できるようにします。</p>
 
       <div className="field">
-        <p className="field-label">新しく発行する</p>
-        <div className="token-issue">
-          <input
-            className="input"
-            value={name}
-            placeholder="名前（MacBook など）"
-            aria-label="トークンの名前"
-            maxLength={MAX_TOKEN_NAME_LENGTH}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <button
-            type="button"
-            className="btn btn-orange"
-            disabled={!canIssue}
-            onClick={() => void issue()}
-          >
-            発行
-          </button>
-        </div>
-
-        {issued !== null && (
-          <>
-            <p className="token-plain">{issued}</p>
-            <p className="hint">この文字列は一度しか出ません。閉じると読めなくなります</p>
-          </>
-        )}
-
-        {notice !== null && (
-          <p className="error" role="alert">
-            {notice}
-          </p>
-        )}
-      </div>
-
-      <div className="field">
         <p className="field-label">発行済み</p>
-        {tokens === null ? (
+        {!readable ? (
           <p className="muted">いま読めませんでした。開き直してください</p>
-        ) : tokens.length === 0 ? (
+        ) : token === null ? (
           <p className="muted">まだありません</p>
         ) : (
-          <ul className="token-list">
-            {tokens.map((token) =>
-              confirmingId === token.id ? (
-                <li key={token.id} className="token-row">
-                  <div>
-                    <b>{token.name}</b>
-                    <p className="muted">失効しますか。元に戻せません</p>
-                  </div>
-                  <span className="token-actions">
-                    <button
-                      type="button"
-                      className="btn btn-plain"
-                      disabled={busy}
-                      onClick={() => void revoke(token.id)}
-                    >
-                      失効する
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-plain"
-                      disabled={busy}
-                      onClick={() => setConfirmingId(null)}
-                    >
-                      やめる
-                    </button>
-                  </span>
-                </li>
-              ) : (
-                <li key={token.id} className="token-row">
-                  <div>
-                    <b>{token.name}</b>
-                    <p className="muted">
-                      {token.revokedAt === null ? formatDay(token.createdAt) : "失効済み"}
-                    </p>
-                  </div>
-                  {token.revokedAt === null && (
-                    <button
-                      type="button"
-                      className="btn btn-plain"
-                      disabled={busy}
-                      onClick={() => setConfirmingId(token.id)}
-                    >
-                      失効
-                    </button>
-                  )}
-                </li>
-              ),
-            )}
-          </ul>
+          <p className="muted">発行日 {formatDay(token.createdAt)}</p>
         )}
       </div>
+
+      {issued !== null && (
+        <div className="field">
+          <p className="token-plain">{issued}</p>
+          <p className="hint">この文字列は一度しか出ません。閉じると読めなくなります</p>
+        </div>
+      )}
+
+      {notice !== null && (
+        <p className="error" role="alert">
+          {notice}
+        </p>
+      )}
+
+      {readable && (
+        <div className="field">
+          <div className="token-issue">
+            <button
+              type="button"
+              className="btn btn-orange"
+              disabled={busy}
+              onClick={() => void issue()}
+            >
+              {token === null ? "発行" : "再発行"}
+            </button>
+            {token !== null && (
+              <button
+                type="button"
+                className="btn btn-plain"
+                disabled={busy}
+                onClick={() => void revoke()}
+              >
+                失効
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="sheet-foot">
         <button type="button" className="btn btn-plain" onClick={onClose}>

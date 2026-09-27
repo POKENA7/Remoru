@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "1fa7ac11-01bb-4dee-91f0-abf3ca36738c",
+  "id": "b336ae2f-e897-4ee7-850c-968c0c9f1b04",
   "prevId": "afa08f78-2638-441a-9308-440163ec4acb",
   "tables": {
     "first_run_state": {
@@ -28,18 +28,18 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "import_rate_limits": {
-      "name": "import_rate_limits",
+    "import_daily_usage": {
+      "name": "import_daily_usage",
       "columns": {
-        "token_id": {
-          "name": "token_id",
+        "user_id": {
+          "name": "user_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "window_start": {
-          "name": "window_start",
+        "day": {
+          "name": "day",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -54,28 +54,14 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "import_rate_limits_token_id_import_tokens_id_fk": {
-          "name": "import_rate_limits_token_id_import_tokens_id_fk",
-          "tableFrom": "import_rate_limits",
-          "tableTo": "import_tokens",
-          "columnsFrom": [
-            "token_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {
-        "import_rate_limits_token_id_window_start_pk": {
+        "import_daily_usage_user_id_day_pk": {
           "columns": [
-            "token_id",
-            "window_start"
+            "user_id",
+            "day"
           ],
-          "name": "import_rate_limits_token_id_window_start_pk"
+          "name": "import_daily_usage_user_id_day_pk"
         }
       },
       "uniqueConstraints": {},
@@ -98,13 +84,6 @@
           "notNull": true,
           "autoincrement": false
         },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
         "token_hash": {
           "name": "token_hash",
           "type": "text",
@@ -118,13 +97,6 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
-        },
-        "revoked_at": {
-          "name": "revoked_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -135,12 +107,12 @@
           ],
           "isUnique": true
         },
-        "import_tokens_user_id_idx": {
-          "name": "import_tokens_user_id_idx",
+        "import_tokens_user_id_unique": {
+          "name": "import_tokens_user_id_unique",
           "columns": [
             "user_id"
           ],
-          "isUnique": false
+          "isUnique": true
         }
       },
       "foreignKeys": {},

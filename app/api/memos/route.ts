@@ -1,13 +1,9 @@
 import {
   badRequestResponse,
-  importMemos,
-  parseImportBody,
-  rateLimitedResponse,
-  tooManyItemsResponse,
+  importMemosResponse,
+  listMemosResponse,
   unauthorizedResponse,
 } from "@/features/import/import-api";
-import { takeRateLimit } from "@/features/import/import-rate-limit";
-import { listMemosForApi } from "@/features/import/import-read";
 import { getImportRequestContext } from "@/features/import/request-context";
 
 /**
@@ -26,12 +22,6 @@ export async function POST(request: Request): Promise<Response> {
   const context = await getImportRequestContext(request);
   if (context === null) return unauthorizedResponse();
 
-  const now = Date.now();
-
-  // 費用を守るための数え上げ（design D6）。登録だけに掛ける
-  const rate = await takeRateLimit(context.db, { tokenId: context.tokenId, now });
-  if (!rate.ok) return rateLimitedResponse(rate.retryAfterSeconds);
-
   let body: unknown;
   try {
     body = await request.json();
@@ -39,23 +29,15 @@ export async function POST(request: Request): Promise<Response> {
     return badRequestResponse("invalid_body");
   }
 
-  const parsed = parseImportBody(body);
-  if (!parsed.ok) {
-    return parsed.reason === "too_many"
-      ? tooManyItemsResponse()
-      : badRequestResponse(parsed.reason);
-  }
-
-  const results = await importMemos({
+  // 解釈・確保・保存の順序は `importMemosResponse` が持つ（design D6）
+  return await importMemosResponse({
     db: context.db,
     userId: context.userId,
-    contents: parsed.contents,
-    now,
+    rawBody: body,
+    now: Date.now(),
     apiKey: process.env.ANTHROPIC_API_KEY,
     defer: context.defer,
   });
-
-  return Response.json({ results });
 }
 
 /** 自分のメモを新しい順に返す。`tag` と `limit` を付けられる。 */
@@ -63,24 +45,11 @@ export async function GET(request: Request): Promise<Response> {
   const context = await getImportRequestContext(request);
   if (context === null) return unauthorizedResponse();
 
-  const params = new URL(request.url).searchParams;
-
-  const rawTag = params.get("tag");
-  if (rawTag !== null && rawTag.length === 0) return badRequestResponse("invalid_tag");
-  const tagId = rawTag ?? undefined;
-
-  const rawLimit = params.get("limit");
-  const limit = rawLimit === null ? undefined : Number(rawLimit);
-  if (limit !== undefined && (!Number.isInteger(limit) || limit <= 0)) {
-    return badRequestResponse("invalid_limit");
-  }
-
-  const memos = await listMemosForApi(context.db, {
+  // 検索条件の解釈と応答の組み立ては `listMemosResponse` が持つ（design D4）
+  return await listMemosResponse({
+    db: context.db,
     userId: context.userId,
-    tagId,
-    limit,
+    searchParams: new URL(request.url).searchParams,
     now: Date.now(),
   });
-
-  return Response.json({ memos });
 }

@@ -10,7 +10,7 @@ const USER = "user_a";
 describe("authenticateImportHeader", () => {
   it("トークンから持ち主を返す", async () => {
     const db = createTestDb();
-    const issued = await issueToken(db, { userId: USER, name: "MacBook", now: 1 });
+    const issued = await issueToken(db, { userId: USER, now: 1 });
     if (!issued.ok) throw new Error("発行できなかった");
 
     expect(await authenticateImportHeader(`Bearer ${issued.token}`, db)).toEqual({
@@ -36,9 +36,9 @@ describe("authenticateImportHeader", () => {
 
   it("失効したトークンは null", async () => {
     const db = createTestDb();
-    const issued = await issueToken(db, { userId: USER, name: "MacBook", now: 1 });
+    const issued = await issueToken(db, { userId: USER, now: 1 });
     if (!issued.ok) throw new Error("発行できなかった");
-    await revokeToken(db, { userId: USER, tokenId: issued.view.id, now: 2 });
+    await revokeToken(db, { userId: USER });
 
     expect(await authenticateImportHeader(`Bearer ${issued.token}`, db)).toBeNull();
   });

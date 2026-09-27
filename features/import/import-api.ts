@@ -1,6 +1,8 @@
-import { type ValidationError, createMemo } from "@/features/memo/memos";
+import { createMemo, type ValidationError } from "@/features/memo/memos";
 import { type Deferrer, startGeneration } from "@/features/quiz/quiz-generation-run";
 import type { AppDb } from "../../db/types";
+import { takeDailyUsage } from "./import-daily-usage";
+import { listMemosForApi } from "./import-read";
 
 /**
  * 取り込みAPIの要求の解釈と、登録の実行。
@@ -35,9 +37,15 @@ export function tooManyItemsResponse(): Response {
   return Response.json({ error: "too_many" }, { status: 400 });
 }
 
-export function rateLimitedResponse(retryAfterSeconds: number): Response {
+/**
+ * 1日の上限に当たったときの応答（design D6）。
+ *
+ * `retry-after` に翌日（UTC）までの秒数、本文に**その日の残り件数**を入れる。
+ * CLI が「あと何件送れるか」と「いつ再開できるか」を示せるようにする。
+ */
+export function rateLimitedResponse(retryAfterSeconds: number, remaining: number): Response {
   return Response.json(
-    { error: "rate_limited" },
+    { error: "rate_limited", remaining },
     { status: 429, headers: { "retry-after": String(retryAfterSeconds) } },
   );
 }
@@ -79,6 +87,10 @@ export function parseImportBody(raw: unknown): ParsedImportBody {
  *
  * **1件の失敗で他を止めない**（design D5）。応答は件ごとに返す。
  * 保存は生成を待たない（`quiz-generation` spec）。
+ *
+ * **保存時刻は「受け付けた時刻 + 配列の中の位置（ミリ秒）」**（design D5）。
+ * 同じ時刻で保存すると、一覧の順序が `id`（ランダムな UUID）の順になり、
+ * 1件ずつ順に登録したときと食い違う。配列の後ろの件ほど新しくする。
  */
 export async function importMemos(params: {
   db: AppDb;
@@ -90,12 +102,14 @@ export async function importMemos(params: {
 }): Promise<ImportItemResult[]> {
   const results: ImportItemResult[] = [];
 
-  for (const content of params.contents) {
+  for (const [index, content] of params.contents.entries()) {
+    // 配列の中の位置だけずらす。ずれは最大で19ミリ秒
+    const now = params.now + index;
     let memoId: string;
     try {
       const created = await createMemo(params.db, {
         content,
-        now: params.now,
+        now,
         userId: params.userId,
       });
       if (!created.ok) {
@@ -118,7 +132,7 @@ export async function importMemos(params: {
       await startGeneration(params.db, {
         memoId,
         userId: params.userId,
-        now: params.now,
+        now,
         apiKey: params.apiKey,
         defer: params.defer,
       });
@@ -128,4 +142,92 @@ export async function importMemos(params: {
   }
 
   return results;
+}
+
+/**
+ * `POST /api/memos` の本文を1つの応答にまとめる。
+ *
+ * **経路は認証とこの呼び出しだけを行う**（design D3）。ここに置くのは、
+ * `app/api` が `server-only` を持つ `request-context.ts` を通すため、経路
+ * そのものをテストから呼べないからである。順序（解釈 → 確保 → 保存）を
+ * ここで固定し、テストで確かめる。
+ *
+ * 順序は design D6 のとおり。**本文の解釈のあと、保存の前**に1日の件数を
+ * 確保する。検証落ちの件も確保に数える。読み取り（`GET`）はここを通らない。
+ */
+export async function importMemosResponse(params: {
+  db: AppDb;
+  userId: string;
+  rawBody: unknown;
+  now: number;
+  apiKey: string | undefined | null;
+  defer: Deferrer;
+}): Promise<Response> {
+  const parsed = parseImportBody(params.rawBody);
+  if (!parsed.ok) {
+    return parsed.reason === "too_many"
+      ? tooManyItemsResponse()
+      : badRequestResponse(parsed.reason);
+  }
+
+  const usage = await takeDailyUsage(params.db, {
+    userId: params.userId,
+    count: parsed.contents.length,
+    now: params.now,
+  });
+  if (!usage.ok) return rateLimitedResponse(usage.retryAfterSeconds, usage.remaining);
+
+  const results = await importMemos({
+    db: params.db,
+    userId: params.userId,
+    contents: parsed.contents,
+    now: params.now,
+    apiKey: params.apiKey,
+    defer: params.defer,
+  });
+
+  return Response.json({ results });
+}
+
+export type ParsedListQuery =
+  | { ok: true; tagId?: string; limit?: number }
+  | { ok: false; reason: "invalid_tag" | "invalid_limit" };
+
+/** 一覧の検索条件を解釈する。空の `tag` と不正な `limit` は全体を拒む。 */
+export function parseListMemosQuery(searchParams: URLSearchParams): ParsedListQuery {
+  const rawTag = searchParams.get("tag");
+  if (rawTag !== null && rawTag.length === 0) return { ok: false, reason: "invalid_tag" };
+
+  const rawLimit = searchParams.get("limit");
+  const limit = rawLimit === null ? undefined : Number(rawLimit);
+  if (limit !== undefined && (!Number.isInteger(limit) || limit <= 0)) {
+    return { ok: false, reason: "invalid_limit" };
+  }
+
+  return { ok: true, tagId: rawTag ?? undefined, limit };
+}
+
+/**
+ * `GET /api/memos` の応答を組み立てる。
+ *
+ * **読み取りは1日の件数に数えない**（design D6）。`takeDailyUsage` を呼ばない
+ * ことをここで固定する。経路そのものはテストから呼べない（design D3）。
+ */
+export async function listMemosResponse(params: {
+  db: AppDb;
+  userId: string;
+  searchParams: URLSearchParams;
+  now: number;
+}): Promise<Response> {
+  const query = parseListMemosQuery(params.searchParams);
+  if (!query.ok) return badRequestResponse(query.reason);
+
+  const memos = await listMemosForApi(params.db, {
+    userId: params.userId,
+    tagId: query.tagId,
+    limit: query.limit,
+    now: params.now,
+  });
+
+  return Response.json({ memos });
 }

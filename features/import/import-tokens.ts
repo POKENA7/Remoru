@@ -1,13 +1,17 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
-import { importRateLimits, importTokens } from "../../db/schema";
+import { eq } from "drizzle-orm";
+import { importTokens } from "../../db/schema";
 import type { AppDb } from "../../db/types";
-import { MAX_TOKEN_NAME_LENGTH, type ImportTokenView, type TokenNameError } from "./types";
+import type { ImportTokenView } from "./types";
 
 /**
  * 取り込みトークンのドメイン。
  *
  * **平文は保存しない。** 保存するのは SHA-256 だけである。表を読めても
  * 使えるトークンには戻せない（design D2）。
+ *
+ * **有効なトークンは利用者ごとに1個。** 発行はその利用者の古い行を消して
+ * から作る（再発行）。失効は行を消す。失効済みの行を残さないので、一覧に
+ * 溜まることも無い。
  *
  * ここは `(db, userId, …)` を受け取る純関数だけを置く。認証事業者も
  * フレームワークも import しない（design D3）。
@@ -18,28 +22,6 @@ export const TOKEN_PREFIX = "rem_";
 
 /** 乱数の長さ（バイト）。256 ビット。 */
 const TOKEN_BYTES = 32;
-
-export type ValidatedTokenName = { ok: true; name: string } | { ok: false; error: TokenNameError };
-
-/**
- * 名前を検証し、保存に使う正規化済みの文字列を返す。
- *
- * 検証の失敗は想定された結果なので例外ではなく戻り値で表す。
- */
-export function validateTokenName(raw: string): ValidatedTokenName {
-  const name = raw.trim();
-
-  if (name.length === 0) {
-    return { ok: false, error: "empty_name" };
-  }
-
-  // 絵文字などのサロゲートペアを1文字として数える
-  if ([...name].length > MAX_TOKEN_NAME_LENGTH) {
-    return { ok: false, error: "too_long_name" };
-  }
-
-  return { ok: true, name };
-}
 
 /** 平文を作る。 */
 function randomToken(): string {
@@ -55,95 +37,66 @@ async function hashToken(token: string): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-function toView(row: {
-  id: string;
-  name: string;
-  createdAt: number;
-  revokedAt: number | null;
-}): ImportTokenView {
-  return { id: row.id, name: row.name, createdAt: row.createdAt, revokedAt: row.revokedAt };
+function toView(row: { id: string; createdAt: number }): ImportTokenView {
+  return { id: row.id, createdAt: row.createdAt };
 }
 
-export type IssueTokenResult =
-  | { ok: true; token: string; view: ImportTokenView }
-  | { ok: false; error: TokenNameError };
+export type IssueTokenResult = { ok: true; token: string; view: ImportTokenView };
 
 /**
- * トークンを1つ発行する。
+ * トークンを発行する。**再発行は古い行を消してから作る**（design D2）。
  *
  * 返す平文を保存するのは**呼び出し側の画面だけ**であり、二度と読めない
  * （spec「トークンの平文を二度と示しては MUST NOT ならない」）。
  */
 export async function issueToken(
   db: AppDb,
-  params: { userId: string; name: string; now: number },
+  params: { userId: string; now: number },
 ): Promise<IssueTokenResult> {
-  const validated = validateTokenName(params.name);
-  if (!validated.ok) return validated;
-
   const token = randomToken();
   const row = {
     id: crypto.randomUUID(),
     userId: params.userId,
-    name: validated.name,
     tokenHash: await hashToken(token),
     createdAt: params.now,
-    revokedAt: null,
   };
+
+  // 古い行を消してから作る。有効なトークンを1個に保つ
+  await db.delete(importTokens).where(eq(importTokens.userId, params.userId));
   await db.insert(importTokens).values(row);
 
   return { ok: true, token, view: toView(row) };
 }
 
-/** 利用者のトークンを新しい順に返す。**ハッシュは返さない。** */
-export async function listTokens(db: AppDb, userId: string): Promise<ImportTokenView[]> {
+/** 利用者のトークンを返す。無ければ null。**ハッシュは返さない。** */
+export async function getTokenView(db: AppDb, userId: string): Promise<ImportTokenView | null> {
   const rows = await db
-    .select({
-      id: importTokens.id,
-      name: importTokens.name,
-      createdAt: importTokens.createdAt,
-      revokedAt: importTokens.revokedAt,
-    })
+    .select({ id: importTokens.id, createdAt: importTokens.createdAt })
     .from(importTokens)
-    .where(eq(importTokens.userId, userId))
-    // 同じ発行時刻のときの順序を決定的にするため id を第二キーに使う
-    .orderBy(desc(importTokens.createdAt), desc(importTokens.id));
+    .where(eq(importTokens.userId, userId));
 
-  return rows;
+  return rows[0] ?? null;
 }
 
 /**
- * トークンを失効する。**持ち主でなければ何もしない。**
+ * 利用者のトークンを失効する（行を消す）。**持ち主でなければ何もしない。**
  *
- * すでに失効済みなら true を返し、時刻は書き換えない（何度押しても同じ結果）。
- * あわせて速度の制限の数え上げを消す。失効したトークンはもう数えない。
+ * 消せたら true。元から無ければ false。
  */
-export async function revokeToken(
-  db: AppDb,
-  params: { userId: string; tokenId: string; now: number },
-): Promise<boolean> {
-  const owned = await db
-    .select({ id: importTokens.id, revokedAt: importTokens.revokedAt })
-    .from(importTokens)
-    .where(and(eq(importTokens.id, params.tokenId), eq(importTokens.userId, params.userId)));
+export async function revokeToken(db: AppDb, params: { userId: string }): Promise<boolean> {
+  const rows = await db
+    .delete(importTokens)
+    .where(eq(importTokens.userId, params.userId))
+    .returning({ id: importTokens.id });
 
-  if (owned.length === 0) return false;
-
-  await db.delete(importRateLimits).where(eq(importRateLimits.tokenId, params.tokenId));
-  if (owned[0].revokedAt !== null) return true;
-
-  await db
-    .update(importTokens)
-    .set({ revokedAt: params.now })
-    .where(eq(importTokens.id, params.tokenId));
-
-  return true;
+  return rows.length > 0;
 }
 
 /**
- * 平文から持ち主を引く。失効済みと知らないトークンはどちらも null。
+ * 平文から持ち主を引く。知らないトークンは null。
  *
- * **失効と不在を区別しない。** 呼び出し側はどちらも401にする。
+ * 行そのものを消す失効なので、失効済みを別に弾く必要は無い。呼び出し側は
+ * null を401にする。
  */
 export async function authenticateToken(
   db: AppDb,
@@ -155,7 +108,7 @@ export async function authenticateToken(
   const rows = await db
     .select({ userId: importTokens.userId, tokenId: importTokens.id })
     .from(importTokens)
-    .where(and(eq(importTokens.tokenHash, await hashToken(token)), isNull(importTokens.revokedAt)));
+    .where(eq(importTokens.tokenHash, await hashToken(token)));
 
   return rows[0] ?? null;
 }
