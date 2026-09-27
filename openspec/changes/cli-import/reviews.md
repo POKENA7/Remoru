@@ -90,3 +90,11 @@
 ## 2026-09-27T11:23:44Z  hash=384b2ae69c5d6d7199b0bedc5a0881b85cc283b66c33d77e8aeaca1ce6115bda  runner=opencode  model=opencode-go/muse-spark-1.3-contributor  findings=0
 
 差分は tasks.md の 7.9 への追記2行のみで、コード・条件・境界・分離・資源・検査の挙動を変えない。7.9 は未完了のまま明示されており完了主張との不一致もない。正しさの欠陥は見当たらない。
+
+## 2026-09-27T12:52:37Z  hash=b80ffdbccd76a4f5f23f2d39e4222942000b77b5a43508417c3da5c1cb0242e9  runner=opencode  model=opencode-go/muse-spark-1.3-contributor  findings=0
+
+この差分は tasks.md に未完了の節 8（8.1〜8.3 を [ ] のまま）を足すだけで、コード・条件・境界・分離・資源・検査の変更を含まない。[x] の主張と対応する実装の不一致も、この差分の範囲には無い。
+
+## 2026-09-27T12:59:32Z  hash=e965d3d7529448b72eb31a35b66b8f52b8a005aaebb74573a504de8803f6ef6e  runner=opencode  model=opencode-go/muse-spark-1.3-contributor  findings=0
+
+差分は tasks.md への未完了確認8章の追記と failures.jsonl への失敗記録1行のみで、実行コードの変更を含まない。新規に [x] 化されたタスクはなく、対応が必要な実装・テストの欠落もない。認証分離・境界値・資源管理に関わる正しさの欠陥は認められない。
