@@ -1,7 +1,7 @@
 ---
 name: remoru
 description: Remoru に調査結果のうち覚えたい箇所を登録する。ユーザが「覚えておきたい」「Remoru に登録して」と言ったとき、または調査の結果から残すべき事実を選ぶときに使う。Register research results into Remoru.
-allowed-tools: Bash(node:*)
+allowed-tools: Bash(node {{REMORU_CLI}}:*)
 ---
 
 # Remoru に登録する
@@ -19,29 +19,27 @@ Remoru は、日常の小さな事実を書きとめ、忘れたころにクイ�
 
 ## 手順
 
-Remoru のリポジトリのルートで実行する。
-
 ```bash
 # 1. 候補をファイルにする。空行で区切った1ブロックが1メモになる
 # 2. 送らずに、送る内容をユーザに示す
-node cli/remoru.ts memo add -f /tmp/remoru-candidates.md --dry-run
+node {{REMORU_CLI}} memo add -f /tmp/remoru-candidates.md --dry-run
 
 # 3. ユーザの確認を得てから確定する
-node cli/remoru.ts memo add -f /tmp/remoru-candidates.md
+node {{REMORU_CLI}} memo add -f /tmp/remoru-candidates.md
 
 # 4. 入ったことを確かめる
-node cli/remoru.ts memo list --limit 5
+node {{REMORU_CLI}} memo list --limit 5
 ```
 
 登録した1件を確かめるときは `memo show <id>` を使う。
 
 ## 準備（初回だけ）
 
-ユーザがアプリの「AIとつなぐ」で発行したトークンを保存する。
+ユーザがアプリのアカウントのメニューの「API トークン」（`/settings/api`）で発行したトークンを保存する。
 **トークンは一度しか表示されない。** ユーザが持っていなければ、アプリでの発行を依頼する。
 
 ```bash
-node cli/remoru.ts login
+node {{REMORU_CLI}} login
 ```
 
 ## 守ること
@@ -49,4 +47,4 @@ node cli/remoru.ts login
 - **確認を飛ばさない。** `--dry-run` の結果をユーザに見せ、確認を得てから送る
 - **ユーザの言葉を残す。** 要約で意味を変えない。ユーザが「これ」と指した箇所の内容を保つ
 - 失敗したら、登録できた件とできなかった件を分けてユーザに示す
-- 終了コードが 2 のときは入力の使い方の誤りである（本文が空、値の付け忘れなど）。`node cli/remoru.ts help` を見る
+- 終了コードが 2 のときは入力の使い方の誤りである（本文が空、値の付け忘れなど）。`node {{REMORU_CLI}} help` を見る

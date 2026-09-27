@@ -25,6 +25,25 @@ describe("parseArgs", () => {
     expect(parseArgs(["logout"])).toEqual({ kind: "logout" });
   });
 
+  it("skill install は --dir を受ける", () => {
+    expect(parseArgs(["skill", "install", "--dir", "/tmp/remoru"])).toEqual({
+      kind: "skill-install",
+      dir: "/tmp/remoru",
+    });
+  });
+
+  it("skill install は --dir が無ければ null（既定の置き場を使う）", () => {
+    expect(parseArgs(["skill", "install"])).toEqual({ kind: "skill-install", dir: null });
+  });
+
+  it("skill install は --dir の値の付け忘れをエラーにする", () => {
+    expect(parseArgs(["skill", "install", "--dir"]).kind).toBe("error");
+  });
+
+  it("skill で使えるのは install だけ", () => {
+    expect(parseArgs(["skill", "remove"]).kind).toBe("error");
+  });
+
   it("memo add は本文を1件として受ける", () => {
     expect(parseArgs(["memo", "add", "近所のパン屋は火曜定休"])).toEqual({
       kind: "memo-add",

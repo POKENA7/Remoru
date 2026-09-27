@@ -64,8 +64,10 @@ B（本の適用。この順。B1 と B2 は並列可）
 `check:build` に依存する）。
 
 **この計画に含まれない change:** `cli-import`（AI からの取り込み。`app/api` を戻す）。
-A1〜A5 と並行してよい。ただしメモ画面（`memo-screen.tsx` `memo-tab.tsx`）と
-`app/(app)/_containers/memo-list/` を触るので、**B3 とはどちらかを先にする。**
+A1〜A5 と並行してよい。メモ画面に触れるのは `memo-tab.tsx` の `UserButton` に
+「API トークン」の `UserButton.Link` を1つ足すだけで、**一覧の初期表示で読むものは増えない**
+（トークンの画面は `/settings/api` の別経路にある）。重なるのはこの1か所なので、
+**B3 とはどちらかを先にすればよい。**
 
 ---
 

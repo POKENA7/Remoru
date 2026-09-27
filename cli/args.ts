@@ -9,12 +9,14 @@
  *   remoru memo list [--tag <名前またはid>] [--limit <件数>] [--json]
  *   remoru memo show <id> [--json]
  *   remoru tag list [--json]
+ *   remoru skill install [--dir <置き場>]
  */
 
 export type ParsedCommand =
   | { kind: "help" }
   | { kind: "login"; token: string | null }
   | { kind: "logout" }
+  | { kind: "skill-install"; dir: string | null }
   | {
       kind: "memo-add";
       contents: string[];
@@ -60,6 +62,14 @@ export function parseArgs(argv: string[]): ParsedCommand {
 
   if (first === "logout") {
     return { kind: "logout" };
+  }
+
+  if (first === "skill") {
+    const [sub, ...skillRest] = rest;
+    if (sub !== "install") return usage("skill で使えるのは install だけです");
+    const dir = optionValue(skillRest, "--dir");
+    if (dir === "") return usage("--dir には値が要ります");
+    return { kind: "skill-install", dir };
   }
 
   if (first === "tag") {

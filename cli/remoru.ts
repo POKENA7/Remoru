@@ -13,6 +13,7 @@ import {
   reportAdd,
 } from "./output.ts";
 import { apiBaseUrl, clearToken, readToken } from "./store.ts";
+import { defaultSkillDir, installSkill } from "./skill.ts";
 
 /**
  * Remoru のコマンド。
@@ -43,6 +44,8 @@ const HELP = `Remoru のコマンド
     --json                        結果をJSONで出す
   remoru tag list                 タグを出す
     --json                        結果をJSONで出す
+  remoru skill install            調査するAIが読む手順の文書を置く
+    --dir <置き場>                置き場（既定 ~/.claude/skills/remoru）
 
 環境変数:
   REMORU_API_URL     あて先（既定 ${apiBaseUrl()}）
@@ -74,6 +77,8 @@ async function main(argv: string[]): Promise<number> {
       return await memoShow(command);
     case "tag-list":
       return await tagList(command.json);
+    case "skill-install":
+      return skillInstall(command.dir);
   }
 }
 
@@ -271,6 +276,27 @@ async function tagList(json: boolean): Promise<number> {
   }
 
   console.log(tags.map(formatTag).join("\n"));
+  return 0;
+}
+
+/** 調査するAIが読む手順の文書を、利用者単位の置き場へ置く（design D9）。 */
+function skillInstall(dir: string | null): number {
+  const target = dir ?? defaultSkillDir();
+
+  let result: ReturnType<typeof installSkill>;
+  try {
+    result = installSkill(target);
+  } catch {
+    console.error(`手順の文書を置けませんでした: ${target}`);
+    return 1;
+  }
+
+  if (!result.ok) {
+    console.error(result.message);
+    return 1;
+  }
+
+  console.log(`置きました: ${result.path}`);
   return 0;
 }
 
